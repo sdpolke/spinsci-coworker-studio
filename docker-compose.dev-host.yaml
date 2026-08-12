@@ -1,0 +1,7 @@
+# Host-managed dev override: avoid port conflicts with a local Postgres install.
+# Usage:
+#   docker compose -f docker-compose-local.yaml -f docker-compose.dev-host.yaml up -d
+services:
+  postgres:
+    ports: !override
+      - "5433:5432"

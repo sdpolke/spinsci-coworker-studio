@@ -1,0 +1,333 @@
+{
+  "name": "SpinSci Appointments PoC v10 - Structured Speech",
+  "workflow_definition": {
+    "nodes": [
+      {
+        "id": "spinsci_identity_start_call",
+        "position": {
+          "x": -13.488760436737323,
+          "y": 188.0706486833654
+        },
+        "type": "startCall",
+        "data": {
+          "tool_uuids": null,
+          "document_uuids": null,
+          "mcp_tool_filters": null,
+          "extraction_enabled": false,
+          "extraction_prompt": null,
+          "extraction_variables": [
+            {
+              "name": "appointment_action",
+              "type": "string",
+              "prompt": "The caller's appointment intent: search availability or list appointments."
+            },
+            {
+              "name": "patient_id",
+              "type": "string",
+              "prompt": "Verified SpinSci patient id after phone lookup."
+            }
+          ],
+          "prompt": "The configured welcome greeting has already been spoken. Do not greet again, repeat it, or add any words before it or after it. Wait silently for the caller to respond. Capture whether they want to find available appointment times or list upcoming appointments, then continue to identity verification.",
+          "allow_interrupt": true,
+          "add_global_prompt": true,
+          "name": "Start Call",
+          "is_start": true,
+          "is_end": false,
+          "greeting": "Thank you for calling SpinSci. This is SpinSci AI, your virtual assistant. To ensure your call is routed correctly, please provide the provider, specialty, or location you are trying to reach, along with the reason for your call today.",
+          "greeting_type": "text",
+          "greeting_recording_id": null,
+          "delayed_start": false,
+          "delayed_start_duration": null,
+          "pre_call_fetch_enabled": false,
+          "pre_call_fetch_url": null,
+          "pre_call_fetch_credential_uuid": null,
+          "invalid": false,
+          "selected_through_edge": false,
+          "hovered_through_edge": false,
+          "validationMessage": null
+        },
+        "measured": {
+          "width": 400,
+          "height": 219
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "spinsci_identity_agent",
+        "position": {
+          "x": 210.11303789338467,
+          "y": 543.1470777135517
+        },
+        "type": "agentNode",
+        "data": {
+          "tool_uuids": [
+            "c684bda2-db81-48cb-b2ea-2842dd24b9ff",
+            "5982975f-2ed0-48fa-9c2c-04990b17ab5a"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": null,
+          "extraction_enabled": false,
+          "extraction_prompt": null,
+          "extraction_variables": [
+            {
+              "name": "appointment_action",
+              "type": "string",
+              "prompt": "The caller's appointment intent: search availability or list appointments."
+            },
+            {
+              "name": "patient_id",
+              "type": "string",
+              "prompt": "Verified SpinSci patient id after phone lookup."
+            }
+          ],
+          "prompt": "Verify the caller before any appointment lookup. Follow this state machine and perform only the current step.\n\nPHONE NEEDED: Say exactly: 'Could you please provide the phone number for the patient?' Then wait.\nPHONE RECEIVED BUT NOT CONFIRMED: Read the ten digits back in three groups using this exact pattern: 'I have [digit 1] [digit 2] [digit 3]. [digit 4] [digit 5] [digit 6]. [digit 7] [digit 8] [digit 9] [digit 10]. Is that correct?' Replace each bracketed digit with the corresponding spoken digit. Then wait.\nPHONE CONFIRMED: Call spinsci_lookup_patient_by_phone immediately. Do not speak before the tool call.\nNO MATCH: Say exactly: 'I wasn’t able to find a record with that phone number. Could you try a different number?' Then wait.\nONE MATCH: The patient is selected. If the appointment intent is already known, call the matching transition immediately in the same turn.\nMULTIPLE MATCHES: Offer the matching first names as spoken choices, for example 'I found Michelle, Joseph, and August. Which patient should I use?' Do not read sex or date of birth when the names are unique. If names repeat, add only the minimum date needed to distinguish them, spoken as 'August second, nineteen eighty-one'. Then wait.\nPATIENT CHOSEN: Call spinsci_select_patient immediately with the matching patient number. Do not ask the caller to repeat a clear name or option number.\nPATIENT SELECTED: Say exactly: 'Thank you for confirming.' The workflow then continues automatically to list appointments or search availability when intent is already known. Do not wait for the caller to ask again.\n\nTransitions to appointment search or appointment listing are silent. Never say 'Okay, I’ll check', 'one moment', 'hang tight', or any other handoff filler.\nNever say 'Which one are you?' Say 'Which patient should I use?'\nNever include stage directions such as 'waiting for your reply'.\nUse at most one tool per turn. Never call availability or appointment-list tools here.\nNew patient registration is not available in this workflow.\nRoute to search availability for find-time intents, or to list appointments for upcoming-appointment intents.",
+          "allow_interrupt": true,
+          "add_global_prompt": true,
+          "name": "Identity Gate",
+          "is_start": false,
+          "is_end": false,
+          "invalid": false,
+          "selected_through_edge": false,
+          "hovered_through_edge": false,
+          "validationMessage": null
+        },
+        "measured": {
+          "width": 400,
+          "height": 316
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "spinsci_book_agent",
+        "position": {
+          "x": 473.04816955684,
+          "y": -86.36994219653181
+        },
+        "type": "agentNode",
+        "data": {
+          "tool_uuids": [
+            "5982975f-2ed0-48fa-9c2c-04990b17ab5a",
+            "e20c93ce-69cd-4ef6-906d-ad43c1a7e0bb"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": null,
+          "extraction_enabled": false,
+          "extraction_prompt": null,
+          "extraction_variables": null,
+          "prompt": "Help the caller find available appointment times in this read-only demo. Follow only the current turn state.\n\nSPECIALTY NEEDED: Ask one short question offering Primary Care or Cardiology, then wait. Never call it a department when speaking to the caller.\nVISIT REASON NEEDED: Say exactly: 'What is the reason for your visit today?' Then wait. Do not ask this if the caller already gave a clear reason.\nWELLNESS AND SYMPTOM BOTH MENTIONED: Replace the symptom placeholder and say exactly: 'Just to make sure I schedule the right type of visit — are you looking for an annual wellness exam, or would you like to be seen for your [symptom]?' Then wait.\nSPECIALTY AND VISIT REASON KNOWN: Call spinsci_search_availability immediately for the currently selected patient. Do not speak before the tool call.\nRESULT FOUND: Give a compact spoken summary. Group repeated department, month, and year once. Speak dates and times naturally, with no Markdown or numbered-list formatting. Offer at most three slots in one turn, then say exactly: 'I have a few more as well. Would you like me to continue, or does one of those sound right?'\nNO RESULTS: Say no openings were found and ask whether to try the other department.\nDIFFERENT PATIENT REQUESTED: Call spinsci_select_patient with that patient's number. Ask for a department only if it is not already known; otherwise search on the next turn. Never call two tools in one turn.\nPREFERRED SLOT CHOSEN: Say only: 'I can help you find available times, but I can’t book or change appointments in this demonstration.'\nRESULTS FINISHED: Say exactly: 'Before you go, is there anything else I can help you with?' Then wait.\n\nUse at most one tool per turn and ask at most one question.",
+          "allow_interrupt": true,
+          "add_global_prompt": true,
+          "name": "Search Availability",
+          "is_start": false,
+          "is_end": false,
+          "invalid": false,
+          "selected_through_edge": false,
+          "hovered_through_edge": false,
+          "validationMessage": null
+        },
+        "measured": {
+          "width": 400,
+          "height": 290
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "spinsci_book_complete",
+        "position": {
+          "x": 932,
+          "y": -142.66666666666666
+        },
+        "type": "endCall",
+        "data": {
+          "extraction_enabled": false,
+          "extraction_prompt": null,
+          "extraction_variables": null,
+          "prompt": "Say exactly: 'Thank you for calling SpinSci. Have a great day.' Do not add any other words and do not repeat the available times.",
+          "allow_interrupt": false,
+          "add_global_prompt": true,
+          "name": "Search Complete",
+          "is_start": false,
+          "is_end": true,
+          "invalid": false,
+          "selected_through_edge": false,
+          "hovered_through_edge": false,
+          "validationMessage": null
+        },
+        "measured": {
+          "width": 400,
+          "height": 173
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "spinsci_manage_agent",
+        "position": {
+          "x": 772.4919717405267,
+          "y": 508.3673731535003
+        },
+        "type": "agentNode",
+        "data": {
+          "tool_uuids": [
+            "5982975f-2ed0-48fa-9c2c-04990b17ab5a",
+            "9dc6a209-0bc2-4472-a14b-3e609adc5ca0"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": null,
+          "extraction_enabled": false,
+          "extraction_prompt": null,
+          "extraction_variables": null,
+          "prompt": "Help the caller hear upcoming appointments in this read-only demo. Follow only the current turn state.\n\nON ENTRY FROM IDENTITY WITH EXISTING TOOL RESULT: If spinsci_list_appointments results are already in the conversation, summarize them immediately. Do not call the tool again.\nON ENTRY OR AFTER PATIENT SELECTION (no prior list result): Call spinsci_list_appointments immediately. Do not ask for information already collected and do not speak before the tool call.\nRESULT FOUND: Give a compact spoken summary. Start with the number of appointments. Group repeated visit type, provider, month, and year once. Speak dates and times naturally, with no Markdown or numbered-list formatting. For example: 'I found five office visits with Physician in August twenty twenty-six: August seventh at eight thirty A M, August eighth at two thirty P M...' Do not repeat 'office visit' or 'with Physician' for every item. Read at most three appointments in one turn, then say exactly: 'I have a few more as well. Would you like me to continue, or does one of those sound right?'\nNO RESULTS: Say no upcoming appointments were found in one short sentence.\nDIFFERENT PATIENT REQUESTED: Call spinsci_select_patient with that patient's number. On the next turn, call spinsci_list_appointments. Never try both tools in one turn.\nRESCHEDULE OR CANCEL REQUESTED: Briefly explain that this demo is read-only.\n\nAfter all requested results are given, say exactly: 'Before you go, is there anything else I can help you with?' Then wait. Use at most one tool per turn.",
+          "allow_interrupt": true,
+          "add_global_prompt": true,
+          "name": "List Appointments",
+          "is_start": false,
+          "is_end": false,
+          "invalid": false,
+          "selected_through_edge": false,
+          "hovered_through_edge": false,
+          "validationMessage": null
+        },
+        "measured": {
+          "width": 400,
+          "height": 290
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "spinsci_manage_complete",
+        "position": {
+          "x": 1000,
+          "y": 180
+        },
+        "type": "endCall",
+        "data": {
+          "extraction_enabled": false,
+          "extraction_prompt": null,
+          "extraction_variables": null,
+          "prompt": "Say exactly: 'Thank you for calling SpinSci. Have a great day.' Do not add any other words and do not repeat the appointment list.",
+          "allow_interrupt": false,
+          "add_global_prompt": true,
+          "name": "List Complete",
+          "is_start": false,
+          "is_end": true,
+          "invalid": false,
+          "selected_through_edge": false,
+          "hovered_through_edge": false,
+          "validationMessage": null
+        },
+        "measured": {
+          "width": 400,
+          "height": 173
+        },
+        "selected": false,
+        "dragging": false
+      },
+      {
+        "id": "spinsci_global",
+        "position": {
+          "x": -10.26846499678868,
+          "y": -112.878612716763
+        },
+        "type": "globalNode",
+        "data": {
+          "prompt": "You are a friendly clinic appointment assistant on a phone call (SpinSci PoC).\n\nVOICE OUTPUT RULES:\n- Return plain spoken text only. Never use Markdown, bullets, headings, asterisks, parentheses, brackets, stage directions, or XML.\n- Keep each turn brief and conversational. Ask at most one question, then stop and wait silently for the caller.\n- Do not say phrases such as 'waiting for your reply' or narrate internal actions.\n- Never speak tool status prefixes such as FOUND, EMPTY, ERROR, or BLOCKED.\n- Any instruction marked 'Say exactly' is mandatory script wording. Speak that sentence verbatim, with no introduction, explanation, or paraphrase.\n- Speak dates naturally. Say 'August second, nineteen ninety', never 'August 2 1990' or digit-by-digit years such as 'one nine nine zero'.\n- Speak times naturally. Say 'eight thirty A M', never '8 : 30 AM'.\n- Say option numbers as words, such as 'option one'. Do not format numbered lists.\n- When several results share a visit type, provider, month, or year, say the shared detail once and then read only the differing dates and times.\n\nTURN RULES:\n- Use at most one tool per turn. After a tool result, either give the result or make the single next workflow transition; do not repeat a question already answered.\n- Workflow handoffs are silent. Never say 'one moment', 'hang tight', or announce that you are transferring between workflow steps.\n- Only pass values the caller explicitly provided or selected from a tool result.\nNever output tool calls as text, XML, JSON, or function names.\nNever invent appointment times, ids, or availability — only speak what tools return.\nThis PoC is read-only: you can look up patients, search slots, and list appointments, but cannot book, reschedule, or register new patients.\nWhen reading phone numbers or confirmation ids, use short natural digit groups.",
+          "allow_interrupt": false,
+          "add_global_prompt": true,
+          "name": "SpinSci Booking Persona",
+          "is_start": false,
+          "is_end": false,
+          "invalid": false,
+          "validationMessage": null
+        },
+        "measured": {
+          "width": 400,
+          "height": 219
+        },
+        "selected": false,
+        "dragging": false
+      }
+    ],
+    "edges": [
+      {
+        "id": "spinsci_edge_start_to_identity",
+        "source": "spinsci_identity_start_call",
+        "target": "spinsci_identity_agent",
+        "data": {
+          "label": "Begin identity",
+          "condition": "The caller responded to the greeting.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null,
+          "invalid": false,
+          "validationMessage": null
+        }
+      },
+      {
+        "id": "spinsci_edge_identity_to_book",
+        "source": "spinsci_identity_agent",
+        "target": "spinsci_book_agent",
+        "data": {
+          "label": "Search availability",
+          "condition": "The patient is identified (patient_id is known) AND the caller wants to find or check available appointment times.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null,
+          "invalid": false,
+          "validationMessage": null
+        }
+      },
+      {
+        "id": "spinsci_edge_identity_to_manage",
+        "source": "spinsci_identity_agent",
+        "target": "spinsci_manage_agent",
+        "data": {
+          "label": "List appointments",
+          "condition": "The patient is identified (patient_id is known) AND the caller wants to hear their upcoming appointments.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null,
+          "invalid": false,
+          "validationMessage": null
+        }
+      },
+      {
+        "id": "spinsci_edge_book_to_complete",
+        "source": "spinsci_book_agent",
+        "target": "spinsci_book_complete",
+        "data": {
+          "label": "Search done",
+          "condition": "Available times have been shared AND the caller clearly says they are finished, says goodbye, or declines further help.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null,
+          "invalid": false,
+          "validationMessage": null
+        }
+      },
+      {
+        "id": "spinsci_edge_manage_to_complete",
+        "source": "spinsci_manage_agent",
+        "target": "spinsci_manage_complete",
+        "data": {
+          "label": "List done",
+          "condition": "The results have been read AND the caller clearly says they are finished, says goodbye, or declines further help.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null,
+          "invalid": false,
+          "validationMessage": null
+        }
+      }
+    ],
+    "viewport": {
+      "x": 127.79745837342739,
+      "y": 168.87990722299526,
+      "zoom": 0.7071021534322095
+    }
+  }
+}

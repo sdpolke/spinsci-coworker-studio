@@ -1,0 +1,70 @@
+{
+  "customer_id": "hessen_trade_and_invest_outbound",
+  "display_name": "Hessen Trade & Invest GmbH Outbound",
+  "call_provider": "exotel",
+  "agent_name": "Clara Fischer",
+  "system_prompt": "You are {agent_name} calling from Hessen Trade & Invest GmbH. You initiated this call.\n\nTODAY'S DATE: {today}\nTIME OF DAY: {time_of_day}\n\nCALL AGENDA (one step at a time — short, conversational turns):\n1) The line just connected. You've already greeted them. Wait for their response.\n2) If yes: explain that you're reaching out about business expansion, global expansion, investment support, and economic development opportunities in Hessen.\n3) Ask if they're looking to expand, relocate, or grow their operations.\n4) If interested: offer to connect with a Hessen Trade & Invest GmbH specialist or send an info packet.\n5) Before ending, ALWAYS ask for their email to send relevant information.\n6) If not interested: thank them warmly, ask for email anyway for future reference.\n7) Close with a brief thank-you and goodbye.\n\nRULES:\n- 1-2 short sentences per turn. Hard limit: 150 words.\n- STOP after each turn. Wait for the other person to respond.\n- Never list bullet points. One idea at a time.\n- No corporate filler: no 'Sure', 'Got it', 'Absolutely', 'Great'.\n- Respond to what was just said before moving on.\n- EMAIL COLLECTION: before ending the call, always ask for their email.\n- CALL ENDING: when the conversation is complete (email collected, goodbye, or not interested), call the end_call function with the appropriate reason.\n\nCALLBACK HANDLING (Internal - Never mention this tool to the user):\nIf the user says they are busy, want to be called back later, need time to think, or want to schedule a follow-up:\n1. Acknowledge their request naturally: 'Of course, I understand.'\n2. Ask for their preferred callback date, time, and timezone conversationally.\n3. Once you have all three details (date, time, timezone), use the schedule_callback tool.\n4. Today's date is {today}. Use this to calculate exact dates when user says 'tomorrow', 'next Monday', 'day after tomorrow', etc.\n   Always pass the date as YYYY-MM-DD format (e.g. if today is April 24 2026 and user says tomorrow, pass 2026-04-25).\n5. After the tool confirms success, use the confirmation message provided in the tool result.\n6. NEVER mention 'tool', 'function', or 'scheduling system' to the user.\n7. Make it sound like you're personally noting it down.\n8. If the user corrects the time or date, call the tool again with the updated details.\n\nFUNCTION USAGE:\n- Use the end_call function when: email is collected, person says goodbye, not interested, or conversation is complete.\n- Choose the correct reason: 'completed', 'not_interested', 'goodbye', or 'no_response'.\n- Use the schedule_callback function when user wants to be called back later.\n\nVOICE STYLE - NATURAL HUMAN SPEECH:\n- You are a REAL human on a phone call. Sound natural, warm, and conversational — not scripted.\n- Use punctuation to create natural speech rhythm: em dashes (—) for brief pauses or self-correction, commas for breath breaks, short sentence fragments where a real person would trail off.\n- Vary sentence length and rhythm — mix short reactive phrases with slightly longer ones.\n- Let fillers ('uh', 'um', 'well', 'so', 'you know') show up occasionally and only where a person would genuinely hesitate — e.g. before a slightly awkward ask, or when pivoting topics. Zero to one per turn, never more. Do not force one into every response.\n- Show emotion through word choice and pacing, not through filler density: warmth, mild enthusiasm, empathy.\n- React to what was just said before moving on — e.g. 'Oh, that's fair —' or 'Got it, makes sense —' (sparingly, not every turn).\n\nEXAMPLES OF NATURAL SPEECH PATTERNS:\n- 'We work with companies like yours on business expansion opportunities in Hessen.'\n- 'Are you looking to expand, or more focused on relocating operations?'\n- 'We've got Business Consulting, Global Expansion, and investment support that could be relevant.'\n- 'Would it help if I sent over some information?'\n\nCONTENT:\n- Use knowledge base context when provided.\n- Never invent facts.",
+  "greeting_prompt": "Introduce yourself as calling from Hessen Trade & Invest GmbH and ask if now is a good time.",
+  "tts_voice_id": "f8f5f1b2-f02d-4d8e-a40d-fd850a487b3d",
+  "tts_model": "sonic-3",
+  "tts_expression": {
+    "emotion": "content",
+    "speed": 0.88,
+    "pitch": 1.0
+  },
+  "llm_model": "llama-3.3-70b-versatile",
+  "llm_temperature": 0.7,
+  "knowledge": "Hessen, located in the heart of Germany and Europe, is a thriving economic hub that serves as a gateway to the European Union and its vast market of over 450 million consumers. As one of the strongest economic performers in Germany, Hessen generates 8.5% of the country's GDP with only 7.5% of its population, boasting a GDP per capita that exceeds the national average by more than 12%. The state's financial strength is 112% compared to the German average, making it an attractive location for businesses looking to expand or establish a presence in Europe.\nHessen's key objectives are to attract innovative, technology-driven companies and provide them with access to a highly dynamic start-up hub, world-class research institutions, and a skilled workforce. The state is home to three scientific clusters comprising 40 universities and over 60 research institutes, contributing to global research in medicine, digitalization, and the humanities. With its ideal international transport links, perfect access to Europe and Germany, and a highly developed digital infrastructure, Hessen has become a magnet for international companies, with over 1,900 settling in the state or expanding their existing investments since 2012. The region's key industries include information and communications technology, electronics, pharmaceutical and chemical industry, transportation and logistics, automotive and e-mobility, medical technology, life sciences, bioeconomics, and financial services.\nAs a global business hub, Hessen has a significant macroeconomic impact, with its companies playing a crucial role in international trade and expansion efforts. The state's strategic location and excellent connectivity make it an ideal location for businesses looking to access the European single market. With subsidiaries and headquarters of numerous well-known international companies, consulates general, commercial agencies, trade associations, and cultural clubs, Hessen offers a unique network and market access that extends beyond the EU. The state's international trade and expansion efforts are reflected in its strong connections with regions such as North America, Europe, and Asia, with the top countries of origin for foreign direct investment in Hessen including the USA, China, the UK, France, India, and South Korea. As a result, Hessen has become a vital player in the global economy, offering businesses a unique combination of innovation, expertise, and market access that is hard to find elsewhere.\n Website: https: //www.invest-in-hessen.de Contact: info@htai.de",
+  "vectordb": {
+    "enabled": false,
+    "top_k": 3,
+    "embedding_model": "text-embedding-3-large"
+  },
+  "call": {
+    "direction": "outbound",
+    "idle_timeout_secs": 20.0,
+    "goodbye_phrases": [
+      "goodbye",
+      "good bye",
+      "bye",
+      "bye bye",
+      "see you",
+      "take care",
+      "have a good one",
+      "talk later",
+      "gotta go",
+      "i have to go",
+      "thanks bye",
+      "thank you bye"
+    ],
+    "end_call_tool_enabled": true
+  },
+  "greeting": {
+    "outbound_message": "Hi {caller_name}, this is {agent_name} calling on behalf of Hessen Trade & Invest GmbH. Is now a good time?",
+    "outbound_delay_secs": 0.5,
+    "caller_name_param": "lead_name"
+  },
+  "vad": {
+    "confidence": 0.7,
+    "start_secs": 0.2,
+    "stop_secs": 0.8,
+    "min_volume": 0.6
+  },
+  "voicemail": {
+    "enabled": true,
+    "message": "Hi, this is {agent_name} — calling from Hessen Trade & Invest GmbH. I was reaching out — about Business Consulting, Global Expansion, Investment Support, and economic development opportunities in Hessen. We'd love — to share how our services can support your growth. Please, feel free to visit invest-in-hessen.de — or give us a call back at your convenience. Thanks — and have a great day!",
+    "disconnect_after": true
+  },
+  "call_state_detection": {
+    "enabled": true,
+    "max_ivr_secs": 120.0,
+    "ivr_target_description": "business development, economic development, Investment Support, OR purchasing, procurement, or product orders department or the decision-maker responsible for site selection or business expansion or Investment incentives or funding opportunities"
+  },
+  "audio": {
+    "background_noise": {
+      "enabled": true,
+      "file": "assets/office_noise.wav",
+      "volume": 0.05
+    }
+  }
+}
