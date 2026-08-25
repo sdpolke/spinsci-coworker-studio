@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost } from '@/client/sdk.gen';
+import { AgentBuilderChat } from '@/app/workflow/create/components/AgentBuilderChat';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -18,14 +18,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useWorkflowGeneration } from '@/hooks/useWorkflowGeneration';
 import { useAuth } from '@/lib/auth';
-import logger from '@/lib/logger';
 
 export default function CreateWorkflowPage() {
     const router = useRouter();
     const { user, getAccessToken } = useAuth();
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [workflowId, setWorkflowId] = useState<string | null>(null);
 
@@ -33,45 +31,38 @@ export default function CreateWorkflowPage() {
     const [useCase, setUseCase] = useState('');
     const [activityDescription, setActivityDescription] = useState('');
 
-    const handleCreateWorkflow = async () => {
-        if (!useCase || !activityDescription) {
-            setError('Please fill in all fields');
+    const {
+        phase,
+        session,
+        draft,
+        setDraft,
+        error,
+        isBusy,
+        startSession,
+        sendMessage,
+        generateWorkflow,
+    } = useWorkflowGeneration({ getAccessToken });
+
+    const handleStart = async () => {
+        if (!useCase.trim() || !activityDescription.trim()) {
             return;
         }
-
         if (!user) {
-            setError('You must be logged in to create a workflow');
             return;
         }
 
-        setIsLoading(true);
-        setError(null);
+        await startSession({
+            call_type: callType,
+            use_case: useCase.trim(),
+            activity_description: activityDescription.trim(),
+        });
+    };
 
-        try {
-            const accessToken = await getAccessToken();
-
-            // Call the API to create workflow from template
-            const response = await createWorkflowFromTemplateApiV1WorkflowCreateTemplatePost({
-                body: {
-                    call_type: callType,
-                    use_case: useCase,
-                    activity_description: activityDescription,
-                },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
-            });
-
-            if (response.data?.id) {
-                setWorkflowId(String(response.data.id));
-                setShowSuccessModal(true);
-            }
-        } catch (err) {
-            setError('Failed to create workflow. Please try again.');
-            logger.error(`Error creating workflow: ${err}`);
-        } finally {
-            setIsLoading(false);
-        }
+    const handleGenerate = async () => {
+        const id = await generateWorkflow();
+        if (!id) return;
+        setWorkflowId(String(id));
+        setShowSuccessModal(true);
     };
 
     const handleModalContinue = () => {
@@ -79,141 +70,143 @@ export default function CreateWorkflowPage() {
         router.push(`/workflow/${workflowId}?onboarding=web_call`);
     };
 
+    const showBriefForm = phase === 'brief';
+    const showChat = phase !== 'brief';
+
     return (
         <div className="min-h-screen">
             <div className="container mx-auto px-4 py-8 max-w-2xl">
                 <div className="mb-6">
                     <h1 className="text-3xl font-bold mb-2">Create Voice Agent</h1>
                     <p className="text-muted-foreground">
-                        Tell us about your use case and we&apos;ll create a customized voice agent for you
+                        Describe your use case, answer a few clarifying questions, then generate a workflow.
                     </p>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Agent Details</CardTitle>
-                        <CardDescription>
-                            Configure your voice agent settings
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="call-type">Call Type</Label>
-                            <Select value={callType} onValueChange={(value) => setCallType(value as 'inbound' | 'outbound')}>
-                                <SelectTrigger id="call-type">
-                                    <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="inbound">
-                                        Inbound (Users call AI)
-                                    </SelectItem>
-                                    <SelectItem value="outbound">
-                                        Outbound (AI calls users)
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p className="text-sm text-muted-foreground">
-                                Choose whether users will call your AI or your AI will call users
-                            </p>
-                        </div>
+                {showBriefForm ? (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Agent Details</CardTitle>
+                            <CardDescription>
+                                Start with a brief description of what your voice agent should do.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="call-type">Call Type</Label>
+                                <Select
+                                    value={callType}
+                                    onValueChange={(value) => setCallType(value as 'inbound' | 'outbound')}
+                                >
+                                    <SelectTrigger id="call-type">
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="inbound">
+                                            Inbound (Users call AI)
+                                        </SelectItem>
+                                        <SelectItem value="outbound">
+                                            Outbound (AI calls users)
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="use-case">Use Case</Label>
-                            <Input
-                                id="use-case"
-                                placeholder="e.g., Lead Qualification, HR Screening, Customer Support"
-                                value={useCase}
-                                onChange={(e) => setUseCase(e.target.value)}
-                            />
-                            <p className="text-sm text-muted-foreground">
-                                Describe the primary purpose of your voice agent
-                            </p>
-                        </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="use-case">Use Case</Label>
+                                <Input
+                                    id="use-case"
+                                    placeholder="e.g., Lead Qualification, HR Screening, Customer Support"
+                                    value={useCase}
+                                    onChange={(event) => setUseCase(event.target.value)}
+                                />
+                            </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="activity-description">Activity Description</Label>
-                            <Textarea
-                                id="activity-description"
-                                placeholder="Describe briefly what your voice agent will do (e.g., Qualify leads for real estate, Screen candidates for roles, Handle customer support). This will be a prompt to an LLM."
-                                value={activityDescription}
-                                onChange={(e) => setActivityDescription(e.target.value)}
-                                className="min-h-[100px]"
-                            />
-                            <p className="text-sm text-muted-foreground">
-                                This description will be used to generate the AI prompt for your voice agent
-                            </p>
-                        </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="activity-description">Activity Description</Label>
+                                <Textarea
+                                    id="activity-description"
+                                    placeholder="Describe what the voice agent should accomplish on the call."
+                                    value={activityDescription}
+                                    onChange={(event) => setActivityDescription(event.target.value)}
+                                    className="min-h-[100px]"
+                                />
+                            </div>
 
-                        {error && (
-                            <p className="text-sm text-red-500">{error}</p>
-                        )}
+                            {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
-                        <div className="pt-4">
                             <Button
-                                onClick={handleCreateWorkflow}
-                                disabled={isLoading || !useCase || !activityDescription}
+                                type="button"
                                 className="w-full"
+                                disabled={isBusy || !useCase.trim() || !activityDescription.trim() || !user}
+                                onClick={() => void handleStart()}
                             >
-                                {isLoading ? 'Creating...' : 'Create Agent'}
+                                {isBusy ? 'Starting...' : 'Continue to clarifications'}
                             </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Agent Builder</CardTitle>
+                            <CardDescription>
+                                {phase === 'ready'
+                                    ? 'Review the plan, then generate your workflow.'
+                                    : 'Answer the assistant’s questions to refine the workflow plan.'}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <AgentBuilderChat
+                                messages={session?.messages ?? []}
+                                summary={session?.summary ?? null}
+                                plan={session?.plan ?? null}
+                                draft={draft}
+                                isBusy={isBusy}
+                                showComposer={phase === 'clarifying'}
+                                showGenerate={phase === 'ready'}
+                                onDraftChange={setDraft}
+                                onSend={() => void sendMessage()}
+                                onGenerate={() => void handleGenerate()}
+                            />
+
+                            {error ? <p className="text-sm text-red-500">{error}</p> : null}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
-            {/* Loading Overlay */}
-            {isLoading && (
+            {isBusy && phase === 'generating' ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <Card className="w-full max-w-md p-8">
                         <div className="flex flex-col items-center space-y-6">
-                            {/* Animated spinner */}
                             <div className="relative">
-                                <div className="w-16 h-16 border-4 border-muted rounded-full"></div>
-                                <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-primary rounded-full animate-spin"></div>
+                                <div className="w-16 h-16 border-4 border-muted rounded-full" />
+                                <div className="absolute top-0 left-0 w-16 h-16 border-4 border-transparent border-t-primary rounded-full animate-spin" />
                             </div>
-
                             <div className="text-center space-y-2">
-                                <h3 className="text-lg font-semibold">
-                                    Creating Your Workflow
-                                </h3>
+                                <h3 className="text-lg font-semibold">Generating Your Workflow</h3>
                                 <p className="text-sm text-muted-foreground max-w-xs">
-                                    We&apos;re setting up your voice agent with your specifications. This will just take a moment...
+                                    Compiling and validating your voice agent workflow...
                                 </p>
                             </div>
                         </div>
                     </Card>
                 </div>
-            )}
+            ) : null}
 
-            {/* Success Modal */}
             <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Workflow Created Successfully!
-                        </DialogTitle>
+                        <DialogTitle>Workflow Created Successfully</DialogTitle>
                         <DialogDescription asChild>
                             <div className="mt-4 space-y-3">
-                                <p>
-                                    A voice agent workflow has been generated for your use case, with some artificial data and sample actions.
-                                </p>
-                                <p>
-                                    The voice bot is pre-set to communicate in English with an American accent.
-                                </p>
-                                <p>
-                                    Next steps would be to test the voice bot in the editor, and then modify it to suit your use case.
-                                </p>
+                                <p>Your workflow has been generated and saved.</p>
+                                <p>Open the editor to review nodes, test the agent, and refine prompts.</p>
                             </div>
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="mt-6">
-                        <Button
-                            onClick={handleModalContinue}
-                            className="w-full"
-                        >
+                        <Button type="button" onClick={handleModalContinue} className="w-full">
                             Open and Test Agent
                         </Button>
                     </DialogFooter>

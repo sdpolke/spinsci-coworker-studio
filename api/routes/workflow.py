@@ -6,17 +6,14 @@ from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from httpx import HTTPStatusError
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
 
-from api.constants import DEPLOYMENT_MODE
 from api.db import db_client
 from api.db.agent_trigger_client import TriggerPathConflictError
 from api.db.models import UserModel
 from api.db.workflow_template_client import WorkflowTemplateClient
 from api.enums import CallType, PostHogEvent, StorageBackend, WorkflowStatus
-from api.errors.mps import MPS_UNAVAILABLE_PUBLIC_MESSAGE, MPSUnavailableError
 from api.schemas.ai_model_configuration import OrganizationAIModelConfigurationV2
 from api.schemas.workflow import WorkflowRunResponseSchema
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
@@ -41,7 +38,12 @@ from api.services.configuration.resolve import (
     enrich_overrides_with_api_keys,
     resolve_effective_config,
 )
-from api.services.mps_service_key_client import mps_service_key_client
+from api.services.workflow.generation.harness import (
+    WorkflowGenerationError,
+    generate_workflow_one_shot,
+    workflow_response_payload,
+)
+from api.services.workflow.generation.models import GenerationBrief
 from api.services.posthog_client import capture_event
 from api.services.reports import generate_workflow_report_csv
 from api.services.storage import storage_fs
@@ -528,57 +530,6 @@ async def create_workflow(
     }
 
 
-def _local_blank_workflow_from_template_request(
-    request: CreateWorkflowTemplateRequest,
-) -> dict:
-    """Build a blank startCall workflow seeded with the user's NL description.
-
-    Used when MPS AI template generation is unavailable (typical in local OSS).
-    """
-    prompt = (
-        "# Goal\n"
-        f"You are a helpful voice agent for: {request.use_case}.\n\n"
-        f"## Activity\n{request.activity_description}\n\n"
-        "## Rules\n"
-        "- Keep responses short (2-3 sentences max)\n"
-        "- This is a voice conversation; transcripts can be error prone\n"
-        "- Accept variations: yes/yeah/yep, no/nah/nope\n"
-        "- If the user asks you to repeat, rephrase what you just said\n\n"
-        f"### Flow\n"
-        f"This is a {request.call_type} call. Start by greeting the caller briefly, "
-        "then work through the activity above."
-    )
-    return {
-        "name": f"{request.use_case} - {request.call_type}",
-        "workflow_definition": {
-            "nodes": [
-                {
-                    "id": "1",
-                    "type": "startCall",
-                    "position": {"x": 175, "y": 60},
-                    "data": {
-                        "prompt": prompt,
-                        "name": "start call",
-                        "allow_interrupt": False,
-                        "invalid": False,
-                        "validationMessage": None,
-                        "add_global_prompt": False,
-                        "delayed_start": False,
-                        "is_start": True,
-                        "selected_through_edge": False,
-                        "hovered_through_edge": False,
-                        "extraction_enabled": False,
-                        "selected": False,
-                        "dragging": False,
-                    },
-                }
-            ],
-            "edges": [],
-            "viewport": {"x": 808, "y": 269, "zoom": 0.75},
-        },
-    }
-
-
 @router.post("/create/template")
 async def create_workflow_from_template(
     request: CreateWorkflowTemplateRequest,
@@ -587,134 +538,27 @@ async def create_workflow_from_template(
     """
     Create a new workflow from a natural language template request.
 
-    This endpoint:
-    1. Uses mps_service_key_client to call MPS workflow API
-    2. Passes organization ID (authenticated mode) or created_by (OSS mode)
-    3. Creates the workflow in the database
-
-    In OSS mode, if MPS is unreachable, falls back to a local blank workflow
-    seeded with the use case and activity description.
-
-    Args:
-        request: The template creation request with call_type, use_case, and activity_description
-        user: The authenticated user
-
-    Returns:
-        The created workflow
-
-    Raises:
-        HTTPException: If MPS API call fails (non-OSS) or creation fails
+    Uses the local agentic workflow generator (OpenAI-compatible model) to
+    compile and persist a validated workflow in one shot.
     """
+    if not user.selected_organization_id:
+        raise HTTPException(status_code=400, detail="No organization selected")
+
+    brief = GenerationBrief(
+        call_type=request.call_type,
+        use_case=request.use_case,
+        activity_description=request.activity_description,
+    )
+
     try:
-        used_local_fallback = False
-        try:
-            # Call MPS API to generate workflow using the client
-            if DEPLOYMENT_MODE == "oss":
-                workflow_data = await mps_service_key_client.call_workflow_api(
-                    call_type=request.call_type.upper(),
-                    use_case=request.use_case,
-                    activity_description=request.activity_description,
-                    created_by=str(user.provider_id),
-                )
-            else:
-                if not user.selected_organization_id:
-                    raise HTTPException(
-                        status_code=400, detail="No organization selected"
-                    )
+        workflow = await generate_workflow_one_shot(user=user, brief=brief)
+    except WorkflowGenerationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-                workflow_data = await mps_service_key_client.call_workflow_api(
-                    call_type=request.call_type.upper(),
-                    use_case=request.use_case,
-                    activity_description=request.activity_description,
-                    organization_id=user.selected_organization_id,
-                )
-        except MPSUnavailableError as e:
-            if DEPLOYMENT_MODE != "oss":
-                logger.error(f"MPS unavailable for template create: {e}")
-                raise HTTPException(
-                    status_code=503,
-                    detail=MPS_UNAVAILABLE_PUBLIC_MESSAGE,
-                )
-            logger.warning(
-                "MPS unavailable for AI template generation; "
-                "falling back to local blank workflow: {}",
-                e,
-            )
-            workflow_data = _local_blank_workflow_from_template_request(request)
-            used_local_fallback = True
-
-        # Create the workflow in our database
-        # Regenerate trigger UUIDs to avoid conflicts with existing triggers
-        workflow_def = regenerate_trigger_uuids(
-            workflow_data.get("workflow_definition", {})
-        )
-
-        trigger_paths = extract_trigger_paths(workflow_def) if workflow_def else []
-        if trigger_paths:
-            try:
-                await db_client.assert_trigger_paths_available(
-                    trigger_paths=trigger_paths,
-                )
-            except TriggerPathConflictError as e:
-                raise HTTPException(status_code=409, detail=str(e))
-
-        workflow = await db_client.create_workflow(
-            name=workflow_data.get("name", f"{request.use_case} - {request.call_type}"),
-            workflow_definition=workflow_def,
-            user_id=user.id,
-            organization_id=user.selected_organization_id,
-        )
-
-        capture_event(
-            distinct_id=str(user.provider_id),
-            event=PostHogEvent.WORKFLOW_CREATED,
-            properties={
-                "workflow_id": workflow.id,
-                "workflow_name": workflow.name,
-                "source": "template_local_fallback"
-                if used_local_fallback
-                else "template",
-                "call_type": request.call_type,
-                "use_case": request.use_case,
-                "organization_id": user.selected_organization_id,
-            },
-        )
-
-        if trigger_paths:
-            await db_client.sync_triggers_for_workflow(
-                workflow_id=workflow.id,
-                organization_id=user.selected_organization_id,
-                trigger_paths=trigger_paths,
-            )
-
-        return {
-            "id": workflow.id,
-            "name": workflow.name,
-            "status": workflow.status,
-            "created_at": workflow.created_at,
-            "workflow_definition": mask_workflow_definition(workflow_def),
-            "current_definition_id": workflow.current_definition_id,
-            "template_context_variables": workflow.template_context_variables,
-            "call_disposition_codes": workflow.call_disposition_codes,
-            "workflow_configurations": mask_workflow_configurations(
-                workflow.workflow_configurations
-            ),
-        }
-
-    except HTTPException:
-        raise
-    except HTTPStatusError as e:
-        logger.error(f"MPS API error: {e}")
-        raise HTTPException(
-            status_code=e.response.status_code if hasattr(e, "response") else 500,
-            detail=str(e),
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error creating workflow from template: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"An unexpected error occurred: {str(e)}",
-        )
+    workflow_def = workflow.workflow_definition or {}
+    return WorkflowResponse.model_validate(
+        workflow_response_payload(workflow, workflow_definition=workflow_def)
+    )
 
 
 class WorkflowSummaryResponse(BaseModel):

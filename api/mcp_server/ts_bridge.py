@@ -39,6 +39,7 @@ def _edge_field_names() -> list[str]:
 async def _invoke(request: dict[str, Any]) -> dict[str, Any]:
     proc = await asyncio.create_subprocess_exec(
         "node",
+        "--experimental-strip-types",
         str(_VALIDATOR_ENTRY),
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,

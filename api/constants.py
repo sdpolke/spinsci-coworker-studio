@@ -79,6 +79,26 @@ DOGRAH_MPS_SECRET_KEY = os.getenv("DOGRAH_MPS_SECRET_KEY", None)
 MPS_API_URL = os.getenv("MPS_API_URL", "https://services.muralworksai.com")
 DOGRAH_DEVOPS_SECRET = os.getenv("DOGRAH_DEVOPS_SECRET") or None
 
+# Local agentic workflow generator (OpenAI-compatible chat completions API)
+WORKFLOW_GENERATOR_BASE_URL = os.getenv("WORKFLOW_GENERATOR_BASE_URL") or None
+WORKFLOW_GENERATOR_API_KEY = os.getenv("WORKFLOW_GENERATOR_API_KEY") or None
+WORKFLOW_GENERATOR_MODEL = os.getenv("WORKFLOW_GENERATOR_MODEL") or None
+_workflow_generator_temperature = os.getenv("WORKFLOW_GENERATOR_TEMPERATURE")
+WORKFLOW_GENERATOR_TEMPERATURE = (
+    float(_workflow_generator_temperature)
+    if _workflow_generator_temperature not in (None, "")
+    else None
+)
+WORKFLOW_GENERATOR_TIMEOUT_SECONDS = float(
+    os.getenv("WORKFLOW_GENERATOR_TIMEOUT_SECONDS", "120")
+)
+WORKFLOW_GENERATION_SESSION_TTL_SECONDS = int(
+    os.getenv("WORKFLOW_GENERATION_SESSION_TTL_SECONDS", "3600")
+)
+WORKFLOW_GENERATION_MAX_MESSAGE_LENGTH = int(
+    os.getenv("WORKFLOW_GENERATION_MAX_MESSAGE_LENGTH", "4000")
+)
+
 # Local credit ledger (replaces MPS for OSS/self-hosted billing)
 LOCAL_CREDITS_ENABLED = (
     os.getenv(
