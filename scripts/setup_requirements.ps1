@@ -48,13 +48,13 @@ if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     $env:Path = "$env:USERPROFILE\.local\bin;$env:Path"
 }
 
-# Install dograh API requirements first so pipecat's extras win on any
+# Install spinsci API requirements first so pipecat's extras win on any
 # shared transitive dependencies (matches api/Dockerfile and CI workflow).
-Write-Host "Installing dograh API requirements..."
+Write-Host "Installing spinsci API requirements..."
 uv pip install -r api/requirements.txt
 
 if ($Dev) {
-    Write-Host "Installing dograh API dev requirements..."
+    Write-Host "Installing spinsci API dev requirements..."
     uv pip install -r api/requirements.dev.txt
 }
 

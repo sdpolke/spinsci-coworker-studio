@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from api.mcp_server.instructions import DOGRAH_MCP_INSTRUCTIONS
+from api.mcp_server.instructions import SPINSCI_MCP_INSTRUCTIONS
 from api.services.voice_prompting_guide import Stage, build_briefing
 from api.services.workflow.authoring import (
     AuthoringFailure,
@@ -20,9 +20,9 @@ from api.services.workflow.generation.models import GenerationMessage
 
 MAX_REPAIR_ATTEMPTS = 3
 
-COMPILER_SYSTEM_PROMPT = """You are a Dograh voice-workflow code generator.
+COMPILER_SYSTEM_PROMPT = """You are a SpinSci voice-workflow code generator.
 
-Emit ONLY valid TypeScript using @dograh/sdk that follows the allowed grammar.
+Emit ONLY valid TypeScript using @spinsci/sdk that follows the allowed grammar.
 Do not include markdown fences or commentary.
 
 Rules:
@@ -69,7 +69,7 @@ Activity description: {brief.activity_description}
 {voice_guide}
 
 ## MCP authoring constraints
-{DOGRAH_MCP_INSTRUCTIONS}
+{SPINSCI_MCP_INSTRUCTIONS}
 
 ## Organization catalog
 {format_catalog_for_prompt(catalog)}

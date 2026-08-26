@@ -47,12 +47,12 @@ def _actor_from_user(user: UserModel) -> WorkflowAuthoringActor:
 async def create_workflow(code: str) -> dict[str, Any]:
     """Parse SDK TypeScript and create a new published workflow.
 
-    `code` is TypeScript source using `@dograh/sdk`. The workflow name
+    `code` is TypeScript source using `@spinsci/sdk`. The workflow name
     comes from `new Workflow({ name: "..." })` — it is required.
 
     Example code:
-        import { Workflow } from "@dograh/sdk";
-        import { startCall, endCall } from "@dograh/sdk/typed";
+        import { Workflow } from "@spinsci/sdk";
+        import { startCall, endCall } from "@spinsci/sdk/typed";
 
         const wf = new Workflow({ name: "lead_qualification" });
         const greeting = wf.addTyped(startCall({ name: "Greeting", prompt: "Hi!" }));

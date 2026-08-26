@@ -93,7 +93,7 @@ export type AriConfigurationRequest = {
     /**
      * Ws Client Name
      *
-     * websocket_client.conf connection name for externalMedia (e.g., dograh_staging)
+     * websocket_client.conf connection name for externalMedia (e.g., spinsci_staging)
      */
     ws_client_name?: string;
     /**
@@ -571,8 +571,8 @@ export type ByokPipelineAiModelConfiguration = {
     } & GoogleLlmService) | ({
         provider: 'azure';
     } & AzureLlmService) | ({
-        provider: 'dograh';
-    } & DograhLlmService) | ({
+        provider: 'spinsci';
+    } & SpinSciLlmService) | ({
         provider: 'aws_bedrock';
     } & AwsBedrockLlmConfiguration) | ({
         provider: 'speaches';
@@ -599,8 +599,8 @@ export type ByokPipelineAiModelConfiguration = {
     } & CartesiaTtsConfiguration) | ({
         provider: 'inworld';
     } & InworldTtsConfiguration) | ({
-        provider: 'dograh';
-    } & DograhTtsService) | ({
+        provider: 'spinsci';
+    } & SpinSciTtsService) | ({
         provider: 'sarvam';
     } & SarvamTtsConfiguration) | ({
         provider: 'camb';
@@ -631,8 +631,8 @@ export type ByokPipelineAiModelConfiguration = {
     } & OpenAisttConfiguration) | ({
         provider: 'google';
     } & GoogleSttConfiguration) | ({
-        provider: 'dograh';
-    } & DograhSttService) | ({
+        provider: 'spinsci';
+    } & SpinSciSttService) | ({
         provider: 'speechmatics';
     } & SpeechmaticsSttConfiguration) | ({
         provider: 'sarvam';
@@ -661,8 +661,8 @@ export type ByokPipelineAiModelConfiguration = {
     } & OpenRouterEmbeddingsConfiguration) | ({
         provider: 'azure';
     } & AzureOpenAiEmbeddingsConfiguration) | ({
-        provider: 'dograh';
-    } & DograhEmbeddingsConfiguration) | null;
+        provider: 'spinsci';
+    } & SpinSciEmbeddingsConfiguration) | null;
 };
 
 /**
@@ -703,8 +703,8 @@ export type ByokRealtimeAiModelConfiguration = {
     } & GoogleLlmService) | ({
         provider: 'azure';
     } & AzureLlmService) | ({
-        provider: 'dograh';
-    } & DograhLlmService) | ({
+        provider: 'spinsci';
+    } & SpinSciLlmService) | ({
         provider: 'aws_bedrock';
     } & AwsBedrockLlmConfiguration) | ({
         provider: 'speaches';
@@ -725,8 +725,8 @@ export type ByokRealtimeAiModelConfiguration = {
     } & OpenRouterEmbeddingsConfiguration) | ({
         provider: 'azure';
     } & AzureOpenAiEmbeddingsConfiguration) | ({
-        provider: 'dograh';
-    } & DograhEmbeddingsConfiguration) | null;
+        provider: 'spinsci';
+    } & SpinSciEmbeddingsConfiguration) | null;
 };
 
 /**
@@ -1807,9 +1807,9 @@ export type CurrentUsageResponse = {
      */
     period_end: string;
     /**
-     * Used Dograh Tokens
+     * Used SpinSci Tokens
      */
-    used_dograh_tokens: number;
+    used_spinsci_tokens: number;
     /**
      * Total Duration Seconds
      */
@@ -1881,9 +1881,9 @@ export type DailyUsageBreakdownResponse = {
      */
     total_cost_usd?: number | null;
     /**
-     * Total Dograh Tokens
+     * Total SpinSci Tokens
      */
-    total_dograh_tokens: number;
+    total_spinsci_tokens: number;
     /**
      * Currency
      */
@@ -1907,9 +1907,9 @@ export type DailyUsageItem = {
      */
     cost_usd?: number | null;
     /**
-     * Dograh Tokens
+     * SpinSci Tokens
      */
-    dograh_tokens: number;
+    spinsci_tokens: number;
     /**
      * Call Count
      */
@@ -2209,13 +2209,13 @@ export type DocumentUploadResponseSchema = {
 };
 
 /**
- * Dograh
+ * SpinSci
  */
-export type DograhEmbeddingsConfiguration = {
+export type SpinSciEmbeddingsConfiguration = {
     /**
      * Provider
      */
-    provider?: 'dograh';
+    provider?: 'spinsci';
     /**
      * Api Key
      */
@@ -2223,19 +2223,19 @@ export type DograhEmbeddingsConfiguration = {
     /**
      * Model
      *
-     * Dograh-managed embedding model.
+     * SpinSci-managed embedding model.
      */
     model?: string;
 };
 
 /**
- * Dograh
+ * SpinSci
  */
-export type DograhLlmService = {
+export type SpinSciLlmService = {
     /**
      * Provider
      */
-    provider?: 'dograh';
+    provider?: 'spinsci';
     /**
      * Api Key
      */
@@ -2243,15 +2243,15 @@ export type DograhLlmService = {
     /**
      * Model
      *
-     * Dograh-hosted model tier.
+     * SpinSci-hosted model tier.
      */
     model?: string;
 };
 
 /**
- * DograhManagedAIModelConfiguration
+ * SpinSciManagedAIModelConfiguration
  */
-export type DograhManagedAiModelConfiguration = {
+export type SpinSciManagedAiModelConfiguration = {
     /**
      * Api Key
      */
@@ -2271,13 +2271,13 @@ export type DograhManagedAiModelConfiguration = {
 };
 
 /**
- * Dograh
+ * SpinSci
  */
-export type DograhSttService = {
+export type SpinSciSttService = {
     /**
      * Provider
      */
-    provider?: 'dograh';
+    provider?: 'spinsci';
     /**
      * Api Key
      */
@@ -2285,7 +2285,7 @@ export type DograhSttService = {
     /**
      * Model
      *
-     * Dograh STT tier.
+     * SpinSci STT tier.
      */
     model?: string;
     /**
@@ -2297,13 +2297,13 @@ export type DograhSttService = {
 };
 
 /**
- * Dograh
+ * SpinSci
  */
-export type DograhTtsService = {
+export type SpinSciTtsService = {
     /**
      * Provider
      */
-    provider?: 'dograh';
+    provider?: 'spinsci';
     /**
      * Api Key
      */
@@ -2311,7 +2311,7 @@ export type DograhTtsService = {
     /**
      * Model
      *
-     * Dograh TTS tier.
+     * SpinSci TTS tier.
      */
     model?: string;
     /**
@@ -2970,7 +2970,7 @@ export type GoogleTtsConfiguration = {
     /**
      * Model
      *
-     * Google Cloud low-latency TTS engine. Dograh maps this to Pipecat's streaming Google TTS service for Chirp 3 HD and Journey voices.
+     * Google Cloud low-latency TTS engine. SpinSci maps this to Pipecat's streaming Google TTS service for Chirp 3 HD and Journey voices.
      */
     model?: string;
     /**
@@ -3316,7 +3316,7 @@ export type HttpApiConfig = {
     /**
      * Preset Parameters
      *
-     * Parameters injected by Dograh from fixed values or workflow context templates.
+     * Parameters injected by SpinSci from fixed values or workflow context templates.
      */
     preset_parameters?: Array<PresetToolParameter> | null;
     /**
@@ -3410,7 +3410,7 @@ export type HttpTransferResolverConfig = {
     /**
      * Wait Message
      *
-     * Optional short message played while Dograh resolves routing.
+     * Optional short message played while SpinSci resolves routing.
      */
     wait_message?: string | null;
     /**
@@ -3422,7 +3422,7 @@ export type HttpTransferResolverConfig = {
     /**
      * Preset Parameters
      *
-     * Parameters injected by Dograh from fixed values or workflow context templates.
+     * Parameters injected by SpinSci from fixed values or workflow context templates.
      */
     preset_parameters?: Array<PresetToolParameter> | null;
 };
@@ -4132,7 +4132,7 @@ export type ModelConfigurationMetricPrice = {
  */
 export type ModelConfigurationPricingResponse = {
     platform_usage?: ModelConfigurationMetricPrice | null;
-    dograh_model?: ModelConfigurationMetricPrice | null;
+    spinsci_model?: ModelConfigurationMetricPrice | null;
 };
 
 /**
@@ -4532,8 +4532,8 @@ export type OrganizationAiModelConfigurationV2 = {
     /**
      * Mode
      */
-    mode: 'dograh' | 'byok';
-    dograh?: DograhManagedAiModelConfiguration | null;
+    mode: 'spinsci' | 'byok';
+    spinsci?: SpinSciManagedAiModelConfiguration | null;
     byok?: ByokaiModelConfiguration | null;
 };
 
@@ -4811,7 +4811,7 @@ export type PlivoConfigurationResponse = {
 /**
  * PresetToolParameter
  *
- * A parameter injected by Dograh at runtime.
+ * A parameter injected by SpinSci at runtime.
  */
 export type PresetToolParameter = {
     /**
@@ -6962,9 +6962,9 @@ export type UsageHistoryResponse = {
      */
     runs: Array<WorkflowRunUsageResponse>;
     /**
-     * Total Dograh Tokens
+     * Total SpinSci Tokens
      */
-    total_dograh_tokens: number;
+    total_spinsci_tokens: number;
     /**
      * Total Duration Seconds
      */
@@ -7855,9 +7855,9 @@ export type WorkflowRunUsageResponse = {
      */
     created_at: string;
     /**
-     * Dograh Token Usage
+     * SpinSci Token Usage
      */
-    dograh_token_usage: number;
+    spinsci_token_usage: number;
     /**
      * Call Duration Seconds
      */
@@ -10605,7 +10605,7 @@ export type GetVoicesApiV1UserConfigurationsVoicesProviderGetData = {
         /**
          * Provider
          */
-        provider: 'elevenlabs' | 'deepgram' | 'sarvam' | 'cartesia' | 'dograh' | 'rime';
+        provider: 'elevenlabs' | 'deepgram' | 'sarvam' | 'cartesia' | 'spinsci' | 'rime';
     };
     query?: {
         /**
@@ -13451,9 +13451,9 @@ export type GrantBillingCreditsApiV1OrganizationsBillingCreditsGrantPostData = {
          */
         'X-API-Key'?: string | null;
         /**
-         * X-Dograh-Devops-Secret
+         * X-SpinSci-Devops-Secret
          */
-        'X-Dograh-Devops-Secret'?: string | null;
+        'X-SpinSci-Devops-Secret'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15551,9 +15551,9 @@ export type ActiveCallsApiV1HealthActiveCallsGetData = {
     body?: never;
     headers?: {
         /**
-         * X-Dograh-Devops-Secret
+         * X-SpinSci-Devops-Secret
          */
-        'X-Dograh-Devops-Secret'?: string | null;
+        'X-SpinSci-Devops-Secret'?: string | null;
     };
     path?: never;
     query?: never;
@@ -15586,9 +15586,9 @@ export type AutoscaleMetricApiV1HealthAutoscaleMetricGetData = {
     body?: never;
     headers?: {
         /**
-         * X-Dograh-Devops-Secret
+         * X-SpinSci-Devops-Secret
          */
-        'X-Dograh-Devops-Secret'?: string | null;
+        'X-SpinSci-Devops-Secret'?: string | null;
     };
     path?: never;
     query?: {

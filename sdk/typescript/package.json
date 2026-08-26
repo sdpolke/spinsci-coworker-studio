@@ -1,17 +1,17 @@
 {
-  "name": "@dograh/sdk",
+  "name": "@spinsci/sdk",
   "version": "0.1.8",
-  "description": "Typed builder for Dograh voice-AI workflows",
+  "description": "Typed builder for SpinSci voice-AI workflows",
   "license": "BSD-2-Clause",
   "author": "Zansat Technologies Private Limited",
-  "homepage": "https://dograh.com",
+  "homepage": "https://spinsci.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dograh-hq/dograh.git",
+    "url": "https://github.com/spinsci-hq/spinsci.git",
     "directory": "sdk/typescript"
   },
   "keywords": [
-    "dograh",
+    "spinsci",
     "voice-ai",
     "workflow",
     "sdk",

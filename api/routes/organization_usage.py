@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from api.constants import (
     DEPLOYMENT_MODE,
-    DOGRAH_DEVOPS_SECRET,
+    SPINSCI_DEVOPS_SECRET,
     LOCAL_CREDITS_ENABLED,
     UI_APP_URL,
 )
@@ -25,15 +25,15 @@ from api.utils.recording_artifacts import has_recording_track
 
 router = APIRouter(prefix="/organizations")
 
-DOGRAH_DEVOPS_SECRET_HEADER = "X-Dograh-Devops-Secret"
+SPINSCI_DEVOPS_SECRET_HEADER = "X-SpinSci-Devops-Secret"
 
 
 def _verify_devops_secret(provided_secret: str | None) -> None:
-    if not DOGRAH_DEVOPS_SECRET:
+    if not SPINSCI_DEVOPS_SECRET:
         raise HTTPException(status_code=503, detail="Devops secret is not configured")
     if not provided_secret or not secrets.compare_digest(
         provided_secret,
-        DOGRAH_DEVOPS_SECRET,
+        SPINSCI_DEVOPS_SECRET,
     ):
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -41,7 +41,7 @@ def _verify_devops_secret(provided_secret: str | None) -> None:
 class CurrentUsageResponse(BaseModel):
     period_start: str
     period_end: str
-    used_dograh_tokens: float
+    used_spinsci_tokens: float
     total_duration_seconds: int
     used_amount_usd: Optional[float] = None
     currency: Optional[str] = None
@@ -121,7 +121,7 @@ class WorkflowRunUsageResponse(BaseModel):
     workflow_name: Optional[str]
     name: str
     created_at: str
-    dograh_token_usage: float
+    spinsci_token_usage: float
     call_duration_seconds: int
     recording_url: Optional[str] = None
     transcript_url: Optional[str] = None
@@ -150,7 +150,7 @@ class WorkflowRunUsageResponse(BaseModel):
 
 class UsageHistoryResponse(BaseModel):
     runs: List[WorkflowRunUsageResponse]
-    total_dograh_tokens: float
+    total_spinsci_tokens: float
     total_duration_seconds: int
     total_count: int
     page: int
@@ -162,7 +162,7 @@ class DailyUsageItem(BaseModel):
     date: str
     minutes: float
     cost_usd: Optional[float] = None
-    dograh_tokens: float
+    spinsci_tokens: float
     call_count: int
 
 
@@ -170,7 +170,7 @@ class DailyUsageBreakdownResponse(BaseModel):
     breakdown: List[DailyUsageItem]
     total_minutes: float
     total_cost_usd: Optional[float] = None
-    total_dograh_tokens: float
+    total_spinsci_tokens: float
     currency: Optional[str] = None
 
 
@@ -372,9 +372,9 @@ async def grant_billing_credits(
     request: GrantCreditsRequest,
     authorization: str | None = Header(default=None),
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
-    x_dograh_devops_secret: str | None = Header(
+    x_spinsci_devops_secret: str | None = Header(
         default=None,
-        alias=DOGRAH_DEVOPS_SECRET_HEADER,
+        alias=SPINSCI_DEVOPS_SECRET_HEADER,
     ),
 ):
     """Grant credits to an organization (devops secret or authenticated org member)."""
@@ -385,20 +385,20 @@ async def grant_billing_credits(
         )
 
     devops_ok = False
-    if DOGRAH_DEVOPS_SECRET and x_dograh_devops_secret:
+    if SPINSCI_DEVOPS_SECRET and x_spinsci_devops_secret:
         devops_ok = secrets.compare_digest(
-            x_dograh_devops_secret,
-            DOGRAH_DEVOPS_SECRET,
+            x_spinsci_devops_secret,
+            SPINSCI_DEVOPS_SECRET,
         )
 
     user: UserModel | None = None
     if not devops_ok:
         if not authorization and not x_api_key:
-            if x_dograh_devops_secret is not None:
-                _verify_devops_secret(x_dograh_devops_secret)
+            if x_spinsci_devops_secret is not None:
+                _verify_devops_secret(x_spinsci_devops_secret)
             raise HTTPException(
                 status_code=401,
-                detail="Provide X-Dograh-Devops-Secret or an authenticated user",
+                detail="Provide X-SpinSci-Devops-Secret or an authenticated user",
             )
         user = await get_user(authorization=authorization, x_api_key=x_api_key)
 
@@ -487,9 +487,9 @@ async def create_mps_credit_purchase_url(
             created_by=str(user.provider_id),
             return_url=f"{UI_APP_URL.rstrip('/')}/billing",
             billing_details={
-                "source": "dograh_billing",
-                "dograh_user_id": str(user.id),
-                "dograh_provider_id": str(user.provider_id),
+                "source": "spinsci_billing",
+                "spinsci_user_id": str(user.id),
+                "spinsci_provider_id": str(user.provider_id),
             },
         )
     except Exception as exc:
@@ -614,7 +614,7 @@ async def get_usage_history(
 
         return {
             "runs": runs,
-            "total_dograh_tokens": total_tokens,
+            "total_spinsci_tokens": total_tokens,
             "total_duration_seconds": total_duration,
             "total_count": total_count,
             "page": page,

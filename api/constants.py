@@ -75,9 +75,13 @@ ENABLE_SIGNUP = os.getenv("ENABLE_SIGNUP", "true").lower() == "true"
 # needs them baked into the bundle at build time.
 STACK_AUTH_PROJECT_ID = os.getenv("STACK_AUTH_PROJECT_ID")
 STACK_PUBLISHABLE_CLIENT_KEY = os.getenv("STACK_PUBLISHABLE_CLIENT_KEY")
-DOGRAH_MPS_SECRET_KEY = os.getenv("DOGRAH_MPS_SECRET_KEY", None)
+SPINSCI_MPS_SECRET_KEY = os.getenv("SPINSCI_MPS_SECRET_KEY") or os.getenv(
+    "DOGRAH_MPS_SECRET_KEY", None
+)
 MPS_API_URL = os.getenv("MPS_API_URL", "https://services.muralworksai.com")
-DOGRAH_DEVOPS_SECRET = os.getenv("DOGRAH_DEVOPS_SECRET") or None
+SPINSCI_DEVOPS_SECRET = (
+    os.getenv("SPINSCI_DEVOPS_SECRET") or os.getenv("DOGRAH_DEVOPS_SECRET") or None
+)
 
 # Local agentic workflow generator (OpenAI-compatible chat completions API)
 WORKFLOW_GENERATOR_BASE_URL = os.getenv("WORKFLOW_GENERATOR_BASE_URL") or None

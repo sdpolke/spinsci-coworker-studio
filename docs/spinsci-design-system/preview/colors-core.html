@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Colors" name="Core colors" subtitle="Ink, navy, white, surface" viewport="700x175" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; background: var(--color-white); font-family: var(--font-ui); }
+  .wrap { padding: 28px 32px; }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .sw { border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-faint); }
+  .chip { height: 78px; }
+  .meta { padding: 10px 12px; }
+  .name { font-weight: 600; font-size: 13px; color: var(--color-text-primary); letter-spacing: -0.1px; }
+  .hex { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tok { font-size: 11px; color: var(--color-violet); margin-top: 4px; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row">
+      <div class="sw"><div class="chip" style="background:#091322"></div><div class="meta"><div class="name">Ink</div><div class="hex">#091322</div><div class="tok">--color-ink</div></div></div>
+      <div class="sw"><div class="chip" style="background:#122643"></div><div class="meta"><div class="name">Navy</div><div class="hex">#122643</div><div class="tok">--color-navy</div></div></div>
+      <div class="sw"><div class="chip" style="background:#FFFFFF;border-bottom:1px solid var(--border-hairline)"></div><div class="meta"><div class="name">White</div><div class="hex">#FFFFFF</div><div class="tok">--color-white</div></div></div>
+      <div class="sw"><div class="chip" style="background:#F7F6F5"></div><div class="meta"><div class="name">Surface</div><div class="hex">#F7F6F5</div><div class="tok">--color-surface</div></div></div>
+    </div>
+  </div>
+</body>
+</html>

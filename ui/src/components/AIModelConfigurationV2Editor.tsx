@@ -24,12 +24,12 @@ import { VoiceSelectorModal } from "@/components/VoiceSelectorModal";
 import { LANGUAGE_DISPLAY_NAMES } from "@/constants/languages";
 import { formatRoundingPolicy } from "@/lib/billingDisplay";
 
-type ModelMode = "realtime" | "dograh" | "byok";
+type ModelMode = "realtime" | "spinsci" | "byok";
 
 // Sentinel language value for "Multilingual (Auto-detect)".
 const MULTILINGUAL_LANGUAGE_CODE = "multi";
 
-interface DograhDefaults {
+interface SpinSciDefaults {
     voices: string[];
     allow_custom_input?: boolean;
     speeds: number[];
@@ -49,7 +49,7 @@ interface DograhDefaults {
 }
 
 export interface ModelConfigurationDefaultsV2 {
-    dograh: DograhDefaults;
+    spinsci: SpinSciDefaults;
     byok: {
         pipeline: ServiceConfigurationDefaults;
         realtime: {
@@ -61,7 +61,7 @@ export interface ModelConfigurationDefaultsV2 {
     };
 }
 
-interface DograhFormState {
+interface SpinSciFormState {
     api_key: string;
     voice: string;
     speed: number;
@@ -93,12 +93,12 @@ function asRecord(value: unknown): Record<string, unknown> | null {
         : null;
 }
 
-function isDograhEffectiveConfig(config: Record<string, unknown> | null | undefined): boolean {
+function isSpinSciEffectiveConfig(config: Record<string, unknown> | null | undefined): boolean {
     if (!config || config.is_realtime) return false;
     const llm = asRecord(config.llm);
     const tts = asRecord(config.tts);
     const stt = asRecord(config.stt);
-    return llm?.provider === "dograh" && tts?.provider === "dograh" && stt?.provider === "dograh";
+    return llm?.provider === "spinsci" && tts?.provider === "spinsci" && stt?.provider === "spinsci";
 }
 
 function byokDefaults(defaults: ModelConfigurationDefaultsV2): ServiceConfigurationDefaults {
@@ -172,7 +172,7 @@ function getByokInitialConfig(
         return matchesTab(byokConfiguration) ? byokConfiguration : emptyByokInitialConfig(wantRealtime);
     }
 
-    if (configuration?.mode === "dograh" || isDograhEffectiveConfig(effectiveConfiguration)) {
+    if (configuration?.mode === "spinsci" || isSpinSciEffectiveConfig(effectiveConfiguration)) {
         return emptyByokInitialConfig(wantRealtime);
     }
 
@@ -180,23 +180,23 @@ function getByokInitialConfig(
     return matchesTab(effective) ? (effective as Record<string, unknown>) : emptyByokInitialConfig(wantRealtime);
 }
 
-function buildDograhState(
+function buildSpinSciState(
     defaults: ModelConfigurationDefaultsV2,
     configuration: Record<string, unknown> | null,
     effectiveConfiguration: Record<string, unknown> | null,
-): DograhFormState {
-    const fallback = defaults.dograh.defaults;
-    const configuredDograh = configuration?.mode === "dograh" ? asRecord(configuration.dograh) : null;
-    if (configuredDograh) {
+): SpinSciFormState {
+    const fallback = defaults.spinsci.defaults;
+    const configuredSpinSci = configuration?.mode === "spinsci" ? asRecord(configuration.spinsci) : null;
+    if (configuredSpinSci) {
         return {
-            api_key: String(configuredDograh.api_key || ""),
-            voice: String(configuredDograh.voice || fallback.voice),
-            speed: numberOrDefault(configuredDograh.speed, fallback.speed),
-            language: String(configuredDograh.language || fallback.language),
+            api_key: String(configuredSpinSci.api_key || ""),
+            voice: String(configuredSpinSci.voice || fallback.voice),
+            speed: numberOrDefault(configuredSpinSci.speed, fallback.speed),
+            language: String(configuredSpinSci.language || fallback.language),
         };
     }
 
-    if (isDograhEffectiveConfig(effectiveConfiguration)) {
+    if (isSpinSciEffectiveConfig(effectiveConfiguration)) {
         const llm = asRecord(effectiveConfiguration?.llm);
         const tts = asRecord(effectiveConfiguration?.tts);
         const stt = asRecord(effectiveConfiguration?.stt);
@@ -220,11 +220,11 @@ function preferredMode(
     configuration: Record<string, unknown> | null,
     effectiveConfiguration: Record<string, unknown> | null,
 ): ModelMode {
-    if (configuration?.mode === "dograh") return "dograh";
+    if (configuration?.mode === "spinsci") return "spinsci";
     if (configuration?.mode === "byok") {
         return asRecord(configuration.byok)?.mode === "realtime" ? "realtime" : "byok";
     }
-    if (isDograhEffectiveConfig(effectiveConfiguration)) return "dograh";
+    if (isSpinSciEffectiveConfig(effectiveConfiguration)) return "spinsci";
     return Boolean(effectiveConfiguration?.is_realtime) ? "realtime" : "byok";
 }
 
@@ -257,7 +257,7 @@ function requireByokService(
     if (
         !serviceConfiguration
         || !serviceConfiguration.provider
-        || serviceConfiguration.provider === "dograh"
+        || serviceConfiguration.provider === "spinsci"
         || !hasRequiredApiKey(service, serviceConfiguration, defaults)
     ) {
         throw new Error(`${service} configuration is required`);
@@ -267,7 +267,7 @@ function requireByokService(
 
 function optionalByokService(config: Record<string, unknown>, service: ServiceSegment): Record<string, unknown> | undefined {
     const serviceConfiguration = asRecord(config[service]);
-    if (!serviceConfiguration?.provider || serviceConfiguration.provider === "dograh") return undefined;
+    if (!serviceConfiguration?.provider || serviceConfiguration.provider === "spinsci") return undefined;
     return serviceConfiguration;
 }
 
@@ -318,16 +318,16 @@ function MetricPrice({
 
 function PricingSummary({
     pricing,
-    includeDograhModel,
+    includeSpinSciModel,
     thirdPartyModels,
 }: {
     pricing?: ModelConfigurationPricingResponse | null;
-    includeDograhModel: boolean;
+    includeSpinSciModel: boolean;
     thirdPartyModels?: boolean;
 }) {
     const platformPrice = pricing?.platform_usage;
-    const dograhModelPrice = includeDograhModel ? pricing?.dograh_model : null;
-    if (!platformPrice && !dograhModelPrice) return null;
+    const spinsciModelPrice = includeSpinSciModel ? pricing?.spinsci_model : null;
+    if (!platformPrice && !spinsciModelPrice) return null;
 
     return (
         <Card className="mb-4 border-primary/20 bg-primary/[0.03]">
@@ -336,8 +336,8 @@ function PricingSummary({
                 {platformPrice && (
                     <MetricPrice label="Platform usage" price={platformPrice} />
                 )}
-                {dograhModelPrice && (
-                    <MetricPrice label="Managed model usage" price={dograhModelPrice} />
+                {spinsciModelPrice && (
+                    <MetricPrice label="Managed model usage" price={spinsciModelPrice} />
                 )}
                 {thirdPartyModels && (
                     <p className="text-muted-foreground">
@@ -358,63 +358,63 @@ export function AIModelConfigurationV2Editor({
     submitLabel = "Save Configuration",
 }: AIModelConfigurationV2EditorProps) {
     const defaultsForByok = useMemo(() => byokDefaults(defaults), [defaults]);
-    const [mode, setMode] = useState<ModelMode>("dograh");
-    const [dograh, setDograh] = useState<DograhFormState>(() => ({
+    const [mode, setMode] = useState<ModelMode>("spinsci");
+    const [spinsci, setSpinSci] = useState<SpinSciFormState>(() => ({
         api_key: "",
-        voice: defaults.dograh.defaults.voice,
-        speed: defaults.dograh.defaults.speed,
-        language: defaults.dograh.defaults.language,
+        voice: defaults.spinsci.defaults.voice,
+        speed: defaults.spinsci.defaults.speed,
+        language: defaults.spinsci.defaults.language,
     }));
     const [realtimeInitialConfig, setRealtimeInitialConfig] = useState<Record<string, unknown> | null>(null);
     const [pipelineInitialConfig, setPipelineInitialConfig] = useState<Record<string, unknown> | null>(null);
-    const [isSavingDograh, setIsSavingDograh] = useState(false);
+    const [isSavingSpinSci, setIsSavingSpinSci] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const allowCustomVoice = defaults.dograh.allow_custom_input ?? false;
-    const dograhSpeedRange = defaults.dograh.speed_range ?? { min: 0.5, max: 2.0, step: 0.1 };
+    const allowCustomVoice = defaults.spinsci.allow_custom_input ?? false;
+    const spinsciSpeedRange = defaults.spinsci.speed_range ?? { min: 0.5, max: 2.0, step: 0.1 };
     const multilingualLanguageNames = useMemo(() => {
-        const codes = defaults.dograh.multilingual_languages ?? [];
+        const codes = defaults.spinsci.multilingual_languages ?? [];
         if (codes.length === 0) return null;
         return codes.map((code) => LANGUAGE_DISPLAY_NAMES[code] || code).join(", ");
-    }, [defaults.dograh.multilingual_languages]);
+    }, [defaults.spinsci.multilingual_languages]);
 
     useEffect(() => {
         const rawConfiguration = asRecord(configuration);
         const rawEffectiveConfiguration = asRecord(effectiveConfiguration);
         setMode(preferredMode(rawConfiguration, rawEffectiveConfiguration));
-        const nextDograh = buildDograhState(defaults, rawConfiguration, rawEffectiveConfiguration);
-        setDograh(nextDograh);
+        const nextSpinSci = buildSpinSciState(defaults, rawConfiguration, rawEffectiveConfiguration);
+        setSpinSci(nextSpinSci);
         setRealtimeInitialConfig(getByokInitialConfig(rawConfiguration, rawEffectiveConfiguration, true));
         setPipelineInitialConfig(getByokInitialConfig(rawConfiguration, rawEffectiveConfiguration, false));
     }, [configuration, defaults, effectiveConfiguration, allowCustomVoice]);
 
-    const saveDograhConfiguration = async () => {
-        setIsSavingDograh(true);
+    const saveSpinSciConfiguration = async () => {
+        setIsSavingSpinSci(true);
         setError(null);
         try {
             if (
-                !Number.isFinite(dograh.speed)
-                || dograh.speed < dograhSpeedRange.min
-                || dograh.speed > dograhSpeedRange.max
+                !Number.isFinite(spinsci.speed)
+                || spinsci.speed < spinsciSpeedRange.min
+                || spinsci.speed > spinsciSpeedRange.max
             ) {
                 throw new Error(
-                    `Speed must be between ${dograhSpeedRange.min} and ${dograhSpeedRange.max}.`,
+                    `Speed must be between ${spinsciSpeedRange.min} and ${spinsciSpeedRange.max}.`,
                 );
             }
             await onSave({
                 version: 2,
-                mode: "dograh",
-                dograh: {
-                    api_key: dograh.api_key.trim(),
-                    voice: dograh.voice,
-                    speed: dograh.speed,
-                    language: dograh.language,
+                mode: "spinsci",
+                spinsci: {
+                    api_key: spinsci.api_key.trim(),
+                    voice: spinsci.voice,
+                    speed: spinsci.speed,
+                    language: spinsci.language,
                 },
             });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to save configuration");
         } finally {
-            setIsSavingDograh(false);
+            setIsSavingSpinSci(false);
         }
     };
 
@@ -460,7 +460,7 @@ export function AIModelConfigurationV2Editor({
             <Tabs value={mode} onValueChange={(value) => setMode(value as ModelMode)} className="space-y-6">
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="realtime">Speech to Speech</TabsTrigger>
-                    <TabsTrigger value="dograh">Managed</TabsTrigger>
+                    <TabsTrigger value="spinsci">Managed</TabsTrigger>
                     <TabsTrigger value="byok">BYOK</TabsTrigger>
                 </TabsList>
 
@@ -468,7 +468,7 @@ export function AIModelConfigurationV2Editor({
                     <p className="mb-4 text-sm text-muted-foreground">
                         A single speech-to-speech model handles the conversation in realtime (no separate transcriber or voice). An LLM is still required for variable extraction and QA.
                     </p>
-                    <PricingSummary pricing={pricing} includeDograhModel={false} thirdPartyModels />
+                    <PricingSummary pricing={pricing} includeSpinSciModel={false} thirdPartyModels />
                     <ServiceConfigurationForm
                         key={`realtime-${JSON.stringify(realtimeInitialConfig)}`}
                         mode="global"
@@ -481,13 +481,13 @@ export function AIModelConfigurationV2Editor({
                     <ThirdPartyProviderNotice />
                 </TabsContent>
 
-                <TabsContent value="dograh" className="mt-0">
+                <TabsContent value="spinsci" className="mt-0">
                     <p className="mb-4 text-sm text-muted-foreground">
                         Managed mode provides a transcriber, LLM, and voice pipeline. Select a voice and
                         language while the platform manages the underlying model providers.{" "}
                         We offer custom pricing and a 15-second pulse with a monthly commitment.{" "}
                         <a
-                            href="https://www.crescendoworldwide.com/"
+                            href="https://www.spinsci.com/"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="underline"
@@ -496,35 +496,35 @@ export function AIModelConfigurationV2Editor({
                         </a>
                         .
                     </p>
-                    <PricingSummary pricing={pricing} includeDograhModel />
+                    <PricingSummary pricing={pricing} includeSpinSciModel />
                     <Card>
                         <CardContent className="pt-6">
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2 sm:col-span-2">
                                     <Label>Voice</Label>
                                     <VoiceSelectorModal
-                                        provider="dograh"
-                                        value={dograh.voice}
-                                        onChange={(voice) => setDograh({ ...dograh, voice })}
+                                        provider="spinsci"
+                                        value={spinsci.voice}
+                                        onChange={(voice) => setSpinSci({ ...spinsci, voice })}
                                         allowManualInput={allowCustomVoice}
                                     />
                                 </div>
 
                                 <div className="space-y-2 sm:col-span-2">
                                     <Label>Language</Label>
-                                    <Select value={dograh.language} onValueChange={(language) => setDograh({ ...dograh, language })}>
+                                    <Select value={spinsci.language} onValueChange={(language) => setSpinSci({ ...spinsci, language })}>
                                         <SelectTrigger className="w-full">
                                             <SelectValue placeholder="Select language" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {defaults.dograh.languages.map((language) => (
+                                            {defaults.spinsci.languages.map((language) => (
                                                 <SelectItem key={language} value={language}>
                                                     {LANGUAGE_DISPLAY_NAMES[language] || language}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    {dograh.language === MULTILINGUAL_LANGUAGE_CODE && multilingualLanguageNames && (
+                                    {spinsci.language === MULTILINGUAL_LANGUAGE_CODE && multilingualLanguageNames && (
                                         <p className="text-xs text-muted-foreground">
                                             Auto-detects {multilingualLanguageNames}.
                                         </p>
@@ -532,42 +532,42 @@ export function AIModelConfigurationV2Editor({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="dograh-speed">Speed</Label>
+                                    <Label htmlFor="spinsci-speed">Speed</Label>
                                     <Input
-                                        id="dograh-speed"
+                                        id="spinsci-speed"
                                         type="number"
-                                        min={dograhSpeedRange.min}
-                                        max={dograhSpeedRange.max}
-                                        step={dograhSpeedRange.step ?? 0.1}
-                                        value={dograh.speed}
+                                        min={spinsciSpeedRange.min}
+                                        max={spinsciSpeedRange.max}
+                                        step={spinsciSpeedRange.step ?? 0.1}
+                                        value={spinsci.speed}
                                         onChange={(event) => {
                                             const speed = event.currentTarget.valueAsNumber;
-                                            setDograh({
-                                                ...dograh,
-                                                speed: Number.isFinite(speed) ? speed : defaults.dograh.defaults.speed,
+                                            setSpinSci({
+                                                ...spinsci,
+                                                speed: Number.isFinite(speed) ? speed : defaults.spinsci.defaults.speed,
                                             });
                                         }}
                                     />
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="dograh-api-key">API Key</Label>
+                                    <Label htmlFor="spinsci-api-key">API Key</Label>
                                     <div className="relative">
                                         <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                         <Input
-                                            id="dograh-api-key"
+                                            id="spinsci-api-key"
                                             className="pl-9"
-                                            value={dograh.api_key}
-                                            onChange={(event) => setDograh({ ...dograh, api_key: event.target.value })}
+                                            value={spinsci.api_key}
+                                            onChange={(event) => setSpinSci({ ...spinsci, api_key: event.target.value })}
                                             placeholder="Enter API key"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            <Button type="button" className="mt-6 w-full" onClick={saveDograhConfiguration} disabled={isSavingDograh}>
+                            <Button type="button" className="mt-6 w-full" onClick={saveSpinSciConfiguration} disabled={isSavingSpinSci}>
                                 <Save className="mr-2 h-4 w-4" />
-                                {isSavingDograh ? "Saving..." : submitLabel}
+                                {isSavingSpinSci ? "Saving..." : submitLabel}
                             </Button>
                         </CardContent>
                     </Card>
@@ -577,7 +577,7 @@ export function AIModelConfigurationV2Editor({
                     <p className="mb-4 text-sm text-muted-foreground">
                         Configure separate transcriber, LLM, and voice providers using your own API keys. An embeddings model can also be configured for knowledge retrieval.
                     </p>
-                    <PricingSummary pricing={pricing} includeDograhModel={false} thirdPartyModels />
+                    <PricingSummary pricing={pricing} includeSpinSciModel={false} thirdPartyModels />
                     <ServiceConfigurationForm
                         key={`byok-${JSON.stringify(pipelineInitialConfig)}`}
                         mode="global"

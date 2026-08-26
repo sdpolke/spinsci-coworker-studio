@@ -77,7 +77,7 @@ class ServiceProviders(str, Enum):
     GOOGLE = "google"
     AZURE = "azure"
     AZURE_SPEECH = "azure_speech"
-    DOGRAH = "dograh"
+    SPINSCI = "spinsci"
     SARVAM = "sarvam"
     SPEECHMATICS = "speechmatics"
     CAMB = "camb"
@@ -100,6 +100,22 @@ class ServiceProviders(str, Enum):
     LMNT = "lmnt"
 
 
+LEGACY_PROVIDER_ALIASES = {"dograh": "spinsci"}
+
+
+def normalize_legacy_provider_aliases(data: object) -> None:
+    """Rewrite stored provider strings (e.g. dograh -> spinsci) before validation."""
+    if isinstance(data, dict):
+        provider = data.get("provider")
+        if isinstance(provider, str) and provider in LEGACY_PROVIDER_ALIASES:
+            data["provider"] = LEGACY_PROVIDER_ALIASES[provider]
+        for value in data.values():
+            normalize_legacy_provider_aliases(value)
+    elif isinstance(data, list):
+        for item in data:
+            normalize_legacy_provider_aliases(item)
+
+
 class BaseServiceConfiguration(BaseModel):
     provider: Literal[
         ServiceProviders.OPENAI,
@@ -112,7 +128,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.GOOGLE,
         ServiceProviders.AZURE,
         ServiceProviders.AZURE_SPEECH,
-        ServiceProviders.DOGRAH,
+        ServiceProviders.SPINSCI,
         ServiceProviders.AWS_BEDROCK,
         ServiceProviders.SPEACHES,
         ServiceProviders.HUGGINGFACE,
@@ -300,7 +316,7 @@ GOOGLE_PROVIDER_MODEL_CONFIG = provider_model_config("Google")
 GROQ_PROVIDER_MODEL_CONFIG = provider_model_config("Groq")
 OPENROUTER_PROVIDER_MODEL_CONFIG = provider_model_config("Open Router")
 AZURE_OPENAI_PROVIDER_MODEL_CONFIG = provider_model_config("Azure OpenAI")
-DOGRAH_PROVIDER_MODEL_CONFIG = provider_model_config("Dograh")
+SPINSCI_PROVIDER_MODEL_CONFIG = provider_model_config("SpinSci")
 AWS_BEDROCK_PROVIDER_MODEL_CONFIG = provider_model_config("AWS Bedrock")
 GOOGLE_VERTEX_PROVIDER_MODEL_CONFIG = provider_model_config("Google Vertex")
 OPENAI_REALTIME_PROVIDER_MODEL_CONFIG = provider_model_config("OpenAI Realtime")
@@ -387,7 +403,7 @@ OPENROUTER_MODELS = [
     "meta-llama/llama-3.3-70b-instruct",
     "deepseek/deepseek-chat-v3-0324",
 ]
-DOGRAH_LLM_MODELS = ["default", "accurate", "fast", "lite", "zen"]
+SPINSCI_LLM_MODELS = ["default", "accurate", "fast", "lite", "zen"]
 AWS_BEDROCK_MODELS = [
     "us.amazon.nova-pro-v1:0",
     "us.amazon.nova-lite-v1:0",
@@ -516,13 +532,13 @@ class AzureLLMService(BaseLLMConfiguration):
 
 
 @register_llm
-class DograhLLMService(BaseLLMConfiguration):
-    model_config = DOGRAH_PROVIDER_MODEL_CONFIG
-    provider: Literal[ServiceProviders.DOGRAH] = ServiceProviders.DOGRAH
+class SpinSciLLMService(BaseLLMConfiguration):
+    model_config = SPINSCI_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.SPINSCI] = ServiceProviders.SPINSCI
     model: str = Field(
         default="default",
-        description="Dograh-hosted model tier.",
-        json_schema_extra={"examples": DOGRAH_LLM_MODELS, "allow_custom_input": True},
+        description="SpinSci-hosted model tier.",
+        json_schema_extra={"examples": SPINSCI_LLM_MODELS, "allow_custom_input": True},
     )
 
 
@@ -901,7 +917,7 @@ LLMConfig = Annotated[
         OpenRouterLLMConfiguration,
         GoogleLLMService,
         AzureLLMService,
-        DograhLLMService,
+        SpinSciLLMService,
         AWSBedrockLLMConfiguration,
         SpeachesLLMConfiguration,
         HuggingFaceLLMConfiguration,
@@ -986,7 +1002,7 @@ class GoogleTTSConfiguration(BaseTTSConfiguration):
     model: str = Field(
         default="chirp_3_hd",
         description=(
-            "Google Cloud low-latency TTS engine. Dograh maps this to Pipecat's "
+            "Google Cloud low-latency TTS engine. SpinSci maps this to Pipecat's "
             "streaming Google TTS service for Chirp 3 HD and Journey voices."
         ),
         json_schema_extra={
@@ -1059,17 +1075,17 @@ class OpenAITTSService(BaseTTSConfiguration):
     )
 
 
-DOGRAH_TTS_MODELS = ["default"]
+SPINSCI_TTS_MODELS = ["default"]
 
 
 @register_tts
-class DograhTTSService(BaseTTSConfiguration):
-    model_config = DOGRAH_PROVIDER_MODEL_CONFIG
-    provider: Literal[ServiceProviders.DOGRAH] = ServiceProviders.DOGRAH
+class SpinSciTTSService(BaseTTSConfiguration):
+    model_config = SPINSCI_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.SPINSCI] = ServiceProviders.SPINSCI
     model: str = Field(
         default="default",
-        description="Dograh TTS tier.",
-        json_schema_extra={"examples": DOGRAH_TTS_MODELS},
+        description="SpinSci TTS tier.",
+        json_schema_extra={"examples": SPINSCI_TTS_MODELS},
     )
     voice: str = Field(
         default="default",
@@ -1455,7 +1471,7 @@ TTSConfig = Annotated[
         ElevenlabsTTSConfiguration,
         CartesiaTTSConfiguration,
         InworldTTSConfiguration,
-        DograhTTSService,
+        SpinSciTTSService,
         SarvamTTSConfiguration,
         CambTTSConfiguration,
         RimeTTSConfiguration,
@@ -1579,28 +1595,28 @@ class GoogleSTTConfiguration(BaseSTTConfiguration):
     )
 
 
-# Dograh STT Service
-DOGRAH_STT_MODELS = ["default"]
-DOGRAH_STT_LANGUAGES = DEEPGRAM_LANGUAGES
-# Languages auto-detected when the Dograh STT language is "multi". Dograh STT runs
+# SpinSci STT Service
+SPINSCI_STT_MODELS = ["default"]
+SPINSCI_STT_LANGUAGES = DEEPGRAM_LANGUAGES
+# Languages auto-detected when the SpinSci STT language is "multi". SpinSci STT runs
 # Deepgram Flux multilingual under the hood, which only auto-detects this subset —
-# not the full DOGRAH_STT_LANGUAGES list offered for explicit single-language selection.
-DOGRAH_MULTILINGUAL_AUTODETECT_LANGUAGES = DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES
+# not the full SPINSCI_STT_LANGUAGES list offered for explicit single-language selection.
+SPINSCI_MULTILINGUAL_AUTODETECT_LANGUAGES = DEEPGRAM_FLUX_MULTILINGUAL_LANGUAGES
 
 
 @register_stt
-class DograhSTTService(BaseSTTConfiguration):
-    model_config = DOGRAH_PROVIDER_MODEL_CONFIG
-    provider: Literal[ServiceProviders.DOGRAH] = ServiceProviders.DOGRAH
+class SpinSciSTTService(BaseSTTConfiguration):
+    model_config = SPINSCI_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.SPINSCI] = ServiceProviders.SPINSCI
     model: str = Field(
         default="default",
-        description="Dograh STT tier.",
-        json_schema_extra={"examples": DOGRAH_STT_MODELS},
+        description="SpinSci STT tier.",
+        json_schema_extra={"examples": SPINSCI_STT_MODELS},
     )
     language: str = Field(
         default="multi",
         description="Language code; use 'multi' for auto-detect.",
-        json_schema_extra={"examples": DOGRAH_STT_LANGUAGES},
+        json_schema_extra={"examples": SPINSCI_STT_LANGUAGES},
     )
 
 
@@ -1872,7 +1888,7 @@ STTConfig = Annotated[
         CartesiaSTTConfiguration,
         OpenAISTTConfiguration,
         GoogleSTTConfiguration,
-        DograhSTTService,
+        SpinSciSTTService,
         SpeechmaticsSTTConfiguration,
         SarvamSTTConfiguration,
         SpeachesSTTConfiguration,
@@ -1945,17 +1961,17 @@ class AzureOpenAIEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
     )
 
 
-DOGRAH_EMBEDDING_MODELS = ["dograh_embedding_v1"]
+SPINSCI_EMBEDDING_MODELS = ["spinsci_embedding_v1"]
 
 
 @register_embeddings
-class DograhEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
-    model_config = DOGRAH_PROVIDER_MODEL_CONFIG
-    provider: Literal[ServiceProviders.DOGRAH] = ServiceProviders.DOGRAH
+class SpinSciEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
+    model_config = SPINSCI_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.SPINSCI] = ServiceProviders.SPINSCI
     model: str = Field(
-        default="dograh_embedding_v1",
-        description="Dograh-managed embedding model.",
-        json_schema_extra={"examples": DOGRAH_EMBEDDING_MODELS},
+        default="spinsci_embedding_v1",
+        description="SpinSci-managed embedding model.",
+        json_schema_extra={"examples": SPINSCI_EMBEDDING_MODELS},
     )
 
 
@@ -1964,7 +1980,7 @@ EmbeddingsConfig = Annotated[
         OpenAIEmbeddingsConfiguration,
         OpenRouterEmbeddingsConfiguration,
         AzureOpenAIEmbeddingsConfiguration,
-        DograhEmbeddingsConfiguration,
+        SpinSciEmbeddingsConfiguration,
     ],
     Field(discriminator="provider"),
 ]

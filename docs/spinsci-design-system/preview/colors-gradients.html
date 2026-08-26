@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Colors" name="Gradients" subtitle="Heading, platform, hero wash, logo" viewport="700x200" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; background: var(--color-white); font-family: var(--font-ui); }
+  .wrap { padding: 28px 32px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grad { height: 96px; border-radius: var(--radius-lg); border: 1px solid var(--border-faint); display: flex; align-items: flex-end; padding: 12px 14px; }
+  .grad .lbl { font-size: 12px; font-weight: 600; color: #fff; }
+  .heading-demo { display: flex; align-items: center; justify-content: center; }
+  .heading-demo span { font-family: var(--font-display); font-weight: 300; font-size: 40px; letter-spacing: -1.5px; }
+  .tok { font-size: 11px; color: var(--color-text-secondary); margin-top: 8px; font-weight: 600; font-family: var(--font-ui); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <div class="grad heading-demo" style="background:#F7F6F5"><span class="ds-gradient-text">Heading gradient</span></div>
+        <div class="tok">--gradient-heading · violet→navy text fill</div>
+      </div>
+      <div>
+        <div class="grad" style="background:var(--gradient-platform-bg)"><div class="lbl">Platform dark gradient</div></div>
+        <div class="tok">--gradient-platform-bg · navy→teal-purple</div>
+      </div>
+      <div>
+        <div class="grad" style="background:radial-gradient(120% 90% at 85% 0%, rgba(92,224,176,0.45) 0%, #F7F6F5 55%)"><div class="lbl" style="color:var(--color-ink)">Hero mint wash</div></div>
+        <div class="tok">--gradient-hero-bg · ambient radial</div>
+      </div>
+      <div>
+        <div class="grad" style="background:var(--gradient-logo)"><div class="lbl">Logo mark gradient</div></div>
+        <div class="tok">--gradient-logo · violet→periwinkle→mint</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Components" name="Icon boxes" subtitle="Mint & violet tint containers" viewport="700x180" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; background: var(--color-white); font-family: var(--font-ui); }
+  .wrap { padding: 30px 32px; display: flex; align-items: center; gap: 34px; }
+  .group { display: flex; flex-direction: column; gap: 14px; }
+  .ibox { width: 40px; height: 40px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; }
+  .ibox svg { width: 22px; height: 22px; }
+  .mint { background: var(--color-mint-subtle); color: var(--color-teal); }
+  .violet { background: var(--color-violet-subtle); color: var(--color-violet); }
+  .lbl { font-size: 11px; color: var(--color-text-secondary); font-weight: 600; max-width: 220px; line-height: 1.6; }
+  .strip { display: flex; align-items: center; gap: 14px; }
+  h5 { font: 600 12px/1 var(--font-ui); color: var(--color-text-primary); margin: 0 0 4px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="group">
+      <div class="strip">
+        <div class="ibox mint"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div class="ibox mint"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg></div>
+        <div class="ibox mint"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m10.5 20.5-7-7a5 5 0 0 1 7-7l1.5 1.5L13.5 6.5a5 5 0 0 1 7 7l-7 7a1.4 1.4 0 0 1-2 0Z"/></svg></div>
+      </div>
+      <div><h5>Mint tint · teal stroke</h5><div class="lbl">32–40px box, radius-8, mint-subtle fill — product & success contexts.</div></div>
+    </div>
+    <div class="group">
+      <div class="strip">
+        <div class="ibox violet"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg></div>
+        <div class="ibox violet"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <div class="ibox violet"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/></svg></div>
+      </div>
+      <div><h5>Violet tint · violet stroke</h5><div class="lbl">Marketing & highlight contexts. 2px outline icons (Lucide).</div></div>
+    </div>
+  </div>
+</body>
+</html>

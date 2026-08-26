@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Components" name="Buttons" subtitle="Primary, secondary, ghost + icon suffix" viewport="700x220" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; background: var(--color-white); font-family: var(--font-ui); }
+  .wrap { padding: 30px 32px; display: flex; flex-direction: column; gap: 18px; }
+  .row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; border-radius: var(--radius-pill); padding: 11px 12px 11px 20px; font: 600 14px/1 var(--font-ui); cursor: pointer; border: none; transition: opacity var(--dur-fast) ease; }
+  .btn:hover { opacity: 0.9; }
+  .btn .ic { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .btn svg { width: 13px; height: 13px; }
+  .primary { background: var(--color-navy); color: #fff; }
+  .primary .ic { background: rgba(255,255,255,0.14); }
+  .secondary { background: var(--color-surface); color: var(--color-navy); border: 1px solid var(--border-hairline); }
+  .secondary .ic { background: rgba(9,19,34,0.06); }
+  .ghost { background: #fff; color: var(--color-navy); border: 1px solid var(--border-hairline); }
+  .ghost .ic { background: rgba(9,19,34,0.06); }
+  .lbl { font-size: 11px; color: var(--color-text-secondary); width: 96px; flex: none; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row"><span class="lbl">Primary / Ink</span><button class="btn primary">Get started <span class="ic"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></button></div>
+    <div class="row"><span class="lbl">Secondary</span><button class="btn secondary">See platform <span class="ic"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></button></div>
+    <div class="row"><span class="lbl">Ghost / White</span><button class="btn ghost">Learn more <span class="ic"><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></button></div>
+  </div>
+</body>
+</html>

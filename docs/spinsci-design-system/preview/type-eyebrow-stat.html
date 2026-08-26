@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Type" name="Eyebrow & stat number" subtitle="Section label + serif stat display" viewport="700x200" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; background: var(--color-white); font-family: var(--font-ui); }
+  .wrap { padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; }
+  .block { display: flex; align-items: center; gap: 20px; }
+  .badge { display: inline-block; font-family: var(--font-ui); font-weight: 700; font-size: 12px; line-height: 18px; text-transform: uppercase; letter-spacing: 0.96px; color: var(--color-violet); background: #fff; border: 1px solid var(--border-violet); border-radius: var(--radius-xs); padding: 8px 16px; }
+  .spec { font-size: 11px; color: var(--color-text-secondary); line-height: 1.6; }
+  .spec b { color: var(--color-violet); font-weight: 600; }
+  .stat { font-family: var(--font-display); font-weight: 300; font-size: 64px; line-height: 1; letter-spacing: -1.5px; color: var(--color-ink); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="block">
+      <span class="badge">PATIENT ACCESS</span>
+      <span class="spec"><b>eyebrow</b> · Sora 700 · 12/18 · +0.96 tracking · uppercase · violet</span>
+    </div>
+    <div class="block">
+      <span class="stat">400M+</span>
+      <span class="spec"><b>stat-number</b> · Noto Serif 300 · 64 · −1.5 — paired with a hairline rule + Sora 700 caps sub-label</span>
+    </div>
+  </div>
+</body>
+</html>

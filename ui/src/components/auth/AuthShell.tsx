@@ -1,7 +1,7 @@
 // Shared dark two-column auth shell, used by BOTH the Stack Auth handler
 // (/handler/[...stack], cloud) and the local/OSS auth pages (/auth/login,
 // /auth/signup). LEFT: a centered card that wraps the auth form (`children`).
-// RIGHT (lg+ only): a brand/value panel with the Crescendo logo, proof points,
+// RIGHT (lg+ only): a brand/value panel with the SpinSci logo, proof points,
 // and an enterprise CTA block at the bottom (passed in as `enterpriseSlot`).
 // Mobile collapses to the single card column.
 
@@ -26,7 +26,7 @@ export function AuthShell({
     <div className="grid min-h-screen w-full bg-background lg:grid-cols-[55%_45%]">
       <main className="auth-imprint flex min-h-screen flex-col overflow-y-auto">
         <div className="flex min-h-full items-center justify-center p-6 sm:p-10">
-          <div className="w-full max-w-md space-y-6 rounded-2xl border border-border/60 bg-card p-6 shadow-lg sm:p-8">
+          <div className="w-full max-w-md space-y-6 rounded-2xl border border-border bg-card p-6 spinsci-card-ring sm:p-8">
             <div className="lg:hidden">
               <BrandLogo className="h-7" />
             </div>
@@ -35,11 +35,11 @@ export function AuthShell({
         </div>
       </main>
 
-      <aside className="relative hidden flex-col justify-between overflow-hidden border-l border-border/60 bg-zinc-950 p-10 lg:flex xl:p-14">
+      <aside className="spinsci-platform-bg relative hidden flex-col justify-between overflow-hidden border-l border-border/60 p-10 lg:flex xl:p-14">
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-24 top-1/3 size-[28rem] rounded-full opacity-20 blur-3xl"
-          style={{ background: "radial-gradient(circle, var(--cta), transparent 70%)" }}
+          className="pointer-events-none absolute -right-24 top-1/3 size-[28rem] rounded-full opacity-25 blur-3xl"
+          style={{ background: "radial-gradient(circle, var(--spinsci-mint), transparent 70%)" }}
         />
 
         <div className="relative">
@@ -47,7 +47,7 @@ export function AuthShell({
         </div>
 
         <div className="relative max-w-md space-y-5">
-          <h1 className="text-3xl font-semibold leading-tight tracking-tight text-zinc-50 xl:text-4xl">
+          <h1 className="font-display text-3xl font-light leading-tight tracking-tight text-white xl:text-4xl">
             Intelligent voice AI for modern enterprises.
           </h1>
           <ul className="flex flex-wrap gap-2">

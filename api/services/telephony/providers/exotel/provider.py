@@ -607,7 +607,7 @@ class ExotelProvider(TelephonyProvider):
             return ProviderSyncResult(
                 ok=False,
                 message=(
-                    f"Inbound was detached from {address} in Dograh, but Exotel "
+                    f"Inbound was detached from {address} in SpinSci, but Exotel "
                     f"routing is console-side: remove or repoint the Voicebot "
                     f"applet on the App Bazaar flow bound to this ExoPhone."
                 ),

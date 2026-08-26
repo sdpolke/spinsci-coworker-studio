@@ -11,7 +11,7 @@ export default async function Home() {
   const authProvider = await getServerAuthProvider();
   logger.debug('[HomePage] Auth provider:', authProvider);
 
-  // For local/OSS provider, land on the Crescendo overview dashboard.
+  // For local/OSS provider, land on the SpinSci overview dashboard.
   if (authProvider === 'local') {
     const accessToken = await getServerAccessToken();
     if (accessToken) {

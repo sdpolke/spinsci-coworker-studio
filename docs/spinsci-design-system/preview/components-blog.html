@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Components" name="Resource cards" subtitle="3-up blog cards with category tag" viewport="700x210" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; background: var(--color-surface); font-family: var(--font-ui); }
+  .wrap { padding: 28px 32px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .card { background: #fff; border: 1px solid var(--border-faint); border-radius: var(--radius-md); overflow: hidden; }
+  .img { height: 92px; position: relative; }
+  .a { background: linear-gradient(135deg, #091322, #1A3A52); }
+  .b { background: radial-gradient(120% 120% at 80% 0%, rgba(92,224,176,0.6), #122643); }
+  .c { background: linear-gradient(135deg, #5136A9, #122643); }
+  .cat { position: absolute; top: 10px; left: 10px; background: rgba(18,38,67,0.7); color: #fff; border-radius: 6px; padding: 4px 10px; font: 600 10px/1 var(--font-ui); letter-spacing: 0.4px; text-transform: uppercase; }
+  .body { padding: 14px; }
+  .ttl { font: 300 18px/1.2 var(--font-display); letter-spacing: -0.4px; color: var(--color-ink); margin: 0 0 8px; }
+  .meta { font: 400 11px/1 var(--font-ui); color: var(--color-text-secondary); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card"><div class="img a"><span class="cat">Guide</span></div><div class="body"><h5 class="ttl">Reducing call volume with AI agents</h5><div class="meta">6 min read</div></div></div>
+    <div class="card"><div class="img b"><span class="cat">Case study</span></div><div class="body"><h5 class="ttl">165 clinics, one access layer</h5><div class="meta">4 min read</div></div></div>
+    <div class="card"><div class="img c"><span class="cat">Product</span></div><div class="body"><h5 class="ttl">Pharmacy refills, fully automated</h5><div class="meta">3 min read</div></div></div>
+  </div>
+</body>
+</html>

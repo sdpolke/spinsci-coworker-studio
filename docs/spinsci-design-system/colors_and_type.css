@@ -1,0 +1,206 @@
+/* ============================================================
+   SpinSci Design System — Core Tokens
+   Colors, Type, Spacing, Radius, Shadow, Motion
+   Import this file + the Google Fonts link for Sora.
+   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+   ============================================================ */
+
+/* ---- Display typeface (self-hosted, full weight range) ---- */
+@font-face { font-family: "Noto Serif"; src: url("fonts/NotoSerif-ExtraLight.ttf") format("truetype"); font-weight: 200; font-style: normal; font-display: swap; }
+@font-face { font-family: "Noto Serif"; src: url("fonts/NotoSerif-Light.ttf") format("truetype"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "Noto Serif"; src: url("fonts/NotoSerif-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Noto Serif"; src: url("fonts/NotoSerif-Medium.ttf") format("truetype"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Noto Serif"; src: url("fonts/NotoSerif-SemiBold.ttf") format("truetype"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Noto Serif"; src: url("fonts/NotoSerif-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Noto Serif"; src: url("fonts/NotoSerif-LightItalic.ttf") format("truetype"); font-weight: 300; font-style: italic; font-display: swap; }
+@font-face { font-family: "Noto Serif"; src: url("fonts/NotoSerif-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+
+/* ---- UI typeface (self-hosted) ---- */
+@font-face { font-family: "Sora"; src: url("fonts/Sora-Thin.ttf") format("truetype"); font-weight: 100; font-style: normal; font-display: swap; }
+@font-face { font-family: "Sora"; src: url("fonts/Sora-ExtraLight.ttf") format("truetype"); font-weight: 200; font-style: normal; font-display: swap; }
+@font-face { font-family: "Sora"; src: url("fonts/Sora-Light.ttf") format("truetype"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "Sora"; src: url("fonts/Sora-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Sora"; src: url("fonts/Sora-Medium.ttf") format("truetype"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Sora"; src: url("fonts/Sora-SemiBold.ttf") format("truetype"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Sora"; src: url("fonts/Sora-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Sora"; src: url("fonts/Sora-ExtraBold.ttf") format("truetype"); font-weight: 800; font-style: normal; font-display: swap; }
+
+:root {
+  /* ---------- CORE COLORS ---------- */
+  --color-ink:        #091322;   /* primary text, dark backgrounds, nav */
+  --color-navy:       #122643;   /* primary CTA, emphasis */
+  --color-white:      #FFFFFF;
+  --color-surface:    #F7F6F5;   /* secondary section bg, ghost buttons */
+  --color-logo-ink:   #1C0236;   /* wordmark text (logo only) */
+
+  /* ---------- ACCENT COLORS ---------- */
+  --color-violet:         #7759D9;
+  --color-violet-light:   #F6F3FF;
+  --color-violet-subtle:  rgba(119, 89, 217, 0.20);
+  --color-teal:           #04867C;
+  --color-mint:           #5CE0B0;
+  --color-mint-subtle:    rgba(92, 224, 176, 0.20);
+  --color-success-bg:     #F0FFF9;
+
+  /* ---------- TEXT COLORS ---------- */
+  --color-text-primary:        #091322;
+  --color-text-secondary:      rgba(9, 19, 34, 0.40);
+  --color-text-on-dark:        #FFFFFF;
+  --color-text-on-dark-muted:  rgba(255, 255, 255, 0.60);
+
+  /* ---------- HAIRLINES / BORDERS ---------- */
+  --border-hairline:    rgba(9, 19, 34, 0.10);
+  --border-faint:       rgba(9, 19, 34, 0.06);
+  --border-violet:      rgba(119, 89, 217, 0.20);
+  --border-teal:        rgba(4, 134, 124, 0.20);
+  --border-on-dark:     rgba(255, 255, 255, 0.10);
+  --border-on-dark-md:  rgba(255, 255, 255, 0.20);
+
+  /* ---------- GRADIENTS ---------- */
+  --gradient-heading:   linear-gradient(94deg, #5136A9 0%, #122643 100%); /* @kind color */
+  --gradient-logo:      linear-gradient(90deg, #7759D9 0%, #8295FF 51%, #5CE0B0 100%); /* @kind color */
+  --gradient-hero-bg:   radial-gradient(120% 90% at 85% 0%, rgba(92,224,176,0.18) 0%, rgba(247,246,245,0) 55%);
+  --gradient-platform-bg: linear-gradient(135deg, #091322 0%, #122643 55%, #1A3A52 100%);
+
+  /* ---------- TYPE FAMILIES ---------- */
+  --font-display: "Noto Serif", Georgia, "Times New Roman", serif;
+  --font-ui:      "Sora", system-ui, Arial, sans-serif;
+
+  /* ---------- SPACING (base-8, 4px micro) ---------- */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-8:  40px;
+  --space-10: 48px;
+  --space-16: 80px;
+  --space-20: 96px;
+
+  /* ---------- RADIUS ---------- */
+  --radius-xs:   4px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-2xl:  32px;
+  --radius-pill: 100px;
+
+  /* ---------- ELEVATION ---------- */
+  --shadow-card:       rgba(18, 38, 67, 0.04) 0px 0px 0px 4px;
+  --shadow-card-hover: rgba(18, 38, 67, 0.08) 0px 0px 0px 6px;
+  --shadow-modal:      0 24px 48px rgba(9, 19, 34, 0.12);
+
+  /* ---------- LAYOUT ---------- */
+  --max-content: 1200px;
+  --gutter:      40px;
+
+  /* ---------- MOTION ---------- */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --dur-fast:  150ms; /* @kind other */
+  --dur-base:  200ms; /* @kind other */
+  --dur-enter: 500ms; /* @kind other */
+}
+
+/* ============================================================
+   SEMANTIC TYPE STYLES
+   Apply as classes or copy the declarations.
+   ============================================================ */
+
+.ds-display-xl {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 80px;
+  line-height: 88px;
+  letter-spacing: -3.2px;
+  color: var(--color-text-primary);
+}
+.ds-display-lg {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 64px;
+  line-height: 72px;
+  letter-spacing: -2.5px;
+  color: var(--color-text-primary);
+}
+.ds-display-md {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 48px;
+  line-height: 52.8px;
+  letter-spacing: -1.92px;
+  color: var(--color-text-primary);
+}
+.ds-display-sm {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 32px;
+  line-height: 38px;
+  letter-spacing: -0.96px;
+  color: var(--color-text-primary);
+}
+.ds-eyebrow {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0.96px;
+  text-transform: uppercase;
+  color: var(--color-violet);
+}
+.ds-body-lg {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 26px;
+  color: var(--color-text-primary);
+}
+.ds-body-md {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--color-text-primary);
+}
+.ds-body-sm {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-primary);
+}
+.ds-caption {
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--color-text-secondary);
+}
+.ds-stat {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 64px;
+  line-height: 1;
+  letter-spacing: -1.5px;
+}
+.ds-gradient-text {
+  background: var(--gradient-heading);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ---- raw element defaults (optional global apply) ---- */
+.ds-scope {
+  font-family: var(--font-ui);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.ds-scope h1 { font: 300 80px/88px var(--font-display); letter-spacing: -3.2px; margin: 0; }
+.ds-scope h2 { font: 300 64px/72px var(--font-display); letter-spacing: -2.5px; margin: 0; }
+.ds-scope h3 { font: 300 48px/52.8px var(--font-display); letter-spacing: -1.92px; margin: 0; }
+.ds-scope h4 { font: 300 32px/38px var(--font-display); letter-spacing: -0.96px; margin: 0; }
+.ds-scope p  { font: 400 16px/24px var(--font-ui); margin: 0; }

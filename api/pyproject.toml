@@ -1,5 +1,5 @@
 [project]
-name = "dograh-api"
+name = "spinsci-api"
 version = "1.44.0"
-description = "Backend API for Dograh voice AI platform"
+description = "Backend API for SpinSci voice AI platform"
 requires-python = ">=3.13,<3.14"

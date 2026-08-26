@@ -1,4 +1,4 @@
-"""Pydantic schemas for reusable Dograh tools.
+"""Pydantic schemas for reusable SpinSci tools.
 
 These models are the single contract for tool creation/update across the
 REST API, generated SDKs, and the MCP authoring surface. Field descriptions
@@ -63,7 +63,7 @@ class ToolParameter(BaseModel):
 
 
 class PresetToolParameter(BaseModel):
-    """A parameter injected by Dograh at runtime."""
+    """A parameter injected by SpinSci at runtime."""
 
     name: str = Field(description="Parameter name used as a key in the request body.")
     type: ToolParameterType = Field(
@@ -122,7 +122,7 @@ class HttpApiConfig(BaseModel):
     preset_parameters: list[PresetToolParameter] | None = Field(
         default=None,
         description=(
-            "Parameters injected by Dograh from fixed values or workflow context "
+            "Parameters injected by SpinSci from fixed values or workflow context "
             "templates."
         ),
     )
@@ -201,7 +201,7 @@ class HttpTransferResolverConfig(BaseModel):
     )
     wait_message: str | None = Field(
         default=None,
-        description="Optional short message played while Dograh resolves routing.",
+        description="Optional short message played while SpinSci resolves routing.",
     )
     parameters: list[ToolParameter] | None = Field(
         default=None,
@@ -210,7 +210,7 @@ class HttpTransferResolverConfig(BaseModel):
     preset_parameters: list[PresetToolParameter] | None = Field(
         default=None,
         description=(
-            "Parameters injected by Dograh from fixed values or workflow context "
+            "Parameters injected by SpinSci from fixed values or workflow context "
             "templates."
         ),
     )

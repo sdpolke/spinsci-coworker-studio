@@ -11,7 +11,7 @@ from loguru import logger
 from pipecat.serializers.call_strategies import HangupStrategy, TransferStrategy
 
 from api.errors.failure import (
-    DograhFailure,
+    SpinSciFailure,
     ErrorSource,
     ErrorType,
     classify_exception,
@@ -153,7 +153,7 @@ class TwilioHangupStrategy(HangupStrategy):
 
             if not account_sid or not auth_token:
                 log_failure(
-                    DograhFailure(
+                    SpinSciFailure(
                         source=ErrorSource.TELEPHONY,
                         type=ErrorType.CONFIG_ERROR,
                         code="twilio-missing-hangup-credentials",
@@ -169,7 +169,7 @@ class TwilioHangupStrategy(HangupStrategy):
 
             if not call_sid:
                 log_failure(
-                    DograhFailure(
+                    SpinSciFailure(
                         source=ErrorSource.TELEPHONY,
                         type=ErrorType.SYSTEM_ERROR,
                         code="twilio-missing-call-sid",
@@ -178,7 +178,7 @@ class TwilioHangupStrategy(HangupStrategy):
                             "runtime call context"
                         ),
                         external_message=(
-                            "Dograh could not identify the active Twilio call. Please "
+                            "SpinSci could not identify the active Twilio call. Please "
                             "retry or contact support if the problem continues."
                         ),
                         provider="twilio",

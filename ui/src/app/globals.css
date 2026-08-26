@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../styles/spinsci-tokens.css";
 
 @plugin "tailwindcss-animate";
 
@@ -7,8 +8,13 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sora), system-ui, sans-serif;
+  --font-display: var(--font-noto-serif), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-spinsci-violet: var(--spinsci-violet);
+  --color-spinsci-teal: var(--spinsci-teal);
+  --color-spinsci-mint: var(--spinsci-mint);
+  --color-spinsci-surface: var(--spinsci-surface);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -47,78 +53,76 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  /* Single restrained warm accent — used only on primary CTAs + focus rings. */
-  --cta: oklch(0.72 0.15 65);
-  --cta-foreground: oklch(0.16 0.02 60);
+  --radius: var(--spinsci-radius-md);
+  --background: var(--spinsci-white);
+  --foreground: var(--spinsci-ink);
+  --card: var(--spinsci-white);
+  --card-foreground: var(--spinsci-ink);
+  --popover: var(--spinsci-white);
+  --popover-foreground: var(--spinsci-ink);
+  --primary: var(--spinsci-navy);
+  --primary-foreground: var(--spinsci-white);
+  --secondary: var(--spinsci-surface);
+  --secondary-foreground: var(--spinsci-ink);
+  --muted: var(--spinsci-surface);
+  --muted-foreground: var(--spinsci-text-secondary);
+  --accent: var(--spinsci-violet-light);
+  --accent-foreground: var(--spinsci-violet);
+  --destructive: #c62828;
+  --border: var(--spinsci-border-hairline);
+  --input: var(--spinsci-border-hairline);
+  --ring: var(--spinsci-violet-subtle);
+  --chart-1: var(--spinsci-violet);
+  --chart-2: var(--spinsci-teal);
+  --chart-3: var(--spinsci-mint);
+  --chart-4: var(--spinsci-navy);
+  --chart-5: #8295ff;
+  --sidebar: var(--spinsci-surface);
+  --sidebar-foreground: var(--spinsci-ink);
+  --sidebar-primary: var(--spinsci-navy);
+  --sidebar-primary-foreground: var(--spinsci-white);
+  --sidebar-accent: var(--spinsci-violet-light);
+  --sidebar-accent-foreground: var(--spinsci-violet);
+  --sidebar-border: var(--spinsci-border-hairline);
+  --sidebar-ring: var(--spinsci-violet-subtle);
+  --cta: var(--spinsci-teal);
+  --cta-foreground: var(--spinsci-white);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-  /* Warm accent, slightly brighter against the near-black surfaces. */
-  --cta: oklch(0.78 0.16 67);
-  --cta-foreground: oklch(0.16 0.02 60);
+  --background: var(--spinsci-ink);
+  --foreground: var(--spinsci-white);
+  --card: var(--spinsci-navy);
+  --card-foreground: var(--spinsci-white);
+  --popover: var(--spinsci-navy);
+  --popover-foreground: var(--spinsci-white);
+  --primary: var(--spinsci-white);
+  --primary-foreground: var(--spinsci-ink);
+  --secondary: rgba(255, 255, 255, 0.06);
+  --secondary-foreground: var(--spinsci-white);
+  --muted: rgba(255, 255, 255, 0.08);
+  --muted-foreground: rgba(255, 255, 255, 0.6);
+  --accent: rgba(119, 89, 217, 0.2);
+  --accent-foreground: var(--spinsci-mint);
+  --destructive: #ef5350;
+  --border: var(--spinsci-border-on-dark);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: var(--spinsci-violet-subtle);
+  --chart-1: var(--spinsci-mint);
+  --chart-2: var(--spinsci-violet);
+  --chart-3: var(--spinsci-teal);
+  --chart-4: #8295ff;
+  --chart-5: var(--spinsci-white);
+  --sidebar: var(--spinsci-navy);
+  --sidebar-foreground: var(--spinsci-white);
+  --sidebar-primary: var(--spinsci-mint);
+  --sidebar-primary-foreground: var(--spinsci-ink);
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: var(--spinsci-white);
+  --sidebar-border: var(--spinsci-border-on-dark);
+  --sidebar-ring: var(--spinsci-violet-subtle);
+  --cta: var(--spinsci-mint);
+  --cta-foreground: var(--spinsci-ink);
 }
 
 @layer base {
@@ -127,7 +131,65 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .ds-eyebrow {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 12px;
+    line-height: 18px;
+    letter-spacing: 0.96px;
+    text-transform: uppercase;
+    color: var(--spinsci-violet);
+  }
+
+  .ds-display-sm {
+    font-family: var(--font-display);
+    font-weight: 300;
+    font-size: 32px;
+    line-height: 38px;
+    letter-spacing: -0.96px;
+  }
+
+  .ds-gradient-text {
+    background: var(--spinsci-gradient-heading);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .spinsci-card-ring {
+    box-shadow: var(--spinsci-shadow-card);
+    transition:
+      box-shadow var(--spinsci-dur-base) ease,
+      transform var(--spinsci-dur-base) var(--spinsci-ease-out-expo);
+  }
+
+  .spinsci-card-ring:hover {
+    box-shadow: var(--spinsci-shadow-card-hover);
+    transform: translateY(-2px);
+  }
+
+  .spinsci-hero-bg {
+    background: var(--spinsci-gradient-hero);
+  }
+
+  .spinsci-platform-bg {
+    background: var(--spinsci-gradient-platform);
   }
 }
 
@@ -156,8 +218,8 @@
 @keyframes onboarding-pulse {
   0% {
     box-shadow:
-      0 0 0 3px rgba(59, 130, 246, 0.75),
-      0 0 0 3px rgba(59, 130, 246, 0.6);
+      0 0 0 3px rgba(119, 89, 217, 0.75),
+      0 0 0 3px rgba(119, 89, 217, 0.6);
     transform: scale(1);
   }
   40% {
@@ -165,21 +227,21 @@
   }
   70% {
     box-shadow:
-      0 0 0 3px rgba(59, 130, 246, 0.75),
-      0 0 0 18px rgba(59, 130, 246, 0);
+      0 0 0 3px rgba(119, 89, 217, 0.75),
+      0 0 0 18px rgba(119, 89, 217, 0);
     transform: scale(1);
   }
   100% {
     box-shadow:
-      0 0 0 3px rgba(59, 130, 246, 0.75),
-      0 0 0 18px rgba(59, 130, 246, 0);
+      0 0 0 3px rgba(119, 89, 217, 0.75),
+      0 0 0 18px rgba(119, 89, 217, 0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .onboarding-pulse {
     animation: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.6);
+    box-shadow: 0 0 0 3px rgba(119, 89, 217, 0.6);
   }
 }
 
@@ -224,12 +286,12 @@
     .auth-waveform span { animation: none; }
   }
 
-  /* Matte app background — flat charcoal (dark) / soft paper (light). */
+  /* SpinSci surface — warm off-white (light) / ink (dark). */
   .app-surface {
-    background-color: oklch(0.984 0.001 80);
+    background-color: var(--spinsci-surface);
   }
   .dark .app-surface {
-    background-color: oklch(0.165 0.002 80);
+    background-color: var(--spinsci-ink);
   }
 
   .auth-imprint {
@@ -254,27 +316,14 @@
 /* Flat carbon-charcoal panel with a soft light glow along the LEFT edge:
    a 1px highlight line plus an inner bloom fading rightwards. */
 .dark .app-sidebar-dock [data-slot="sidebar-inner"] {
-  border-color: rgb(255 255 255 / 0.1);
-  background-color: oklch(0.18 0.002 80);
-  box-shadow:
-    inset 1px 0 0 rgb(255 255 255 / 0.1),
-    inset 3px 0 6px -4px rgb(255 255 255 / 0.08),
-    0 24px 50px -14px rgb(0 0 0 / 0.85);
+  border-color: var(--spinsci-border-on-dark);
+  background-color: var(--spinsci-navy);
+  box-shadow: var(--spinsci-shadow-modal);
 }
 
-/* Card surface ("Crosshatch + Top-Lit Edge", user-approved 2026-06-11 after a
-   3-round design board): a 45° hairline twill weave at 1% laid over the panel
-   colour, plus — dark mode only — a brighter SOLID top border, like light
-   catching the machined top edge of the panel. Applied app-wide by the Card
-   primitive (components/ui/card.tsx). Un-layered so border-top-color beats
-   the border-border/60 utility. No gradients (user constraint). */
+/* SpinSci cards use a soft ring, not a crosshatch weave. */
 .card-weave {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M0 0l12 12M12 0L0 12' stroke='%23000000' stroke-opacity='.015' fill='none'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-}
-.dark .card-weave {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Cpath d='M0 0l12 12M12 0L0 12' stroke='%23ffffff' stroke-opacity='.01' fill='none'/%3E%3C/svg%3E");
-  border-top-color: rgb(255 255 255 / 0.2);
+  background-image: none;
 }
 
 /* Lead-form shell ("Ledger" treatment, user-approved 2026-06-11): neutral
@@ -333,22 +382,18 @@
   border-bottom-color: var(--cta);
 }
 
-/* ---------------------------------------------------------------------------
-   Crescendo-branded overview page (/overview). Always renders in Crescendo's
-   light palette regardless of app dark mode; typography mirrors their site
-   (Poppins headings, system sans body). Scoped to .overview-crescendo only.
---------------------------------------------------------------------------- */
-
-.overview-crescendo {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color: #202124;
-  background-color: #f8fafb;
+/* SpinSci overview page (/overview) — light editorial palette regardless of app theme. */
+.overview-spinsci {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  color: var(--spinsci-ink);
+  background-color: var(--spinsci-surface);
   background-image: none;
   min-height: 100%;
 }
 
-.overview-crescendo .overview-crescendo-heading,
-.overview-crescendo .overview-crescendo-display,
-.overview-crescendo .overview-crescendo-stat {
-  font-family: var(--font-poppins), "Poppins", system-ui, sans-serif;
+.overview-spinsci .overview-spinsci-heading,
+.overview-spinsci .overview-spinsci-display,
+.overview-spinsci .overview-spinsci-stat {
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 300;
 }

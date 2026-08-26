@@ -6,24 +6,25 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 from api.services.configuration.registry import (
-    DograhEmbeddingsConfiguration,
-    DograhLLMService,
-    DograhSTTService,
-    DograhTTSService,
+    SpinSciEmbeddingsConfiguration,
+    SpinSciLLMService,
+    SpinSciSTTService,
+    SpinSciTTSService,
     EmbeddingsConfig,
     LLMConfig,
     RealtimeConfig,
     ServiceProviders,
     STTConfig,
     TTSConfig,
+    normalize_legacy_provider_aliases,
 )
 
-DOGRAH_SPEED_MIN = 0.5
-DOGRAH_SPEED_MAX = 2.0
-DOGRAH_SPEED_STEP = 0.1
-DOGRAH_SPEED_OPTIONS: tuple[float, ...] = (0.8, 1.0, 1.2)
-DOGRAH_DEFAULT_VOICE = "default"
-DOGRAH_DEFAULT_LANGUAGE = "multi"
+SPINSCI_SPEED_MIN = 0.5
+SPINSCI_SPEED_MAX = 2.0
+SPINSCI_SPEED_STEP = 0.1
+SPINSCI_SPEED_OPTIONS: tuple[float, ...] = (0.8, 1.0, 1.2)
+SPINSCI_DEFAULT_VOICE = "default"
+SPINSCI_DEFAULT_LANGUAGE = "multi"
 
 
 class EffectiveAIModelConfiguration(BaseModel):
@@ -40,6 +41,13 @@ class EffectiveAIModelConfiguration(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
+    def normalize_legacy_provider_aliases(cls, data):
+        if isinstance(data, dict):
+            normalize_legacy_provider_aliases(data)
+        return data
+
+    @model_validator(mode="before")
+    @classmethod
     def strip_incomplete_realtime_when_disabled(cls, data):
         """Skip realtime validation when is_realtime is False and api_key is missing."""
         if isinstance(data, dict) and not data.get("is_realtime", False):
@@ -49,11 +57,11 @@ class EffectiveAIModelConfiguration(BaseModel):
         return data
 
 
-class DograhManagedAIModelConfiguration(BaseModel):
+class SpinSciManagedAIModelConfiguration(BaseModel):
     api_key: str
-    voice: str = DOGRAH_DEFAULT_VOICE
-    speed: float = Field(default=1.0, ge=DOGRAH_SPEED_MIN, le=DOGRAH_SPEED_MAX)
-    language: str = DOGRAH_DEFAULT_LANGUAGE
+    voice: str = SPINSCI_DEFAULT_VOICE
+    speed: float = Field(default=1.0, ge=SPINSCI_SPEED_MIN, le=SPINSCI_SPEED_MAX)
+    language: str = SPINSCI_DEFAULT_LANGUAGE
 
 
 class BYOKPipelineAIModelConfiguration(BaseModel):
@@ -63,11 +71,11 @@ class BYOKPipelineAIModelConfiguration(BaseModel):
     embeddings: EmbeddingsConfig | None = None
 
     @model_validator(mode="after")
-    def reject_dograh_providers(self):
-        _reject_dograh_provider("llm", self.llm)
-        _reject_dograh_provider("tts", self.tts)
-        _reject_dograh_provider("stt", self.stt)
-        _reject_dograh_provider("embeddings", self.embeddings)
+    def reject_spinsci_providers(self):
+        _reject_spinsci_provider("llm", self.llm)
+        _reject_spinsci_provider("tts", self.tts)
+        _reject_spinsci_provider("stt", self.stt)
+        _reject_spinsci_provider("embeddings", self.embeddings)
         return self
 
 
@@ -77,9 +85,9 @@ class BYOKRealtimeAIModelConfiguration(BaseModel):
     embeddings: EmbeddingsConfig | None = None
 
     @model_validator(mode="after")
-    def reject_dograh_providers(self):
-        _reject_dograh_provider("llm", self.llm)
-        _reject_dograh_provider("embeddings", self.embeddings)
+    def reject_spinsci_providers(self):
+        _reject_spinsci_provider("llm", self.llm)
+        _reject_spinsci_provider("embeddings", self.embeddings)
         return self
 
 
@@ -99,14 +107,25 @@ class BYOKAIModelConfiguration(BaseModel):
 
 class OrganizationAIModelConfigurationV2(BaseModel):
     version: Literal[2] = 2
-    mode: Literal["dograh", "byok"]
-    dograh: DograhManagedAIModelConfiguration | None = None
+    mode: Literal["spinsci", "byok"]
+    spinsci: SpinSciManagedAIModelConfiguration | None = None
     byok: BYOKAIModelConfiguration | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_legacy_mode_aliases(cls, data):
+        if isinstance(data, dict):
+            if data.get("mode") == "dograh":
+                data["mode"] = "spinsci"
+            if isinstance(data.get("dograh"), dict) and data.get("spinsci") is None:
+                data["spinsci"] = data.pop("dograh")
+            normalize_legacy_provider_aliases(data)
+        return data
 
     @model_validator(mode="after")
     def validate_selected_mode(self):
-        if self.mode == "dograh" and self.dograh is None:
-            raise ValueError("dograh configuration is required when mode is dograh")
+        if self.mode == "spinsci" and self.spinsci is None:
+            raise ValueError("spinsci configuration is required when mode is spinsci")
         if self.mode == "byok" and self.byok is None:
             raise ValueError("byok configuration is required when mode is byok")
         return self
@@ -121,10 +140,10 @@ class OrganizationAIModelConfigurationResponse(BaseModel):
 def compile_ai_model_configuration_v2(
     configuration: OrganizationAIModelConfigurationV2,
 ) -> EffectiveAIModelConfiguration:
-    if configuration.mode == "dograh":
-        if configuration.dograh is None:
-            raise ValueError("dograh configuration is required")
-        return _compile_dograh_configuration(configuration.dograh)
+    if configuration.mode == "spinsci":
+        if configuration.spinsci is None:
+            raise ValueError("spinsci configuration is required")
+        return _compile_spinsci_configuration(configuration.spinsci)
 
     if configuration.byok is None:
         raise ValueError("byok configuration is required")
@@ -151,40 +170,40 @@ def compile_ai_model_configuration_v2(
     )
 
 
-def _compile_dograh_configuration(
-    configuration: DograhManagedAIModelConfiguration,
+def _compile_spinsci_configuration(
+    configuration: SpinSciManagedAIModelConfiguration,
 ) -> EffectiveAIModelConfiguration:
     return EffectiveAIModelConfiguration(
-        llm=DograhLLMService(
-            provider=ServiceProviders.DOGRAH,
+        llm=SpinSciLLMService(
+            provider=ServiceProviders.SPINSCI,
             api_key=configuration.api_key,
             model="default",
         ),
-        tts=DograhTTSService(
-            provider=ServiceProviders.DOGRAH,
+        tts=SpinSciTTSService(
+            provider=ServiceProviders.SPINSCI,
             api_key=configuration.api_key,
             model="default",
             voice=configuration.voice,
             speed=configuration.speed,
         ),
-        stt=DograhSTTService(
-            provider=ServiceProviders.DOGRAH,
+        stt=SpinSciSTTService(
+            provider=ServiceProviders.SPINSCI,
             api_key=configuration.api_key,
             model="default",
             language=configuration.language,
         ),
-        embeddings=DograhEmbeddingsConfiguration(
-            provider=ServiceProviders.DOGRAH,
+        embeddings=SpinSciEmbeddingsConfiguration(
+            provider=ServiceProviders.SPINSCI,
             api_key=configuration.api_key,
-            model="dograh_embedding_v1",
+            model="spinsci_embedding_v1",
         ),
         is_realtime=False,
         managed_service_version=2,
     )
 
 
-def _reject_dograh_provider(section: str, service) -> None:
+def _reject_spinsci_provider(section: str, service) -> None:
     if service is None:
         return
-    if getattr(service, "provider", None) == ServiceProviders.DOGRAH:
-        raise ValueError(f"BYOK {section} cannot use Dograh provider")
+    if getattr(service, "provider", None) == ServiceProviders.SPINSCI:
+        raise ValueError(f"BYOK {section} cannot use SpinSci provider")

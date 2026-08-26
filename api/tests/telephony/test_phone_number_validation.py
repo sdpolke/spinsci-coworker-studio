@@ -319,7 +319,7 @@ async def test_ari_validation_explicitly_accepts_pbx_managed_address():
     provider = ARIProvider(
         {
             "ari_endpoint": "http://asterisk:8088",
-            "app_name": "dograh",
+            "app_name": "spinsci",
             "app_password": "secret",
             "from_numbers": [],
         }

@@ -7,16 +7,16 @@ from pipecat.adapters.services.gemini_live_adapter import GeminiLiveLLMAdapter
 
 from api.services.configuration.registry import ServiceProviders
 from api.services.pipecat.gemini_json_schema_adapter import (
-    DograhGeminiJSONSchemaAdapter,
-    DograhGeminiLiveJSONSchemaAdapter,
+    SpinSciGeminiJSONSchemaAdapter,
+    SpinSciGeminiLiveJSONSchemaAdapter,
 )
-from api.services.pipecat.realtime.gemini_live import DograhGeminiLiveLLMService
+from api.services.pipecat.realtime.gemini_live import SpinSciGeminiLiveLLMService
 from api.services.pipecat.realtime.gemini_live_vertex import (
-    DograhGeminiLiveVertexLLMService,
+    SpinSciGeminiLiveVertexLLMService,
 )
 from api.services.pipecat.service_factory import (
-    DograhGoogleLLMService,
-    DograhGoogleVertexLLMService,
+    SpinSciGoogleLLMService,
+    SpinSciGoogleVertexLLMService,
     create_llm_service_from_provider,
 )
 
@@ -41,7 +41,7 @@ def test_gemini_tools_use_json_schema_parameters_for_external_schemas():
         required=["customerEmail"],
     )
 
-    tools = DograhGeminiJSONSchemaAdapter().to_provider_tools_format(
+    tools = SpinSciGeminiJSONSchemaAdapter().to_provider_tools_format(
         ToolsSchema(standard_tools=[function_schema])
     )
 
@@ -74,7 +74,7 @@ def test_gemini_tools_use_json_schema_parameters_for_no_argument_tools():
         required=[],
     )
 
-    tools = DograhGeminiJSONSchemaAdapter().to_provider_tools_format(
+    tools = SpinSciGeminiJSONSchemaAdapter().to_provider_tools_format(
         ToolsSchema(standard_tools=[function_schema])
     )
 
@@ -89,14 +89,14 @@ def test_gemini_tools_use_json_schema_parameters_for_no_argument_tools():
     GenerateContentConfig(tools=tools)
 
 
-def test_google_service_classes_use_dograh_gemini_adapter_class():
-    assert DograhGoogleLLMService.adapter_class is DograhGeminiJSONSchemaAdapter
-    assert DograhGoogleVertexLLMService.adapter_class is DograhGeminiJSONSchemaAdapter
+def test_google_service_classes_use_spinsci_gemini_adapter_class():
+    assert SpinSciGoogleLLMService.adapter_class is SpinSciGeminiJSONSchemaAdapter
+    assert SpinSciGoogleVertexLLMService.adapter_class is SpinSciGeminiJSONSchemaAdapter
 
 
-def test_google_llm_service_factory_uses_dograh_service_class():
+def test_google_llm_service_factory_uses_spinsci_service_class():
     with patch(
-        "api.services.pipecat.service_factory.DograhGoogleLLMService",
+        "api.services.pipecat.service_factory.SpinSciGoogleLLMService",
     ) as mock_service:
         result = create_llm_service_from_provider(
             provider=ServiceProviders.GOOGLE.value,
@@ -109,9 +109,9 @@ def test_google_llm_service_factory_uses_dograh_service_class():
     assert mock_service.call_args.kwargs["settings"].model == "gemini-3.5-flash"
 
 
-def test_google_vertex_llm_service_factory_uses_dograh_service_class():
+def test_google_vertex_llm_service_factory_uses_spinsci_service_class():
     with patch(
-        "api.services.pipecat.service_factory.DograhGoogleVertexLLMService",
+        "api.services.pipecat.service_factory.SpinSciGoogleVertexLLMService",
     ) as mock_service:
         result = create_llm_service_from_provider(
             provider=ServiceProviders.GOOGLE_VERTEX.value,
@@ -128,35 +128,35 @@ def test_google_vertex_llm_service_factory_uses_dograh_service_class():
     assert mock_service.call_args.kwargs["settings"].model == "gemini-2.5-pro"
 
 
-def test_gemini_live_service_classes_use_dograh_gemini_adapter_class():
-    assert DograhGeminiLiveLLMService.adapter_class is DograhGeminiLiveJSONSchemaAdapter
-    # Vertex Live inherits adapter_class from DograhGeminiLiveLLMService via MRO.
+def test_gemini_live_service_classes_use_spinsci_gemini_adapter_class():
+    assert SpinSciGeminiLiveLLMService.adapter_class is SpinSciGeminiLiveJSONSchemaAdapter
+    # Vertex Live inherits adapter_class from SpinSciGeminiLiveLLMService via MRO.
     assert (
-        DograhGeminiLiveVertexLLMService.adapter_class
-        is DograhGeminiLiveJSONSchemaAdapter
+        SpinSciGeminiLiveVertexLLMService.adapter_class
+        is SpinSciGeminiLiveJSONSchemaAdapter
     )
     # The Live adapter must keep upstream's tool-call-to-text conversion for
     # seeded contexts (GeminiLiveLLMAdapter) alongside the JSON Schema fix.
-    assert issubclass(DograhGeminiLiveJSONSchemaAdapter, GeminiLiveLLMAdapter)
-    assert issubclass(DograhGeminiLiveJSONSchemaAdapter, DograhGeminiJSONSchemaAdapter)
+    assert issubclass(SpinSciGeminiLiveJSONSchemaAdapter, GeminiLiveLLMAdapter)
+    assert issubclass(SpinSciGeminiLiveJSONSchemaAdapter, SpinSciGeminiJSONSchemaAdapter)
     assert (
-        DograhGeminiLiveJSONSchemaAdapter.to_provider_tools_format
-        is DograhGeminiJSONSchemaAdapter.to_provider_tools_format
+        SpinSciGeminiLiveJSONSchemaAdapter.to_provider_tools_format
+        is SpinSciGeminiJSONSchemaAdapter.to_provider_tools_format
     )
 
 
-def test_vertex_live_inherits_dograh_node_transition_lifecycle():
+def test_vertex_live_inherits_spinsci_node_transition_lifecycle():
     assert (
-        DograhGeminiLiveVertexLLMService._requires_node_transition_context_aggregation
-        is DograhGeminiLiveLLMService._requires_node_transition_context_aggregation
+        SpinSciGeminiLiveVertexLLMService._requires_node_transition_context_aggregation
+        is SpinSciGeminiLiveLLMService._requires_node_transition_context_aggregation
     )
     assert (
-        DograhGeminiLiveVertexLLMService._run_or_defer_function_calls
-        is DograhGeminiLiveLLMService._run_or_defer_function_calls
+        SpinSciGeminiLiveVertexLLMService._run_or_defer_function_calls
+        is SpinSciGeminiLiveLLMService._run_or_defer_function_calls
     )
     assert (
-        DograhGeminiLiveVertexLLMService._reconnect_for_node_transition
-        is DograhGeminiLiveLLMService._reconnect_for_node_transition
+        SpinSciGeminiLiveVertexLLMService._reconnect_for_node_transition
+        is SpinSciGeminiLiveLLMService._reconnect_for_node_transition
     )
 
 
@@ -173,7 +173,7 @@ def test_gemini_live_config_accepts_json_schema_tools():
         required=["customerEmail"],
     )
 
-    tools = DograhGeminiJSONSchemaAdapter().to_provider_tools_format(
+    tools = SpinSciGeminiJSONSchemaAdapter().to_provider_tools_format(
         ToolsSchema(standard_tools=[function_schema])
     )
 

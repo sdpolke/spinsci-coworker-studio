@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Colors" name="Accent colors" subtitle="Violet, teal, mint + success" viewport="700x175" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; background: var(--color-white); font-family: var(--font-ui); }
+  .wrap { padding: 28px 32px; }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .sw { border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-faint); }
+  .chip { height: 78px; position: relative; }
+  .chip .tint { position: absolute; right: 8px; bottom: 8px; width: 30px; height: 30px; border-radius: var(--radius-sm); }
+  .meta { padding: 10px 12px; }
+  .name { font-weight: 600; font-size: 13px; color: var(--color-text-primary); letter-spacing: -0.1px; }
+  .hex { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tok { font-size: 11px; color: var(--color-violet); margin-top: 4px; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="row">
+      <div class="sw"><div class="chip" style="background:#7759D9"><div class="tint" style="background:rgba(119,89,217,0.20)"></div></div><div class="meta"><div class="name">Violet</div><div class="hex">#7759D9</div><div class="tok">--color-violet</div></div></div>
+      <div class="sw"><div class="chip" style="background:#04867C"></div><div class="meta"><div class="name">Teal</div><div class="hex">#04867C</div><div class="tok">--color-teal</div></div></div>
+      <div class="sw"><div class="chip" style="background:#5CE0B0"><div class="tint" style="background:rgba(92,224,176,0.20)"></div></div><div class="meta"><div class="name">Mint</div><div class="hex">#5CE0B0</div><div class="tok">--color-mint</div></div></div>
+      <div class="sw"><div class="chip" style="background:#F0FFF9;border-bottom:1px solid var(--border-teal)"></div><div class="meta"><div class="name">Success BG</div><div class="hex">#F0FFF9</div><div class="tok">--color-success-bg</div></div></div>
+    </div>
+  </div>
+</body>
+</html>

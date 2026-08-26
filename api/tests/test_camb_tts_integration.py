@@ -1,4 +1,4 @@
-"""Tests for CAMB AI TTS integration into Dograh.
+"""Tests for CAMB AI TTS integration into SpinSci.
 
 Covers:
 - CambTTSConfiguration model (defaults, custom values, JSON schema)
@@ -71,15 +71,15 @@ class TestServiceFactoryCamb:
         import sys
 
         # Mock missing modules (custom pipecat fork, not in public pipecat-ai)
-        dograh_modules = [
-            "pipecat.services.dograh",
-            "pipecat.services.dograh.llm",
-            "pipecat.services.dograh.stt",
-            "pipecat.services.dograh.tts",
+        spinsci_modules = [
+            "pipecat.services.spinsci",
+            "pipecat.services.spinsci.llm",
+            "pipecat.services.spinsci.stt",
+            "pipecat.services.spinsci.tts",
             "pipecat.utils.text.xml_function_tag_filter",
         ]
         mocks = {}
-        for mod in dograh_modules:
+        for mod in spinsci_modules:
             if mod not in sys.modules:
                 mocks[mod] = MagicMock()
 

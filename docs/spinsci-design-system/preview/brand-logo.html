@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- @dsCard group="Brand" name="Logo" subtitle="Wordmark on light & dark" viewport="700x175" -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; background: var(--color-white); font-family: var(--font-ui); }
+  .wrap { padding: 24px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .panel { border-radius: var(--radius-lg); height: 110px; display: flex; align-items: center; justify-content: center; }
+  .light { background: var(--color-surface); border: 1px solid var(--border-hairline); }
+  .dark { background: var(--color-ink); }
+  .panel img { height: 30px; }
+  .lbl { grid-column: 1 / -1; font-size: 11px; color: var(--color-text-secondary); line-height: 1.6; }
+  .lbl b { color: var(--color-text-primary); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel light"><img src="../assets/spinsci-logo.svg" alt="SpinSci"></div>
+    <div class="panel dark"><img src="../assets/spinsci-logo-white.svg" alt="SpinSci"></div>
+    <div class="lbl"><b>Wordmark + gradient mark.</b> Logo-ink #1C0236 on light; white variant on ink/navy. Mark gradient: violet → periwinkle → mint.</div>
+  </div>
+</body>
+</html>

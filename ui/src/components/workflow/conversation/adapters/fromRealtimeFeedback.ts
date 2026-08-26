@@ -78,7 +78,7 @@ function liveFeedbackItem(message: RealtimeFeedbackMessage, reasoningDurationMs?
             tone: "warning",
             title: "Interruption Disabled",
             text: message.text,
-            linkHref: "https://www.crescendoworldwide.com",
+            linkHref: "https://www.spinsci.com",
             linkLabel: "Learn more",
         };
     }
@@ -260,7 +260,7 @@ export function conversationItemsFromRealtimeFeedbackEvents(events: RealtimeFeed
                 tone: "warning",
                 title: "Interruption Disabled",
                 text: feedbackEventText(event),
-                linkHref: "https://www.crescendoworldwide.com",
+                linkHref: "https://www.spinsci.com",
                 linkLabel: "Learn more",
             });
             return;

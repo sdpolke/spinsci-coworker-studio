@@ -60,7 +60,7 @@ async def test_get_billing_credits_local_ledger(monkeypatch):
 @pytest.mark.asyncio
 async def test_grant_billing_credits(monkeypatch):
     monkeypatch.setattr(organization_usage, "LOCAL_CREDITS_ENABLED", True)
-    monkeypatch.setattr(organization_usage, "DOGRAH_DEVOPS_SECRET", "secret")
+    monkeypatch.setattr(organization_usage, "SPINSCI_DEVOPS_SECRET", "secret")
 
     monkeypatch.setattr(
         organization_usage.db_client,
@@ -81,7 +81,7 @@ async def test_grant_billing_credits(monkeypatch):
         ),
         authorization=None,
         x_api_key=None,
-        x_dograh_devops_secret="secret",
+        x_spinsci_devops_secret="secret",
     )
 
     assert response.organization_id == 7

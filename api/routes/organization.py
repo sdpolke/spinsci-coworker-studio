@@ -21,12 +21,12 @@ from api.enums import OrganizationConfigurationKey, PostHogEvent
 from api.errors.failure import ErrorSource, classify_exception, log_failure
 from api.errors.mps import MPSUnavailableError
 from api.schemas.ai_model_configuration import (
-    DOGRAH_DEFAULT_LANGUAGE,
-    DOGRAH_DEFAULT_VOICE,
-    DOGRAH_SPEED_MAX,
-    DOGRAH_SPEED_MIN,
-    DOGRAH_SPEED_OPTIONS,
-    DOGRAH_SPEED_STEP,
+    SPINSCI_DEFAULT_LANGUAGE,
+    SPINSCI_DEFAULT_VOICE,
+    SPINSCI_SPEED_MAX,
+    SPINSCI_SPEED_MIN,
+    SPINSCI_SPEED_OPTIONS,
+    SPINSCI_SPEED_STEP,
     OrganizationAIModelConfigurationResponse,
     OrganizationAIModelConfigurationV2,
 )
@@ -66,10 +66,10 @@ from api.services.configuration.check_validity import UserConfigurationValidator
 from api.services.configuration.defaults import DEFAULT_SERVICE_PROVIDERS
 from api.services.configuration.masking import is_mask_of, mask_key, mask_user_config
 from api.services.configuration.registry import (
-    DOGRAH_MULTILINGUAL_AUTODETECT_LANGUAGES,
-    DOGRAH_STT_LANGUAGES,
+    SPINSCI_MULTILINGUAL_AUTODETECT_LANGUAGES,
+    SPINSCI_STT_LANGUAGES,
     REGISTRY,
-    DograhTTSService,
+    SpinSciTTSService,
     ServiceProviders,
     ServiceType,
 )
@@ -184,12 +184,12 @@ class ModelConfigurationPricingResponse(BaseModel):
     """MPS-owned effective prices relevant to model configuration choices."""
 
     platform_usage: ModelConfigurationMetricPrice | None = None
-    dograh_model: ModelConfigurationMetricPrice | None = None
+    spinsci_model: ModelConfigurationMetricPrice | None = None
 
 
 @router.get("/context", response_model=OrganizationContextResponse)
 async def get_current_organization_context(user: UserModel = Depends(get_user)):
-    """Return organization-scoped configuration signals owned by Dograh."""
+    """Return organization-scoped configuration signals owned by SpinSci."""
     return await get_organization_context(user)
 
 
@@ -287,8 +287,8 @@ async def get_telephony_config_warnings(user: UserModel = Depends(get_user)):
 # ---------------------------------------------------------------------------
 
 
-def _dograh_allows_custom_voice() -> bool:
-    extra = DograhTTSService.model_fields["voice"].json_schema_extra
+def _spinsci_allows_custom_voice() -> bool:
+    extra = SpinSciTTSService.model_fields["voice"].json_schema_extra
     if isinstance(extra, dict):
         return bool(extra.get("allow_custom_input", False))
     return False
@@ -298,7 +298,7 @@ def _byok_provider_schemas(service_type: ServiceType) -> dict[str, dict]:
     return {
         provider: model_cls.model_json_schema()
         for provider, model_cls in REGISTRY[service_type].items()
-        if provider != ServiceProviders.DOGRAH.value
+        if provider != ServiceProviders.SPINSCI.value
     }
 
 
@@ -329,24 +329,24 @@ async def get_model_configuration_v2_defaults(
     byok_default_providers = {
         service: provider
         for service, provider in DEFAULT_SERVICE_PROVIDERS.items()
-        if provider != ServiceProviders.DOGRAH.value
+        if provider != ServiceProviders.SPINSCI.value
     }
     return {
-        "dograh": {
-            "voices": [DOGRAH_DEFAULT_VOICE],
-            "allow_custom_input": _dograh_allows_custom_voice(),
-            "speeds": list(DOGRAH_SPEED_OPTIONS),
+        "spinsci": {
+            "voices": [SPINSCI_DEFAULT_VOICE],
+            "allow_custom_input": _spinsci_allows_custom_voice(),
+            "speeds": list(SPINSCI_SPEED_OPTIONS),
             "speed_range": {
-                "min": DOGRAH_SPEED_MIN,
-                "max": DOGRAH_SPEED_MAX,
-                "step": DOGRAH_SPEED_STEP,
+                "min": SPINSCI_SPEED_MIN,
+                "max": SPINSCI_SPEED_MAX,
+                "step": SPINSCI_SPEED_STEP,
             },
-            "languages": DOGRAH_STT_LANGUAGES,
-            "multilingual_languages": DOGRAH_MULTILINGUAL_AUTODETECT_LANGUAGES,
+            "languages": SPINSCI_STT_LANGUAGES,
+            "multilingual_languages": SPINSCI_MULTILINGUAL_AUTODETECT_LANGUAGES,
             "defaults": {
-                "voice": DOGRAH_DEFAULT_VOICE,
+                "voice": SPINSCI_DEFAULT_VOICE,
                 "speed": 1.0,
-                "language": DOGRAH_DEFAULT_LANGUAGE,
+                "language": SPINSCI_DEFAULT_LANGUAGE,
             },
         },
         "byok": {
@@ -402,7 +402,7 @@ async def get_model_configuration_pricing(
             classify_exception(
                 exc,
                 source=ErrorSource.PLATFORM,
-                provider="dograh",
+                provider="spinsci",
                 error_owner="operator",
             ),
             organization_id=user.selected_organization_id,

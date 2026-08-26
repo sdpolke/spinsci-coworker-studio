@@ -11,9 +11,9 @@ fi
 
 docker compose "${COMPOSE_FILES[@]}" exec -T postgres sh -c '
   HBA=/var/lib/postgresql/data/pg_hba.conf
-  if ! grep -q "# dograh-dev-host-trust" "$HBA"; then
+  if ! grep -q "# spinsci-dev-host-trust" "$HBA"; then
     sed -i.bak "s/^host all all all scram-sha-256$/# disabled for local dev: &/" "$HBA"
-    sed -i.bak "1i# dograh-dev-host-trust\nhost all all all trust\n" "$HBA"
+    sed -i.bak "1i# spinsci-dev-host-trust\nhost all all all trust\n" "$HBA"
   fi
 '
 

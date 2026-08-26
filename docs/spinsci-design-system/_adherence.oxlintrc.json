@@ -1,0 +1,210 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "doc-page.js",
+              "ui_kits/website/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "Literal[value=/font-family\\s*:\\s*(?!['\\\"]?(?:Noto Serif|Sora))/i]",
+        "message": "Font not provided by the design system. Available: Noto Serif, Sora."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Hero'] > JSXAttribute > JSXIdentifier[name!=/^(?:onDemo|key|ref|className|style|children)$/]",
+        "message": "<Hero> doesn't accept that prop. Declared props: onDemo."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Nav'] > JSXAttribute > JSXIdentifier[name!=/^(?:onDemo|key|ref|className|style|children)$/]",
+        "message": "<Nav> doesn't accept that prop. Declared props: onDemo."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SpinIcon'] > JSXAttribute > JSXIdentifier[name!=/^(?:name|size|color|strokeWidth|key|ref|className|style|children)$/]",
+        "message": "<SpinIcon> doesn't accept that prop. Declared props: name, size, color, strokeWidth."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StatBand'] > JSXAttribute > JSXIdentifier[name!=/^(?:onDemo|key|ref|className|style|children)$/]",
+        "message": "<StatBand> doesn't accept that prop. Declared props: onDemo."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "Features": {
+        "replaces": []
+      },
+      "Hero": {
+        "replaces": []
+      },
+      "Nav": {
+        "replaces": []
+      },
+      "PlatformDark": {
+        "replaces": []
+      },
+      "SpinIcon": {
+        "replaces": []
+      },
+      "Testimonial": {
+        "replaces": []
+      },
+      "StatBand": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--border-faint",
+      "--border-hairline",
+      "--border-on-dark",
+      "--border-on-dark-md",
+      "--border-teal",
+      "--border-violet",
+      "--color-ink",
+      "--color-logo-ink",
+      "--color-mint",
+      "--color-mint-subtle",
+      "--color-navy",
+      "--color-success-bg",
+      "--color-surface",
+      "--color-teal",
+      "--color-text-on-dark",
+      "--color-text-on-dark-muted",
+      "--color-text-primary",
+      "--color-text-secondary",
+      "--color-violet",
+      "--color-violet-light",
+      "--color-violet-subtle",
+      "--color-white",
+      "--dur-base",
+      "--dur-enter",
+      "--dur-fast",
+      "--ease-out-expo",
+      "--font-display",
+      "--font-ui",
+      "--gradient-heading",
+      "--gradient-hero-bg",
+      "--gradient-logo",
+      "--gradient-platform-bg",
+      "--gutter",
+      "--max-content",
+      "--radius-2xl",
+      "--radius-lg",
+      "--radius-md",
+      "--radius-pill",
+      "--radius-sm",
+      "--radius-xl",
+      "--radius-xs",
+      "--shadow-card",
+      "--shadow-card-hover",
+      "--shadow-modal",
+      "--space-1",
+      "--space-10",
+      "--space-16",
+      "--space-2",
+      "--space-20",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--space-6",
+      "--space-8"
+    ],
+    "tokenKinds": {
+      "--color-ink": "color",
+      "--color-navy": "color",
+      "--color-white": "color",
+      "--color-surface": "color",
+      "--color-logo-ink": "color",
+      "--color-violet": "color",
+      "--color-violet-light": "color",
+      "--color-violet-subtle": "color",
+      "--color-teal": "color",
+      "--color-mint": "color",
+      "--color-mint-subtle": "color",
+      "--color-success-bg": "color",
+      "--color-text-primary": "font",
+      "--color-text-secondary": "font",
+      "--color-text-on-dark": "font",
+      "--color-text-on-dark-muted": "font",
+      "--border-hairline": "color",
+      "--border-faint": "color",
+      "--border-violet": "color",
+      "--border-teal": "color",
+      "--border-on-dark": "color",
+      "--border-on-dark-md": "color",
+      "--gradient-heading": "color",
+      "--gradient-logo": "color",
+      "--gradient-hero-bg": "color",
+      "--gradient-platform-bg": "color",
+      "--font-display": "font",
+      "--font-ui": "font",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--space-6": "spacing",
+      "--space-8": "spacing",
+      "--space-10": "spacing",
+      "--space-16": "spacing",
+      "--space-20": "spacing",
+      "--radius-xs": "radius",
+      "--radius-sm": "radius",
+      "--radius-md": "radius",
+      "--radius-lg": "radius",
+      "--radius-xl": "radius",
+      "--radius-2xl": "radius",
+      "--radius-pill": "radius",
+      "--shadow-card": "shadow",
+      "--shadow-card-hover": "shadow",
+      "--shadow-modal": "shadow",
+      "--max-content": "spacing",
+      "--gutter": "spacing",
+      "--ease-out-expo": "other",
+      "--dur-fast": "other",
+      "--dur-base": "other",
+      "--dur-enter": "other"
+    },
+    "fontFamilies": [
+      "Noto Serif",
+      "Sora"
+    ]
+  }
+}

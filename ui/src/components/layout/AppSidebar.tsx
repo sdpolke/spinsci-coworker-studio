@@ -232,7 +232,7 @@ export function AppSidebar() {
           <Icon
             className={cn(
               "h-4 w-4 shrink-0",
-              isItemActive && "text-cta drop-shadow-[0_0_6px_rgba(240,170,70,0.8)]"
+              isItemActive && "text-cta drop-shadow-[0_0_6px_rgba(92,224,176,0.55)]"
             )}
           />
           <span
@@ -359,7 +359,7 @@ export function AppSidebar() {
             {section.label && (
               <SidebarGroupLabel
                 className={cn(
-                  "notranslate text-xs font-semibold uppercase tracking-wider text-muted-foreground",
+                  "notranslate ds-eyebrow text-[10px] tracking-[0.08em]",
                   isCollapsed && "hidden"
                 )}
                 translate="no"

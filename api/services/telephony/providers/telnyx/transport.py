@@ -40,15 +40,15 @@ async def create_transport(
         )
 
     # Pipecat's TelnyxFrameSerializer names its params from the call's POV,
-    # not Dograh's: ``inbound_encoding`` is what we *send into the call*
-    # (Dograh → Telnyx), and ``outbound_encoding`` is what we *receive out of
-    # the call* (Telnyx → Dograh).
+    # not SpinSci's: ``inbound_encoding`` is what we *send into the call*
+    # (SpinSci → Telnyx), and ``outbound_encoding`` is what we *receive out of
+    # the call* (Telnyx → SpinSci).
     serializer = TelnyxFrameSerializer(
         stream_id=stream_id,
         call_control_id=call_control_id,
         api_key=api_key,
-        inbound_encoding="PCMU",  # Dograh → Telnyx; matches stream_bidirectional_codec
-        outbound_encoding=encoding,  # Telnyx → Dograh; from media_format.encoding
+        inbound_encoding="PCMU",  # SpinSci → Telnyx; matches stream_bidirectional_codec
+        outbound_encoding=encoding,  # Telnyx → SpinSci; from media_format.encoding
         transfer_strategy=TelnyxConferenceStrategy(),
         hangup_strategy=TelnyxHangupStrategy(),
     )

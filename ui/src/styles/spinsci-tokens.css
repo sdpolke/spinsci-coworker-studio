@@ -1,0 +1,36 @@
+/* SpinSci design tokens — sourced from docs/spinsci-design-system/colors_and_type.css */
+
+:root {
+  --spinsci-ink: #091322;
+  --spinsci-navy: #122643;
+  --spinsci-white: #ffffff;
+  --spinsci-surface: #f7f6f5;
+  --spinsci-violet: #7759d9;
+  --spinsci-violet-light: #f6f3ff;
+  --spinsci-violet-subtle: rgba(119, 89, 217, 0.2);
+  --spinsci-teal: #04867c;
+  --spinsci-mint: #5ce0b0;
+  --spinsci-mint-subtle: rgba(92, 224, 176, 0.2);
+  --spinsci-text-secondary: rgba(9, 19, 34, 0.4);
+  --spinsci-border-hairline: rgba(9, 19, 34, 0.1);
+  --spinsci-border-faint: rgba(9, 19, 34, 0.06);
+  --spinsci-border-on-dark: rgba(255, 255, 255, 0.1);
+  --spinsci-gradient-heading: linear-gradient(94deg, #5136a9 0%, #122643 100%);
+  --spinsci-gradient-platform: linear-gradient(135deg, #091322 0%, #122643 55%, #1a3a52 100%);
+  --spinsci-gradient-hero: radial-gradient(
+    120% 90% at 85% 0%,
+    rgba(92, 224, 176, 0.18) 0%,
+    rgba(247, 246, 245, 0) 55%
+  );
+  --spinsci-shadow-card: rgba(18, 38, 67, 0.04) 0px 0px 0px 4px;
+  --spinsci-shadow-card-hover: rgba(18, 38, 67, 0.08) 0px 0px 0px 6px;
+  --spinsci-shadow-modal: 0 24px 48px rgba(9, 19, 34, 0.12);
+  --spinsci-radius-sm: 8px;
+  --spinsci-radius-md: 12px;
+  --spinsci-radius-lg: 16px;
+  --spinsci-radius-xl: 24px;
+  --spinsci-radius-pill: 100px;
+  --spinsci-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --spinsci-dur-fast: 150ms;
+  --spinsci-dur-base: 200ms;
+}

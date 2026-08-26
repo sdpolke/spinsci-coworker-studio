@@ -1,8 +1,6 @@
 import { cn } from "@/lib/utils";
 
-// Reusable Crescendo wordmark. Pass `inverse` for always-dark surfaces (auth
-// brand panel, dark heroes). `mark` uses the same lockup at a compact size
-// (sidebar). Height is controlled by the caller via className (e.g. "h-7").
+// SpinSci wordmark from docs/spinsci-design-system. Pass `inverse` on dark surfaces.
 export function BrandLogo({
   className,
   inverse = false,
@@ -15,13 +13,9 @@ export function BrandLogo({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/crescendo-logo.png"
-      alt="Crescendo Worldwide"
-      className={cn(
-        "w-auto select-none",
-        inverse && "brightness-0 invert",
-        className,
-      )}
+      src={inverse ? "/spinsci-logo-white.svg" : "/spinsci-logo.svg"}
+      alt="SpinSci"
+      className={cn("w-auto select-none", className)}
     />
   );
 }

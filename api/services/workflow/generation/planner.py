@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from api.mcp_server.instructions import DOGRAH_MCP_INSTRUCTIONS
+from api.mcp_server.instructions import SPINSCI_MCP_INSTRUCTIONS
 from api.services.voice_prompting_guide import Stage, build_briefing
 from api.services.workflow.generation.catalog import format_catalog_for_prompt
 from api.services.workflow.generation.model_client import WorkflowGeneratorModelClient
@@ -16,7 +16,7 @@ from api.services.workflow.generation.models import (
 MAX_CLARIFICATION_TURNS = 5
 
 
-PLANNER_SYSTEM_PROMPT = """You are a Dograh voice-workflow planning assistant.
+PLANNER_SYSTEM_PROMPT = """You are a SpinSci voice-workflow planning assistant.
 
 Your job is to gather enough context to build a voice agent workflow. Ask at most
 one focused clarification question per turn. Prefer concrete business questions
@@ -25,7 +25,7 @@ over generic ones. Stop asking once you can produce a clear plan.
 Rules:
 - Never invent tool UUIDs, document UUIDs, or credential UUIDs.
 - If the user needs an integration that is not in the catalog, ask them to
-  configure it in Dograh first or proceed without that integration.
+  configure it in SpinSci first or proceed without that integration.
 - When ready, set status to "ready" and provide a concise summary and plan.
 - When still clarifying, set status to "clarifying" and ask exactly one question.
 - Respond with JSON only matching this schema:
@@ -62,7 +62,7 @@ Activity description: {brief.activity_description}
 {voice_guide}
 
 ## MCP authoring constraints (summary)
-{DOGRAH_MCP_INSTRUCTIONS[:2500]}
+{SPINSCI_MCP_INSTRUCTIONS[:2500]}
 
 ## Organization catalog
 {format_catalog_for_prompt(catalog)}

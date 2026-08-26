@@ -27,7 +27,7 @@ export default async function AfterSignInPage() {
         redirect(redirectUrl);
     }
 
-    // Local/OSS installs land on the Crescendo overview dashboard after auth.
+    // Local/OSS installs land on the SpinSci overview dashboard after auth.
     const accessToken = await getServerAccessToken();
     if (accessToken) {
         redirect('/overview');

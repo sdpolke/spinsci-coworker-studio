@@ -426,7 +426,7 @@ async def reactivate_api_key(
 
 
 # Voice Configuration Endpoints
-TTSProvider = Literal["elevenlabs", "deepgram", "sarvam", "cartesia", "dograh", "rime"]
+TTSProvider = Literal["elevenlabs", "deepgram", "sarvam", "cartesia", "spinsci", "rime"]
 
 
 class VoiceInfo(BaseModel):
@@ -489,7 +489,7 @@ async def get_voices(
             classify_exception(
                 e,
                 source=ErrorSource.PLATFORM,
-                provider="dograh",
+                provider="spinsci",
                 error_owner="operator",
             ),
             organization_id=user.selected_organization_id,

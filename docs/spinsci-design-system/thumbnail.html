@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; width: 1280px; height: 854px; overflow: hidden; }
+  .tile { display: flex; width: 1280px; height: 854px; }
+  .main { flex: 1; background: var(--color-ink); display: flex; align-items: center; justify-content: center; }
+  .main img { width: 620px; }
+  .strip { width: 320px; display: flex; flex-direction: column; }
+  .strip div { flex: 1; }
+</style>
+</head>
+<body>
+  <div class="tile">
+    <div class="main"><img src="assets/spinsci-logo-white.svg" alt="SpinSci"></div>
+    <div class="strip">
+      <div style="background:#5CE0B0"></div>
+      <div style="background:#7759D9"></div>
+      <div style="background:#04867C"></div>
+    </div>
+  </div>
+</body>
+</html>

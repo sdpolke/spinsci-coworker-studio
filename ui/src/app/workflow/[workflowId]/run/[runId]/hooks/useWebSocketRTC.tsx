@@ -716,8 +716,8 @@ export const useWebSocketRTC = ({ workflowId, workflowRunId, accessToken, initia
                 );
 
                 if (isServiceUnavailable) {
-                    // MPS is a Dograh-owned dependency. Do not tell the customer
-                    // to change credentials when Dograh could not validate them.
+                    // MPS is a SpinSci-owned dependency. Do not tell the customer
+                    // to change credentials when SpinSci could not validate them.
                     setApiKeyModalOpen(false);
                     setApiKeyError(null);
                     setApiKeyErrorCode(null);
