@@ -6,7 +6,7 @@ import {
     Panel,
     ReactFlow,
 } from "@xyflow/react";
-import { BrushCleaning, Maximize2, Minus, Plus, Settings } from 'lucide-react';
+import { BrushCleaning, Maximize2, Minus, Network, Plus, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -24,6 +24,7 @@ import { WorkflowConfigurations } from '@/types/workflow-configurations';
 import AddNodePanel from "../../../components/flow/AddNodePanel";
 import CustomEdge from "../../../components/flow/edges/CustomEdge";
 import { GenericNode } from "../../../components/flow/nodes/GenericNode";
+import { ConfigurationsDialog } from './components/ConfigurationsDialog';
 import { PhoneCallDialog } from './components/PhoneCallDialog';
 import { VersionHistoryPanel, WorkflowVersion } from './components/VersionHistoryPanel';
 import type { WorkflowRuntimeNodeTransition } from './components/workflow-tester/types';
@@ -78,6 +79,7 @@ function RenderWorkflow({
     const { specs } = useNodeSpecs();
     const { hasCompletedAction } = useOnboarding();
     const [isPhoneCallDialogOpen, setIsPhoneCallDialogOpen] = useState(false);
+    const [isConfigurationsDialogOpen, setIsConfigurationsDialogOpen] = useState(false);
     const [isVersionPanelOpen, setIsVersionPanelOpen] = useState(false);
     const [isTesterRailOpen, setIsTesterRailOpen] = useState(true);
     const [isTesterSheetOpen, setIsTesterSheetOpen] = useState(false);
@@ -578,6 +580,21 @@ function RenderWorkflow({
                                                         <p>Workflow settings</p>
                                                     </TooltipContent>
                                                 </Tooltip>
+
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon"
+                                                            onClick={() => setIsConfigurationsDialogOpen(true)}
+                                                            className="bg-white shadow-sm hover:shadow-md"
+                                                            aria-label="Reasoning endpoint configuration"
+                                                        >
+                                                            <Network className="h-4 w-4" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="left"><p>Reasoning endpoint</p></TooltipContent>
+                                                </Tooltip>
                                             </div>
                                         </TooltipProvider>
                                     </Panel>
@@ -707,6 +724,16 @@ function RenderWorkflow({
                     hasMore={versionsHasMore}
                     loadingMore={versionsLoadingMore}
                     onLoadMore={handleLoadMoreVersions}
+                />
+
+                <ConfigurationsDialog
+                    open={isConfigurationsDialogOpen}
+                    onOpenChange={setIsConfigurationsDialogOpen}
+                    workflowConfigurations={workflowConfigurations}
+                    workflowName={workflowName}
+                    onSave={saveWorkflowConfigurations}
+                    immutable={currentVersionStatus === 'published'}
+                    transitionLabels={edges.map((edge) => String(edge.data?.label ?? ''))}
                 />
 
                 <PhoneCallDialog

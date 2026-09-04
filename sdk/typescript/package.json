@@ -39,8 +39,8 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "codegen": "node scripts/codegen.mts --api http://localhost:8000 --out src/typed",
-    "test": "tsc && node --test --test-reporter=spec tests/sdk.test.mts tests/typed.test.mts"
+    "codegen": "node --experimental-strip-types scripts/codegen.mts --api http://localhost:8000 --out src/typed",
+    "test": "tsc && node --experimental-strip-types --test --test-reporter=spec tests/sdk.test.mts tests/typed.test.mts"
   },
   "engines": {
     "node": ">=20"

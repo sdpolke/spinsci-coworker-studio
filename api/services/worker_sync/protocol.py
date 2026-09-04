@@ -15,6 +15,8 @@ class WorkerSyncEventType(str, Enum):
     """Types of worker sync events."""
 
     LANGFUSE_CREDENTIALS = "langfuse_credentials"
+    LANGGRAPH_CONFIGURATION = "langgraph_configuration"
+    LANGGRAPH_CREDENTIALS = "langgraph_credentials"
 
 
 @dataclass

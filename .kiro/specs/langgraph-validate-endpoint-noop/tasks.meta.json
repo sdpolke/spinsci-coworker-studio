@@ -1,0 +1,159 @@
+{
+  "pbtResults": {
+    "1. Write bug condition exploration test — validate dispatches nothing today": {
+      "status": "passed",
+      "failingExample": "Counterexample proving the bug (absence-of-dispatch): for endpoint.lifecycle_status=\"validation_only\" AND for endpoint.lifecycle_status=\"pending_validation\", calling request_validation(organization_id=11, endpoint_uuid=\"endpoint-uuid\", role=ORGANIZATION_ADMIN) against the current unfixed code results in api.tasks.arq.enqueue_job never being awaited and db_client.insert_langgraph_validation_report never being awaited, in both lifecycle branches — confirming request_validation() has no code path that dispatches validation work or persists a Validation_Report.",
+      "lastRunTimestamp": 1788527457908
+    },
+    "8. Verify preservation tests from task 2 still pass after the fix": {
+      "status": "passed",
+      "lastRunTimestamp": 1788530687440
+    }
+  },
+  "executionHistory": {
+    "1. Write bug condition exploration test — validate dispatches nothing today": [
+      {
+        "executionId": "00377d6d-6ebf-4d6e-9ad8-66bcedf138b9",
+        "chatSessionId": "sess_fd94a1e9-edbb-480a-8fe4-9e254bb24643",
+        "timestamp": 1788527341533
+      },
+      {
+        "executionId": "00377d6d-6ebf-4d6e-9ad8-66bcedf138b9",
+        "chatSessionId": "sess_fd94a1e9-edbb-480a-8fe4-9e254bb24643",
+        "timestamp": 1788527473783
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing fix)": [
+      {
+        "executionId": "47273dd1-5f52-4f7c-b8f4-430aaedb9e2d",
+        "chatSessionId": "sess_eb0c5f86-d227-4fe1-8c72-5ce22a314666",
+        "timestamp": 1788527517423
+      },
+      {
+        "executionId": "a91ff66e-d81b-474c-a29d-a4ee2dc46a91",
+        "chatSessionId": "sess_eb0c5f86-d227-4fe1-8c72-5ce22a314666",
+        "timestamp": 1788528218908
+      }
+    ],
+    "3. Add the new ARQ job name to `FunctionNames`": [
+      {
+        "executionId": "b50b9553-76f0-48f0-8423-9a52c52e6995",
+        "chatSessionId": "sess_7e0212a8-b695-4d5f-a52d-1b6d20ff5fc7",
+        "timestamp": 1788528247006
+      },
+      {
+        "executionId": "b50b9553-76f0-48f0-8423-9a52c52e6995",
+        "chatSessionId": "sess_7e0212a8-b695-4d5f-a52d-1b6d20ff5fc7",
+        "timestamp": 1788528301659
+      }
+    ],
+    "4. Implement `validate_langgraph_endpoint` job in `api/tasks/langgraph_validation.py`": [
+      {
+        "executionId": "799cf3c3-853b-45f5-9cb2-7723bd6f769d",
+        "chatSessionId": "sess_b73b577d-5c5b-4445-a911-57141932a102",
+        "timestamp": 1788528339264
+      },
+      {
+        "executionId": "8e77a24d-0e7c-4d68-b448-7466d70b7396",
+        "chatSessionId": "sess_b73b577d-5c5b-4445-a911-57141932a102",
+        "timestamp": 1788528880108
+      },
+      {
+        "executionId": "8e77a24d-0e7c-4d68-b448-7466d70b7396",
+        "chatSessionId": "sess_b73b577d-5c5b-4445-a911-57141932a102",
+        "timestamp": 1788529707728
+      }
+    ],
+    "5. Register `validate_langgraph_endpoint` in the ARQ worker": [
+      {
+        "executionId": "4861da70-1877-4a39-a0cd-33b6c41133ce",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788529805474
+      }
+    ],
+    "6. Implement `_dispatch_validation` and wire it into `request_validation`": [
+      {
+        "executionId": "6f97476d-e2cd-4658-8f13-fd7a382a95b2",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788530250435
+      },
+      {
+        "executionId": "6f97476d-e2cd-4658-8f13-fd7a382a95b2",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788530403507
+      }
+    ],
+    "7. Re-run exploration tests from task 1 as fix-checking tests": [
+      {
+        "executionId": "de38ff67-e86f-4672-89cb-a3749fc15507",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788530418679
+      },
+      {
+        "executionId": "de38ff67-e86f-4672-89cb-a3749fc15507",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788530617322
+      }
+    ],
+    "8. Verify preservation tests from task 2 still pass after the fix": [
+      {
+        "executionId": "e7306de7-4fc2-4f72-92f7-5a125f79a9f3",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788530637825
+      },
+      {
+        "executionId": "e7306de7-4fc2-4f72-92f7-5a125f79a9f3",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788530706298
+      }
+    ],
+    "9. Add remaining unit tests for job failure branches and idempotent dispatch": [
+      {
+        "executionId": "1c435753-7728-43fe-9894-82c2420fb89e",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788530728721
+      },
+      {
+        "executionId": "1c435753-7728-43fe-9894-82c2420fb89e",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788530856165
+      }
+    ],
+    "10. Add property-based tests for authorization, transition table, and discovery-failure reporting": [
+      {
+        "executionId": "0e6f8264-6662-4868-a8a3-60aa521492a5",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788530874088
+      },
+      {
+        "executionId": "0e6f8264-6662-4868-a8a3-60aa521492a5",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788531148949
+      }
+    ],
+    "11. Add end-to-end integration tests for validate → job → activate": [
+      {
+        "executionId": "30905155-3900-4ff5-96c1-e67128fef7d5",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788531168661
+      },
+      {
+        "executionId": "30905155-3900-4ff5-96c1-e67128fef7d5",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788531583317
+      }
+    ],
+    "12. Checkpoint — run the full LangGraph test suite and project linters": [
+      {
+        "executionId": "30905155-3900-4ff5-96c1-e67128fef7d5",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788531588446
+      },
+      {
+        "executionId": "30905155-3900-4ff5-96c1-e67128fef7d5",
+        "chatSessionId": "sess_067965e6-a096-46c3-a10b-50b5b0dc45ac",
+        "timestamp": 1788531958978
+      }
+    ]
+  }
+}

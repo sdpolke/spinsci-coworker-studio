@@ -71,7 +71,6 @@ export default function CreateWorkflowPage() {
     };
 
     const showBriefForm = phase === 'brief';
-    const showChat = phase !== 'brief';
 
     return (
         <div className="min-h-screen">

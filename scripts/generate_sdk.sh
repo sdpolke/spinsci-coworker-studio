@@ -50,7 +50,7 @@ PYTHONPATH="$REPO_ROOT/sdk/python/src" python -m spinsci_sdk.codegen \
     --out "sdk/python/src/spinsci_sdk/typed"
 
 echo "→ Generating TypeScript typed interfaces..."
-node "sdk/typescript/scripts/codegen.mts" \
+node --experimental-strip-types "sdk/typescript/scripts/codegen.mts" \
     --input "$SPECS_JSON" \
     --out "sdk/typescript/src/typed"
 

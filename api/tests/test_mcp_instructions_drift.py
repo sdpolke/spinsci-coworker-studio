@@ -72,6 +72,10 @@ def _referenced_tool_names(text: str) -> set[str]:
 
 
 def _returned_error_codes(module) -> set[str]:
+    declared_codes = getattr(module, "RETURNED_ERROR_CODES", None)
+    if declared_codes is not None:
+        return set(declared_codes)
+
     source = Path(module.__file__).read_text(encoding="utf-8")
     return set(_ERROR_RESULT_LITERAL_RE.findall(source)) | set(
         _CODE_KEY_LITERAL_RE.findall(source)

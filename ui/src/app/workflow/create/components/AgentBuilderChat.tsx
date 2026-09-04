@@ -2,9 +2,9 @@
 
 import { Loader2 } from 'lucide-react';
 
+import type { GenerationMessageResponse } from '@/client/types.gen';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import type { GenerationMessageResponse } from '@/client/types.gen';
 import { cn } from '@/lib/utils';
 
 interface AgentBuilderChatProps {

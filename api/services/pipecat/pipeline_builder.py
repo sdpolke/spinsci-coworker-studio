@@ -10,6 +10,54 @@ from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 from pipecat.utils.run_context import turn_var
 
 
+def create_langgraph_reasoning_processor(
+    *,
+    binding,
+    organization_id: int,
+    state_factory,
+    credential_resolver,
+    invocation_mode: str = "streaming",
+):
+    """Create the remote reasoner only after runtime eligibility is established."""
+    from api.services.langgraph_integration.gateway import (
+        IntegrationGateway,
+        RuntimeEndpointSnapshot,
+    )
+    from api.services.pipecat.langgraph_reasoning_processor import (
+        LangGraphReasoningProcessor,
+    )
+    from api.services.workflow.langgraph_adapter import DataSharingPolicy
+
+    limits = binding.limits
+    snapshot = RuntimeEndpointSnapshot(
+        organization_id=organization_id,
+        registration_id=binding.registration_uuid,
+        endpoint_url=binding.endpoint_url,
+        credential_reference=binding.credential_reference,
+        contract_version=binding.contract_version,
+        invocation_modes=frozenset(
+            {binding.live_invocation_mode, *binding.non_conversational_modes.values()}
+        ),
+        operations=binding.operations,
+        request_bytes=int(limits.get("request_bytes", 1_048_576)),
+        response_bytes=int(limits.get("response_bytes", 2_097_152)),
+        event_bytes=int(limits.get("event_bytes", 65_536)),
+        tool_argument_bytes=int(limits.get("tool_argument_bytes", 262_144)),
+        stateful_profile=binding.compatibility_profile == "stateful_run",
+        interrupts_selected="interrupts" in binding.selected_capabilities,
+        cancellation_declared="cancellation" in binding.selected_capabilities,
+    )
+    allowed_context = binding.data_sharing_policy.get("context_fields", ())
+    return LangGraphReasoningProcessor(
+        endpoint_snapshot=snapshot,
+        gateway=IntegrationGateway(credential_resolver=credential_resolver),
+        state_factory=state_factory,
+        sharing_policy=DataSharingPolicy(context_fields=frozenset(allowed_context)),
+        first_event_deadline_ms=binding.first_event_deadline_ms,
+        invocation_mode=invocation_mode,
+    )
+
+
 def create_pipeline_components(audio_config: AudioConfig):
     """Create and return the main pipeline components with proper audio configuration"""
     logger.info(f"Creating pipeline components with audio config: {audio_config}")

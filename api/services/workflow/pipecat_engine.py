@@ -23,7 +23,10 @@ from api.errors.failure import (
     failure_metadata_for_processor,
     log_failure,
 )
+from api.schemas.langgraph_integration.common import ToolOwner
 from api.services.pipecat.audio_playback import play_audio
+from api.services.workflow.langgraph_adapter import PinnedReasoningState
+from api.services.workflow.reasoning import ReasoningMessage, ReasoningToolDefinition
 from api.services.workflow.workflow_graph import Node, WorkflowGraph
 
 if TYPE_CHECKING:
@@ -104,6 +107,8 @@ class PipecatEngine:
         self._initialized = False
         self._call_disposed = False
         self._current_node: Optional[Node] = None
+        self._current_system_prompt: str = ""
+        self._current_reasoning_tools: tuple[ReasoningToolDefinition, ...] = ()
         self._gathered_context: dict = {}
         self._user_response_timeout_task: Optional[asyncio.Task] = None
         self._pending_extraction_tasks: set[asyncio.Task] = set()
@@ -233,6 +238,45 @@ class PipecatEngine:
         """Delegate prompt formatting to the shared workflow.utils implementation."""
 
         return render_template(prompt, self._call_context_vars)
+
+    def build_langgraph_reasoning_state(
+        self,
+        *,
+        context: LLMContext,
+        binding,
+        organization_id: int,
+        workflow_version_id: int,
+    ) -> PinnedReasoningState:
+        """Project the current Mural-owned node and context into pinned state."""
+        if self._current_node is None:
+            raise RuntimeError("workflow node is not initialized")
+        history: list[ReasoningMessage] = []
+        for message in context.get_messages():
+            role = str(message.get("role", ""))
+            if role == "system":
+                continue
+            history.append(
+                ReasoningMessage(
+                    role=role,
+                    content=message.get("content", ""),
+                    tool_call_id=message.get("tool_call_id"),
+                    name=message.get("name"),
+                )
+            )
+        return PinnedReasoningState(
+            organization_id=organization_id,
+            voice_run_id=str(self._workflow_run_id),
+            workflow_version_id=str(workflow_version_id),
+            registration_id=binding.registration_uuid,
+            contract_version=binding.contract_version,
+            active_node_id=self._current_node.id,
+            node_prompt=self._current_system_prompt,
+            history=tuple(history),
+            tools=self._current_reasoning_tools,
+            state_mode=binding.state_mode,
+            mode=binding.live_invocation_mode,
+            context=self._call_context_vars,
+        )
 
     async def _create_transition_func(
         self,
@@ -593,6 +637,43 @@ class PipecatEngine:
             node=node,
             custom_tool_manager=self._custom_tool_manager,
         )
+        transition_targets = {
+            edge.get_function_name(): edge.target for edge in node.out_edges
+        }
+        reasoning_tools: list[ReasoningToolDefinition] = []
+        for function in functions:
+            if isinstance(function, dict):
+                name = function.get("name", "")
+                description = function.get("description", "")
+                properties = function.get("properties", {})
+                required = function.get("required", [])
+            else:
+                name = function.name
+                description = function.description
+                properties = function.properties
+                required = function.required
+            reasoning_tools.append(
+                ReasoningToolDefinition(
+                    name=name,
+                    description=description,
+                    input_schema={
+                        "type": "object",
+                        "properties": properties,
+                        "required": required,
+                        "additionalProperties": False,
+                    },
+                    owner=(
+                        ToolOwner.MURAL_TRANSITION.value
+                        if name in transition_targets
+                        else ToolOwner.MURAL_PLATFORM.value
+                    ),
+                    node_id=node.id,
+                    voice_run_id=str(self._workflow_run_id),
+                    transition_target=transition_targets.get(name),
+                )
+            )
+        self._current_system_prompt = system_prompt
+        self._current_reasoning_tools = tuple(reasoning_tools)
         await self._update_llm_context(system_prompt, functions)
 
     async def set_node(self, node_id: str, emit_transition_event: bool = True):
@@ -608,6 +689,11 @@ class PipecatEngine:
         # Track previous node for transition event
         previous_node_name = self._current_node.name if self._current_node else None
         previous_node_id = self._current_node.id if self._current_node else None
+
+        if previous_node_id is not None and previous_node_id != node_id:
+            cancel_active = getattr(self.llm, "cancel_active_invocation", None)
+            if cancel_active is not None:
+                await cancel_active("node_change")
 
         # Set current node for all nodes (including static ones) so STT mute filter works
         self._current_node = node

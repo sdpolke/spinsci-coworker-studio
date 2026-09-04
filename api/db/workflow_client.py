@@ -283,6 +283,73 @@ class WorkflowClient(BaseDBClient):
             await session.refresh(draft)
         return draft
 
+    async def select_prior_non_langgraph_version(
+        self,
+        *,
+        workflow_id: int,
+        definition_id: int,
+        organization_id: int,
+    ) -> WorkflowDefinitionModel:
+        """Atomically select a prior published non-LangGraph version for new runs.
+
+        Existing WorkflowRunModel.definition_id values and LangGraph run bindings are
+        intentionally untouched; only the workflow's released pointer and version
+        status metadata change.
+        """
+        async with self.async_session() as session:
+            workflow = await session.scalar(
+                select(WorkflowModel)
+                .where(
+                    WorkflowModel.id == workflow_id,
+                    WorkflowModel.organization_id == organization_id,
+                )
+                .with_for_update()
+            )
+            if workflow is None:
+                raise ValueError("workflow not found in organization")
+
+            target = await session.scalar(
+                select(WorkflowDefinitionModel).where(
+                    WorkflowDefinitionModel.id == definition_id,
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowDefinitionModel.status.in_(("published", "archived")),
+                )
+            )
+            if target is None:
+                raise ValueError("rollback target is not a previously published version")
+            if (target.workflow_configurations or {}).get("langgraph_endpoint"):
+                raise ValueError("rollback target must be a non-LangGraph workflow version")
+
+            current = None
+            if workflow.released_definition_id is not None:
+                current = await session.get(
+                    WorkflowDefinitionModel, workflow.released_definition_id
+                )
+            if current is not None and (
+                target.version_number is None
+                or current.version_number is None
+                or target.version_number >= current.version_number
+            ):
+                raise ValueError("rollback target must be prior to the current version")
+
+            if current is not None:
+                current.status = "archived"
+                current.is_current = False
+            target.status = "published"
+            target.is_current = True
+            workflow.released_definition_id = target.id
+            workflow.workflow_definition = target.workflow_json
+            workflow.workflow_configurations = target.workflow_configurations
+            workflow.template_context_variables = target.template_context_variables
+
+            try:
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            await session.refresh(target)
+            return target
+
     async def get_draft_version(
         self,
         workflow_id: int,

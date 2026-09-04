@@ -4,7 +4,7 @@ import { create } from 'zustand';
 
 import { WorkflowError } from '@/client/types.gen';
 import { FlowEdge, FlowNode } from '@/components/flow/types';
-import { WorkflowConfigurations } from '@/types/workflow-configurations';
+import { LangGraphEndpointBinding, WorkflowConfigurations } from '@/types/workflow-configurations';
 
 interface HistoryState {
   nodes: FlowNode[];
@@ -76,6 +76,7 @@ interface WorkflowActions {
   setWorkflowName: (name: string) => void;
   setTemplateContextVariables: (variables: Record<string, string>) => void;
   setWorkflowConfigurations: (configurations: WorkflowConfigurations) => void;
+  setLangGraphEndpointBinding: (binding: LangGraphEndpointBinding | null) => void;
   setDictionary: (dictionary: string) => void;
 
   // UI state
@@ -365,6 +366,15 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
   setWorkflowConfigurations: (workflowConfigurations) => {
     set({ workflowConfigurations });
+  },
+
+  setLangGraphEndpointBinding: (binding) => {
+    set((state) => ({
+      workflowConfigurations: state.workflowConfigurations
+        ? { ...state.workflowConfigurations, langgraph_endpoint: binding }
+        : state.workflowConfigurations,
+      isDirty: true,
+    }));
   },
 
   setDictionary: (dictionary) => {

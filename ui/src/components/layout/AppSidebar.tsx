@@ -15,6 +15,7 @@ import {
   LogOut,
   type LucideIcon,
   Megaphone,
+  Network,
   Phone,
   Settings,
   TrendingUp,
@@ -53,6 +54,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppConfig } from "@/context/AppConfigContext";
+import { useOrgConfig } from "@/context/OrgConfigContext";
 import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsContext";
 import { useLatestReleaseVersion } from "@/hooks/useLatestReleaseVersion";
 import type { LocalUser } from "@/lib/auth";
@@ -64,6 +66,7 @@ type SidebarNavItem = {
   url: string;
   icon: LucideIcon;
   showsTelephonyWarning?: boolean;
+  requiresLangGraph?: boolean;
 };
 
 type SidebarNavSection = {
@@ -100,6 +103,12 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "Models",
         url: "/model-configurations",
         icon: Brain,
+      },
+      {
+        title: "LangGraph Endpoints",
+        url: "/langgraph-endpoints",
+        icon: Network,
+        requiresLangGraph: true,
       },
       {
         title: "Telephony",
@@ -157,6 +166,7 @@ export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
   const { provider, logout, user } = useAuth();
   const { config } = useAppConfig();
+  const { langGraphEnabled } = useOrgConfig();
   const {
     telnyxMissingWebhookPublicKeyCount,
     vonageMissingSignatureSecretCount,
@@ -368,7 +378,7 @@ export function AppSidebar() {
               </SidebarGroupLabel>
             )}
             <SidebarMenu>
-              {section.items.map((item) => (
+              {section.items.filter((item) => !item.requiresLangGraph || langGraphEnabled).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarLink item={item} />
                 </SidebarMenuItem>

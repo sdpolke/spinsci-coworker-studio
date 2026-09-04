@@ -1,5 +1,8 @@
 from dataclasses import dataclass
+from dataclasses import dataclass
 from typing import Any
+
+from api.services.workflow.langgraph_binding import validate_langgraph_runtime_path
 
 
 @dataclass(frozen=True)
@@ -34,6 +37,14 @@ async def prepare_workflow_run_inputs(
 
     if target_definition is None:
         target_definition = _published_definition(workflow)
+
+    if target_definition is not None:
+        await validate_langgraph_runtime_path(
+            workflow_configurations=getattr(
+                target_definition, "workflow_configurations", None
+            ),
+            organization_id=getattr(workflow, "organization_id", 0),
+        )
 
     default_context = {}
     if include_template_context:

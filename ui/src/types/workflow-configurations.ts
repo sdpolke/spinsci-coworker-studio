@@ -119,6 +119,41 @@ type WorkflowConfigurationBase = Omit<
     | "external_pbx_field_mappings"
 >;
 
+export interface LangGraphEligibilityEvidence {
+    text_session_conformance: boolean;
+    accepted_transition: boolean;
+    cancellation_verified: boolean;
+    recording_verified: boolean;
+}
+
+export interface LangGraphEndpointBinding {
+    registration_uuid: string;
+    validation_report_uuid: string;
+    validation_report_digest: string;
+    contract_version: string;
+    compatibility_profile: 'chat' | 'stateful_run';
+    state_mode: 'mural_authoritative' | 'endpoint_checkpointed';
+    live_invocation_mode: 'streaming';
+    non_conversational_modes: Record<string, 'synchronous' | 'asynchronous'>;
+    selected_capabilities: string[];
+    capability_snapshot_uuid: string;
+    capability_snapshot_digest: string;
+    capability_snapshot: Record<string, unknown>;
+    data_sharing_policy: Record<string, unknown>;
+    redaction_policy_id: string | null;
+    compiled_policy_versions: Record<string, string>;
+    data_region: string;
+    first_event_deadline_ms: number;
+    first_event_action: 'fallback_message' | 'transfer' | 'end_call';
+    terminal_failure_action: 'retry_prompt' | 'fallback_message' | 'transfer' | 'end_call';
+    evidence: LangGraphEligibilityEvidence;
+    endpoint_url: string;
+    credential_reference: string;
+    operations: Record<string, string>;
+    limits: Record<string, number>;
+    ownership: Record<string, string>;
+}
+
 export type WorkflowConfigurations = WorkflowConfigurationBase & {
     ambient_noise_configuration: AmbientNoiseConfiguration;
     max_call_duration: number;  // Maximum call duration in seconds
@@ -136,6 +171,7 @@ export type WorkflowConfigurations = WorkflowConfigurationBase & {
     external_pbx_field_mappings: ExternalPBXFieldMapping[];
     model_overrides?: ModelOverrides;  // Per-workflow model configuration overrides
     model_configuration_v2_override?: OrganizationAiModelConfigurationV2;  // Full v2 model configuration override
+    langgraph_endpoint?: LangGraphEndpointBinding | null;
     [key: string]: unknown;  // Allow additional properties for future configurations
 };
 
@@ -213,6 +249,10 @@ export function resolveWorkflowConfigurations(
             configurations?.external_pbx_field_mappings
             ?? defaults?.external_pbx_field_mappings
             ?? FALLBACK_WORKFLOW_CONFIGURATIONS.external_pbx_field_mappings,
+        langgraph_endpoint:
+            (configurations?.langgraph_endpoint
+            ?? defaults?.langgraph_endpoint
+            ?? null) as LangGraphEndpointBinding | null,
         transcript_configuration: {
             ...DEFAULT_TRANSCRIPT_CONFIGURATION,
             ...(defaults?.transcript_configuration as Partial<TranscriptConfiguration> | undefined),

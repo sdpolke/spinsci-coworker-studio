@@ -3,8 +3,8 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
 import { client } from '@/client/client.gen';
-import { getCurrentOrganizationContextApiV1OrganizationsContextGet, getPreferencesApiV1OrganizationsPreferencesGet, getUserConfigurationsApiV1UserConfigurationsUserGet } from '@/client/sdk.gen';
-import type { OrganizationContextResponse, OrganizationPreferences, UserConfigurationRequestResponseSchema } from '@/client/types.gen';
+import { getCurrentOrganizationContextApiV1OrganizationsContextGet, getLanggraphFeatureStatusApiV1LanggraphFeatureGet, getPreferencesApiV1OrganizationsPreferencesGet, getUserConfigurationsApiV1UserConfigurationsUserGet } from '@/client/sdk.gen';
+import type { LangGraphFeatureStatusResponse, OrganizationContextResponse, OrganizationPreferences, UserConfigurationRequestResponseSchema } from '@/client/types.gen';
 import { setupAuthInterceptor } from '@/lib/apiClient';
 import { detailFromError } from '@/lib/apiError';
 import type { AuthUser } from '@/lib/auth';
@@ -31,6 +31,8 @@ interface OrgConfigContextType {
     organizationPricing: OrganizationPricing | null;
     organizationPreferences: OrganizationPreferences | null;
     externalPbxIntegrationsEnabled: boolean;
+    langGraphFeature: LangGraphFeatureStatusResponse | null;
+    langGraphEnabled: boolean;
 }
 
 const OrgConfigContext = createContext<OrgConfigContextType | null>(null);
@@ -56,6 +58,7 @@ export function OrgConfigProvider({ children }: { children: ReactNode }) {
     const [error, setError] = useState<Error | null>(null);
     const [organizationPricing, setOrganizationPricing] = useState<OrganizationPricing | null>(null);
     const [organizationPreferences, setOrganizationPreferences] = useState<OrganizationPreferences | null>(null);
+    const [langGraphFeature, setLangGraphFeature] = useState<LangGraphFeatureStatusResponse | null>(null);
     const [permissions, setPermissions] = useState<TeamPermission[]>([]);
 
     const auth = useAuth();
@@ -106,10 +109,11 @@ export function OrgConfigProvider({ children }: { children: ReactNode }) {
 
         setLoading(true);
         try {
-            const [orgContextResponse, userConfigResponse, preferencesResponse] = await Promise.all([
+            const [orgContextResponse, userConfigResponse, preferencesResponse, langGraphResponse] = await Promise.all([
                 getCurrentOrganizationContextApiV1OrganizationsContextGet(),
                 getUserConfigurationsApiV1UserConfigurationsUserGet(),
                 getPreferencesApiV1OrganizationsPreferencesGet(),
+                getLanggraphFeatureStatusApiV1LanggraphFeatureGet(),
             ]);
 
             if (preferencesResponse.error) {
@@ -127,6 +131,9 @@ export function OrgConfigProvider({ children }: { children: ReactNode }) {
 
             if (preferencesResponse.data) {
                 setOrganizationPreferences(preferencesResponse.data);
+            }
+            if (langGraphResponse.data) {
+                setLangGraphFeature(langGraphResponse.data);
             }
 
             setError(null);
@@ -163,6 +170,8 @@ export function OrgConfigProvider({ children }: { children: ReactNode }) {
                 organizationPreferences,
                 externalPbxIntegrationsEnabled:
                     organizationPreferences?.external_pbx_integrations_enabled ?? false,
+                langGraphFeature,
+                langGraphEnabled: langGraphFeature?.enabled ?? false,
             }}
         >
             {children}

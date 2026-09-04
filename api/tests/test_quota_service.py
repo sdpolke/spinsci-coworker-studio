@@ -12,6 +12,12 @@ from api.services.quota_service import QuotaCheckResult
 _UNSET = object()
 
 
+@pytest.fixture(autouse=True)
+def disable_local_credit_path(monkeypatch):
+    """These tests exercise MPS quota branches independently of OSS credits."""
+    monkeypatch.setattr(quota_service, "LOCAL_CREDITS_ENABLED", False)
+
+
 def _spinsci_config(
     api_key: str = "mps_sk_12345678",
     *,

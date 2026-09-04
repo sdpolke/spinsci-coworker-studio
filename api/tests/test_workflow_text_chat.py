@@ -95,6 +95,9 @@ async def _create_user_and_workflow(
             organization_id=org.id,
         )
     )
+    # Tests create organizations directly rather than through the production
+    # onboarding service, so initialize the same OSS credit account explicitly.
+    await db_session.ensure_credit_account(org.id, initial_balance=1_000)
 
     user_configuration = EffectiveAIModelConfiguration.model_validate(
         USER_CONFIGURATION

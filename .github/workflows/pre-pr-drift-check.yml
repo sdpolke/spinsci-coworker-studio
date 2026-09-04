@@ -8,8 +8,11 @@ on:
       - "ui/**"
       - "pipecat/**"
       - "scripts/dump_docs_openapi.py"
+      - "scripts/dump_langgraph_contract_reference.py"
       - "scripts/format.sh"
       - "docs/api-reference/openapi.json"
+      - "docs/developer/langgraph-contract-reference.mdx"
+      - "docs/developer/generated/langgraph-contract-reference.json"
       - ".github/workflows/pre-pr-drift-check.yml"
 
 concurrency:
@@ -87,6 +90,18 @@ jobs:
             exit 1
           fi
           echo "OpenAPI spec is in sync."
+
+      - name: Generate and validate LangGraph contract reference
+        run: python -u -m scripts.dump_langgraph_contract_reference
+
+      - name: Check for LangGraph contract reference drift
+        run: |
+          if ! git diff --exit-code docs/developer/langgraph-contract-reference.mdx docs/developer/generated/langgraph-contract-reference.json; then
+            echo "::error::Generated LangGraph contract reference is out of sync or an executable example failed validation."
+            echo "Run 'python -m scripts.dump_langgraph_contract_reference' locally and commit both generated artifacts."
+            exit 1
+          fi
+          echo "LangGraph contract reference and executable examples are in sync."
 
       - name: Send Slack notification - Failure
         if: failure()

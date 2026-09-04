@@ -8,7 +8,7 @@ is no prior published version to protect, so we skip the draft step.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, get_args
 
 from api.db.models import UserModel
 from api.mcp_server.auth import authenticate_mcp_request
@@ -17,9 +17,15 @@ from api.services.workflow.authoring import (
     AuthoringFailure,
     PreparedWorkflow,
     WorkflowAuthoringActor,
+    AuthoringErrorCode,
     create_prepared_workflow,
     prepare_workflow_from_code,
 )
+
+
+# The implementation delegates failure construction to the shared authoring
+# service, so expose its closed error-code union for tools/list drift guards.
+RETURNED_ERROR_CODES = frozenset(get_args(AuthoringErrorCode))
 
 
 def _error_result(code: str, message: str, **extra: Any) -> dict[str, Any]:

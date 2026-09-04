@@ -1,0 +1,41 @@
+---
+title: Internal Chat Compatibility release gate
+description: Run and interpret the deterministic release checks for the experimental LangGraph Chat integration.
+---
+
+The LangGraph Chat integration remains experimental and disabled by default. An internal release may advance only when every job in `.github/workflows/internal-chat-release.yml` passes and the assembled Validation Report evidence has `internal_release_passed: true`.
+
+## Fixed conformance environment
+
+The deterministic CI environment uses the local endpoint simulator, warmed connections, fixed 4 KiB chat payloads with two declared tools, concurrency 10, and at least 100 measured requests. Evidence records the runner/Python/platform versions, endpoint region, payload size, tool count, concurrency, warm-up count, request count, active-stream peak, configured stream capacity, event-loop-lag p95, and timing percentiles.
+
+Live eligibility fails closed when any of these conditions occurs:
+
+- fewer than 100 measured requests;
+- first accepted text/tool event p95 above 1,500 ms;
+- tool-free completion p95 above 10,000 ms;
+- cancellation forwarding suppression or endpoint dispatch p95 above 250 ms;
+- event-loop lag p95 above the configured 50 ms CI limit;
+- active streams exceed documented concurrency or reserved stream headroom falls below 20%;
+- text preflight, accepted transition, cancellation, recording, or live-pipeline smoke evidence is absent or failed.
+
+The non-watch local commands are:
+
+```bash
+source venv/bin/activate
+set -a && source api/.env.test && set +a
+python -m pytest api/tests/langgraph_integration/test_internal_release_performance.py api/tests/langgraph_integration/test_internal_release_evidence.py -x
+python -m pytest api/tests/langgraph_integration/test_internal_release_security.py api/tests/langgraph_integration/test_text_preflight.py api/tests/langgraph_integration/test_gateway_discovery.py api/tests/langgraph_integration/test_gateway_runtime.py api/tests/langgraph_integration/test_persistence_and_access.py api/tests/langgraph_integration/test_run_diagnostics_api.py -x
+```
+
+These commands use only local deterministic simulators and the test database configuration. They do not transmit project data externally.
+
+## Immutable evidence
+
+`assemble_internal_release_evidence` combines the contract and matrix versions, conformance suite version, deterministic fixture/result digests, fixed-environment performance evidence, text preflight, accepted transition, cancellation, recording, and live-smoke outcomes. The resulting payload and child validation results carry deterministic evidence digests and are suitable for immutable `LangGraphValidationReportModel` persistence.
+
+Capability snapshots, published workflow versions, active runs, and prior reports are never rewritten when a suite version changes. A newly required test therefore creates new evidence and requires revalidation. Registration activation and workflow publication continue to use current tenant-scoped passing evidence.
+
+## Security and regression scope
+
+The release jobs cover endpoint lifecycle, text preflight, publication/run binding, streaming/synchronous/asynchronous status, tool and transition effects, disablement/retirement, callback correlation, diagnostics, cross-organization resources, trace isolation, redirect and connection-time SSRF, and approved non-LangGraph voice/WebRTC/text/AMD/interruption/transfer/recording/post-call baselines. Cross-organization and unsafe-destination cases must produce no target-tenant mutation or disclosure.

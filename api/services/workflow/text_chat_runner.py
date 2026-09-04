@@ -1,4 +1,5 @@
 import asyncio
+import asyncio
 import hashlib
 import time
 from dataclasses import dataclass, field
@@ -48,6 +49,21 @@ from api.services.pipecat.worker_runner import (
     run_pipeline_worker,
     wait_for_pipeline_worker_started,
 )
+from api.services.langgraph_integration.gateway import (
+    DatabaseCredentialResolver,
+    IntegrationGateway,
+    RuntimeEndpointSnapshot,
+)
+from api.services.workflow.langgraph_adapter import (
+    PinnedReasoningState,
+    WorkflowAdapter,
+    transition_tools_for_node,
+)
+from api.services.workflow.langgraph_binding import parse_langgraph_binding
+from api.services.workflow.langgraph_text_preflight import (
+    execute_langgraph_text_preflight,
+)
+from api.services.workflow.reasoning import ReasoningMessage
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
@@ -417,6 +433,123 @@ async def _wait_for_quiescence(
     )
 
 
+def _checkpoint_reasoning_history(
+    checkpoint: dict[str, Any], user_message: str | None
+) -> tuple[ReasoningMessage, ...]:
+    history: list[ReasoningMessage] = []
+    for message in _deserialize_text_chat_checkpoint_messages(checkpoint["messages"]):
+        if isinstance(message, dict) and message.get("role") in {
+            "user",
+            "assistant",
+            "tool",
+        }:
+            history.append(
+                ReasoningMessage(
+                    role=message["role"],
+                    content=message.get("content", ""),
+                    tool_call_id=message.get("tool_call_id"),
+                    name=message.get("name"),
+                )
+            )
+    if user_message is not None:
+        history.append(ReasoningMessage("user", user_message))
+    return tuple(history)
+
+
+async def _execute_langgraph_pending_turn(
+    *,
+    workflow_run: Any,
+    workflow: Any,
+    workflow_graph: WorkflowGraph,
+    binding: Any,
+    pending_turn: dict[str, Any],
+    pending_user_message: str | None,
+    base_checkpoint: dict[str, Any],
+    initial_context: dict[str, Any],
+) -> TextChatTurnExecutionResult:
+    current_node_id = base_checkpoint.get("current_node_id") or workflow_graph.start_node_id
+    node = workflow_graph.nodes[current_node_id]
+    tools = transition_tools_for_node(
+        edges=node.out_edges,
+        node_id=node.id,
+        workflow_version_id=str(workflow_run.definition_id),
+        organization_id=workflow.organization_id,
+        voice_run_id=str(workflow_run.id),
+        registration_id=binding.registration_uuid,
+    )
+    state = PinnedReasoningState(
+        organization_id=workflow.organization_id,
+        voice_run_id=str(workflow_run.id),
+        workflow_version_id=str(workflow_run.definition_id),
+        registration_id=binding.registration_uuid,
+        contract_version=binding.contract_version,
+        active_node_id=node.id,
+        node_prompt=node.prompt or "",
+        history=_checkpoint_reasoning_history(base_checkpoint, pending_user_message),
+        tools=tools,
+        state_mode=binding.state_mode,
+        context=initial_context,
+        endpoint_state=base_checkpoint.get("tool_state") or {},
+    )
+    limits = binding.limits
+    snapshot = RuntimeEndpointSnapshot(
+        organization_id=workflow.organization_id,
+        registration_id=binding.registration_uuid,
+        endpoint_url=binding.endpoint_url,
+        credential_reference=binding.credential_reference,
+        contract_version=binding.contract_version,
+        invocation_modes=frozenset({binding.live_invocation_mode}),
+        operations=binding.operations,
+        request_bytes=int(limits.get("request_bytes", 1_048_576)),
+        response_bytes=int(limits.get("response_bytes", 2_097_152)),
+        event_bytes=int(limits.get("event_bytes", 65_536)),
+        tool_argument_bytes=int(limits.get("tool_argument_bytes", 262_144)),
+        stateful_profile=binding.compatibility_profile == "stateful_run",
+        interrupts_selected="interrupts" in binding.selected_capabilities,
+        cancellation_declared="cancellation" in binding.selected_capabilities,
+    )
+    result = await execute_langgraph_text_preflight(
+        state=state,
+        endpoint_snapshot=snapshot,
+        adapter=WorkflowAdapter(),
+        gateway=IntegrationGateway(
+            credential_resolver=DatabaseCredentialResolver(db_client)
+        ),
+        first_event_deadline_ms=binding.first_event_deadline_ms,
+    )
+    messages = [message.to_wire() for message in result.state.history]
+    checkpoint_messages = _serialize_text_chat_checkpoint_messages(messages)
+    diagnostics = {
+        "type": "langgraph_preflight",
+        "created_at": datetime.now(UTC).isoformat(),
+        "payload": {
+            "invocation_id": result.invocation_id,
+            "requested_transition": result.requested_transition,
+            "source_node_id": result.source_node_id,
+            "target_node_id": result.target_node_id,
+            "observed_node_change": result.observed_node_change,
+        },
+    }
+    events = [diagnostics, *result.events]
+    checkpoint_after = {
+        **base_checkpoint,
+        "anchor_turn_id": pending_turn.get("id"),
+        "current_node_id": result.state.active_node_id,
+        "messages": checkpoint_messages,
+    }
+    return TextChatTurnExecutionResult(
+        assistant_text=result.assistant_text,
+        assistant_created_at=datetime.now(UTC).isoformat(),
+        events=jsonable_encoder(events),
+        usage={},
+        checkpoint=jsonable_encoder(checkpoint_after),
+        gathered_context=jsonable_encoder(base_checkpoint.get("gathered_context") or {}),
+        initial_context=jsonable_encoder(initial_context),
+        state=WorkflowRunState.RUNNING.value,
+        is_completed=False,
+    )
+
+
 async def execute_text_chat_pending_turn(
     *,
     workflow_run_id: int,
@@ -455,6 +588,24 @@ async def execute_text_chat_pending_turn(
 
     run_definition = workflow_run.definition
     run_configs = run_definition.workflow_configurations or {}
+    endpoint_binding = parse_langgraph_binding(run_configs)
+    if endpoint_binding is not None:
+        workflow_graph = WorkflowGraph(
+            ReactFlowDTO.model_validate(run_definition.workflow_json),
+            skip_instance_constraints_for={"trigger"},
+        )
+        base_checkpoint = _resolve_checkpoint_for_pending_turn(session_data, checkpoint)
+        initial_context = dict(workflow_run.initial_context or {})
+        return await _execute_langgraph_pending_turn(
+            workflow_run=workflow_run,
+            workflow=workflow,
+            workflow_graph=workflow_graph,
+            binding=endpoint_binding,
+            pending_turn=pending_turn,
+            pending_user_message=pending_user_message,
+            base_checkpoint=base_checkpoint,
+            initial_context=initial_context,
+        )
 
     from api.services.configuration.ai_model_configuration import (
         get_effective_ai_model_configuration_for_workflow,

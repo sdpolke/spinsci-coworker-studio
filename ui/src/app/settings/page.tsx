@@ -2,6 +2,7 @@
 
 import { ExternalLink } from "lucide-react";
 
+import { LangGraphFeatureSettingsCard } from "@/components/langgraph/LangGraphFeatureSettingsCard";
 import { MCPSection } from "@/components/MCPSection";
 import { OrganizationPreferencesSection } from "@/components/OrganizationPreferencesSection";
 import { TelemetrySection } from "@/components/TelemetrySection";
@@ -23,6 +24,8 @@ export default function SettingsPage() {
             Manage your platform configuration and integrations.
           </p>
         </div>
+
+        <LangGraphFeatureSettingsCard />
 
         <Card>
           <CardHeader>

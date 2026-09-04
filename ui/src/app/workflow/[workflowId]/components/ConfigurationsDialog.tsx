@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { LangGraphWorkflowConfiguration } from "@/components/flow/LangGraphWorkflowConfiguration";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,8 @@ interface ConfigurationsDialogProps {
     workflowConfigurations: WorkflowConfigurations | null;
     workflowName: string;
     onSave: (configurations: WorkflowConfigurations, workflowName: string) => Promise<void>;
+    immutable?: boolean;
+    transitionLabels?: string[];
 }
 
 export const ConfigurationsDialog = ({
@@ -33,9 +36,11 @@ export const ConfigurationsDialog = ({
     onOpenChange,
     workflowConfigurations,
     workflowName,
-    onSave
+    onSave,
+    immutable = false,
+    transitionLabels = [],
 }: ConfigurationsDialogProps) => {
-    const { externalPbxIntegrationsEnabled } = useOrgConfig();
+    const { externalPbxIntegrationsEnabled, langGraphEnabled } = useOrgConfig();
     const resolvedWorkflowConfigurations = resolveWorkflowConfigurations(workflowConfigurations);
     const [name, setName] = useState<string>(workflowName);
     const [ambientNoiseConfig, setAmbientNoiseConfig] = useState<AmbientNoiseConfiguration>(
@@ -68,6 +73,7 @@ export const ConfigurationsDialog = ({
     const [externalPbxFieldMappings, setExternalPbxFieldMappings] = useState<ExternalPBXFieldMapping[]>(
         resolvedWorkflowConfigurations.external_pbx_field_mappings
     );
+    const [langGraphEndpoint, setLangGraphEndpoint] = useState(resolvedWorkflowConfigurations.langgraph_endpoint ?? null);
     const [isSaving, setIsSaving] = useState(false);
     const selectedTurnStartStrategy = TURN_START_STRATEGY_OPTIONS.find(
         (option) => option.value === turnStartStrategy
@@ -94,6 +100,7 @@ export const ConfigurationsDialog = ({
                 transcript_configuration: resolvedWorkflowConfigurations.transcript_configuration,
                 context_compaction_enabled: contextCompactionEnabled,
                 external_pbx_field_mappings: externalPbxFieldMappings,
+                langgraph_endpoint: langGraphEndpoint,
             }, name);
             onOpenChange(false);
         } catch (error) {
@@ -118,6 +125,7 @@ export const ConfigurationsDialog = ({
             setTurnStopStrategy(nextWorkflowConfigurations.turn_stop_strategy);
             setContextCompactionEnabled(nextWorkflowConfigurations.context_compaction_enabled);
             setExternalPbxFieldMappings(nextWorkflowConfigurations.external_pbx_field_mappings);
+            setLangGraphEndpoint(nextWorkflowConfigurations.langgraph_endpoint ?? null);
         }
     }, [open, workflowName, workflowConfigurations]);
 
@@ -491,6 +499,16 @@ export const ConfigurationsDialog = ({
                                 )}
                             </div>
                         </div>
+                    )}
+
+                    {langGraphEnabled && (
+                        <LangGraphWorkflowConfiguration
+                            value={langGraphEndpoint}
+                            onChange={setLangGraphEndpoint}
+                            realtime={resolvedWorkflowConfigurations.model_overrides?.is_realtime === true}
+                            immutable={immutable}
+                            transitionLabels={transitionLabels}
+                        />
                     )}
                 </div>
 

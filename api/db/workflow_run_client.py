@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import func
@@ -8,6 +9,9 @@ from sqlalchemy.orm import joinedload, selectinload
 from api.db.base_client import BaseDBClient
 from api.db.filters import apply_workflow_run_filters, get_workflow_run_order_clause
 from api.db.models import (
+    LangGraphEndpointRegistrationModel,
+    LangGraphRolloutStateModel,
+    LangGraphVoiceRunBindingModel,
     OrganizationModel,
     UserModel,
     WorkflowDefinitionModel,
@@ -16,6 +20,11 @@ from api.db.models import (
 )
 from api.enums import CallType, StorageBackend
 from api.schemas.workflow import WorkflowRunResponseSchema
+from api.services.langgraph_integration.rollout import (
+    RolloutStage,
+    new_langgraph_run_allowed,
+    tenant_selected_for_stage,
+)
 from api.services.workflow.run_usage_response import format_public_cost_info
 from api.utils.recording_artifacts import get_recording_storage_key
 
@@ -54,14 +63,16 @@ class WorkflowRunClient(BaseDBClient):
             if not workflow:
                 raise ValueError(f"Workflow with ID {workflow_id} not found")
 
+            selected_definition = None
             if definition_id is not None:
                 definition_result = await session.execute(
-                    select(WorkflowDefinitionModel.id).where(
+                    select(WorkflowDefinitionModel).where(
                         WorkflowDefinitionModel.id == definition_id,
                         WorkflowDefinitionModel.workflow_id == workflow.id,
                     )
                 )
-                if definition_result.scalar_one_or_none() is None:
+                selected_definition = definition_result.scalar_one_or_none()
+                if selected_definition is None:
                     raise ValueError(
                         f"Workflow definition {definition_id} does not belong to "
                         f"workflow {workflow.id}"
@@ -84,6 +95,75 @@ class WorkflowRunClient(BaseDBClient):
                 call_type=call_type.value,
             )
             session.add(new_run)
+            await session.flush()
+
+            binding = (
+                (selected_definition.workflow_configurations or {}).get(
+                    "langgraph_endpoint"
+                )
+                if selected_definition is not None
+                else None
+            )
+            if binding is not None:
+                rollout = await session.scalar(
+                    select(LangGraphRolloutStateModel).where(
+                        LangGraphRolloutStateModel.organization_id
+                        == workflow.organization_id
+                    )
+                )
+                now = datetime.now(UTC)
+                if rollout is None or not new_langgraph_run_allowed(
+                    feature_enabled=rollout.feature_enabled if rollout else False,
+                    disabled_at=rollout.disabled_at if rollout else None,
+                    now=now,
+                ):
+                    raise ValueError(
+                        "LangGraph integration is disabled for this organization"
+                    )
+                if not tenant_selected_for_stage(
+                    stage=RolloutStage(rollout.rollout_stage),
+                    organization_id=workflow.organization_id,
+                    internal_tenant_ids=frozenset(rollout.internal_tenant_ids or ()),
+                    allowlisted_tenant_ids=frozenset(
+                        rollout.allowlisted_tenant_ids or ()
+                    ),
+                    percentage=rollout.percentage_cohort,
+                    cohort_salt=rollout.cohort_salt,
+                ):
+                    raise ValueError(
+                        "Organization is not selected for the current LangGraph rollout stage"
+                    )
+                registration = await session.scalar(
+                    select(LangGraphEndpointRegistrationModel).where(
+                        LangGraphEndpointRegistrationModel.organization_id
+                        == workflow.organization_id,
+                        LangGraphEndpointRegistrationModel.endpoint_uuid
+                        == binding.get("registration_uuid"),
+                    )
+                )
+                if registration is None:
+                    raise ValueError(
+                        "Pinned LangGraph registration does not belong to workflow organization"
+                    )
+                session.add(
+                    LangGraphVoiceRunBindingModel(
+                        organization_id=workflow.organization_id,
+                        workflow_run_id=new_run.id,
+                        workflow_definition_id=selected_definition.id,
+                        registration_id=registration.id,
+                        pinned_snapshot=dict(binding),
+                        contract_version=binding["contract_version"],
+                        compatibility_profile=binding["compatibility_profile"],
+                        state_mode=binding["state_mode"],
+                        invocation_modes={
+                            "live": binding["live_invocation_mode"],
+                            "non_conversational": binding.get(
+                                "non_conversational_modes", {}
+                            ),
+                        },
+                        feature_enabled_at_creation=True,
+                    )
+                )
             try:
                 await session.commit()
             except Exception as e:

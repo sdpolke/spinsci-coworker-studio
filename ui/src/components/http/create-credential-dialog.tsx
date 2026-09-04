@@ -23,7 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/lib/auth";
+import { detailFromError } from "@/lib/apiError";
 
 interface CreateCredentialDialogProps {
     open: boolean;
@@ -69,8 +69,6 @@ export function CreateCredentialDialog({
     onOpenChange,
     onCreated,
 }: CreateCredentialDialogProps) {
-    const { getAccessToken } = useAuth();
-
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [credentialType, setCredentialType] = useState<WebhookCredentialType>("bearer_token");
@@ -85,9 +83,7 @@ export function CreateCredentialDialog({
         setError(null);
 
         try {
-            const accessToken = await getAccessToken();
             const response = await createCredentialApiV1CredentialsPost({
-                headers: { Authorization: `Bearer ${accessToken}` },
                 body: {
                     name,
                     description: description || undefined,
@@ -97,9 +93,7 @@ export function CreateCredentialDialog({
             });
 
             if (response.error) {
-                const errorDetail = (response.error as { detail?: string })?.detail
-                    || "Failed to create credential";
-                setError(errorDetail);
+                setError(detailFromError(response.error, "Failed to create credential"));
                 return;
             }
 

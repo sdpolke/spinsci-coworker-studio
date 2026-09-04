@@ -36,6 +36,7 @@ from api.services.pipecat.in_memory_buffers import InMemoryLogsBuffer
 from api.services.pipecat.pipeline_builder import (
     build_pipeline,
     build_realtime_pipeline,
+    create_langgraph_reasoning_processor,
     create_pipeline_components,
     create_pipeline_task,
 )
@@ -74,6 +75,11 @@ from api.services.pipecat.ws_sender_registry import get_ws_sender
 from api.services.telephony import registry as telephony_registry
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.initial_context import merge_external_initial_context
+from api.services.workflow.langgraph_binding import (
+    LangGraphWorkflowBindingError,
+    live_eligibility_evidence_complete,
+    parse_langgraph_binding,
+)
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow.workflow_graph import WorkflowGraph
 from pipecat.audio.turn.smart_turn.base_smart_turn import SmartTurnParams
@@ -117,6 +123,89 @@ ensure_tracing()
 
 DEFAULT_USER_TURN_STOP_TIMEOUT = 5.0
 EXTERNAL_TURN_USER_STOP_TIMEOUT = 30.0
+
+
+async def _resolve_live_langgraph_binding(
+    *,
+    run_configs: dict,
+    organization_id: int,
+    is_realtime: bool,
+):
+    """Return an eligible pinned binding without consulting mutable endpoint state."""
+    binding = parse_langgraph_binding(run_configs)
+    if binding is None:
+        return None
+    if is_realtime:
+        raise LangGraphWorkflowBindingError(
+            "LangGraph chat endpoints are unavailable for realtime speech-to-speech runs"
+        )
+
+    from api.services.langgraph_integration.configuration import (
+        get_langgraph_feature_configuration,
+    )
+    from api.services.langgraph_integration.endpoint_registration import (
+        FeatureDisabledError,
+    )
+
+    feature = await get_langgraph_feature_configuration(organization_id)
+    if not feature.enabled:
+        raise FeatureDisabledError(
+            "LangGraph integration is disabled for this organization"
+        )
+    if not live_eligibility_evidence_complete(binding.evidence):
+        raise LangGraphWorkflowBindingError(
+            "pinned LangGraph binding lacks complete live-eligibility evidence"
+        )
+    return binding
+
+
+def _create_non_realtime_reasoner(
+    *,
+    binding,
+    user_config,
+    correlation_id: str | None,
+    organization_id: int,
+    state_factory,
+):
+    """Select local or remote conversational reasoning without silent fallback."""
+    if binding is None:
+        return create_llm_service(user_config, correlation_id=correlation_id), None
+
+    from api.services.langgraph_integration.gateway import DatabaseCredentialResolver
+
+    inference_llm = create_llm_service(
+        user_config,
+        correlation_id=correlation_id,
+    )
+    reasoner = create_langgraph_reasoning_processor(
+        binding=binding,
+        organization_id=organization_id,
+        credential_resolver=DatabaseCredentialResolver(db_client),
+        state_factory=state_factory,
+    )
+    return reasoner, inference_llm
+
+
+def _create_pinned_non_conversational_reasoner(
+    *,
+    operation: str,
+    binding,
+    organization_id: int,
+    state_factory,
+):
+    """Create a synchronous endpoint client only for an explicitly pinned operation."""
+    if binding is None or binding.non_conversational_modes.get(operation) != "synchronous":
+        return None
+
+    from api.services.langgraph_integration.gateway import DatabaseCredentialResolver
+
+    return create_langgraph_reasoning_processor(
+        binding=binding,
+        organization_id=organization_id,
+        credential_resolver=DatabaseCredentialResolver(db_client),
+        state_factory=state_factory,
+        invocation_mode="synchronous",
+    )
 
 
 def _resolve_user_turn_stop_timeout(
@@ -668,6 +757,17 @@ async def _run_pipeline_impl(
 
     # Detect realtime mode (speech-to-speech services like OpenAI Realtime, Gemini Live)
     is_realtime = user_config.is_realtime and user_config.realtime is not None
+    langgraph_binding = await _resolve_live_langgraph_binding(
+        run_configs=run_configs,
+        organization_id=workflow.organization_id,
+        is_realtime=is_realtime,
+    )
+    endpoint_state_factory = lambda context: engine.build_langgraph_reasoning_state(
+        context=context,
+        binding=langgraph_binding,
+        organization_id=workflow.organization_id,
+        workflow_version_id=workflow_run.definition_id,
+    )
 
     # Create services based on user configuration
     if is_realtime:
@@ -693,21 +793,39 @@ async def _run_pipeline_impl(
             audio_config,
             correlation_id=mps_correlation_id,
         )
-        llm = create_llm_service(user_config, correlation_id=mps_correlation_id)
-        inference_llm = None
+        llm, inference_llm = _create_non_realtime_reasoner(
+            binding=langgraph_binding,
+            user_config=user_config,
+            correlation_id=mps_correlation_id,
+            organization_id=workflow.organization_id,
+            state_factory=endpoint_state_factory,
+        )
 
     # A shared LLM cannot carry an extraction usage_context without also tagging
     # normal conversation or context-summarization requests. Create a dedicated
     # client only for the managed provider; other providers ignore usage_context.
-    variable_extraction_llm = (
-        create_llm_service(
-            user_config,
-            correlation_id=mps_correlation_id,
-            usage_context="variable_extraction",
+    pinned_variable_extraction_llm = (
+        _create_pinned_non_conversational_reasoner(
+            operation="variable_extraction",
+            binding=langgraph_binding,
+            organization_id=workflow.organization_id,
+            state_factory=endpoint_state_factory,
         )
         if uses_variable_extraction
-        and user_config.llm.provider == ServiceProviders.SPINSCI.value
-        else inference_llm or llm
+        else None
+    )
+    variable_extraction_llm = (
+        pinned_variable_extraction_llm
+        or (
+            create_llm_service(
+                user_config,
+                correlation_id=mps_correlation_id,
+                usage_context="variable_extraction",
+            )
+            if uses_variable_extraction
+            and user_config.llm.provider == ServiceProviders.SPINSCI.value
+            else inference_llm or llm
+        )
     )
 
     # Stamp the providers/models actually resolved for this run onto
@@ -729,8 +847,14 @@ async def _run_pipeline_impl(
             "stt_model": user_config.stt.model,
             "tts_provider": user_config.tts.provider,
             "tts_model": user_config.tts.model,
-            "llm_provider": user_config.llm.provider,
-            "llm_model": user_config.llm.model,
+            "llm_provider": (
+                "langgraph_endpoint" if langgraph_binding else user_config.llm.provider
+            ),
+            "llm_model": (
+                langgraph_binding.registration_uuid
+                if langgraph_binding
+                else user_config.llm.model
+            ),
         }
     merged_call_context_vars = {
         **merged_call_context_vars,
@@ -982,15 +1106,21 @@ async def _run_pipeline_impl(
         )
     if voicemail_config.get("enabled", False) and not is_realtime:
         logger.info(f"Voicemail detection enabled for workflow run {workflow_run_id}")
-        # Create a separate LLM instance for the voicemail sub-pipeline
-        # (can't share with main pipeline as it would mess up frame linking)
-        if voicemail_config.get("use_workflow_llm", True):
+        # Keep established provider routing unless AMD is explicitly pinned to
+        # the endpoint's synchronous contract mode.
+        voicemail_llm = _create_pinned_non_conversational_reasoner(
+            operation="amd",
+            binding=langgraph_binding,
+            organization_id=workflow.organization_id,
+            state_factory=endpoint_state_factory,
+        )
+        if voicemail_llm is None and voicemail_config.get("use_workflow_llm", True):
             voicemail_llm = create_llm_service(
                 user_config,
                 correlation_id=mps_correlation_id,
                 usage_context="voicemail_detection",
             )
-        else:
+        elif voicemail_llm is None:
             voicemail_llm = create_llm_service_from_provider(
                 provider=voicemail_config.get("provider", "openai"),
                 model=voicemail_config.get("model", "gpt-4.1"),

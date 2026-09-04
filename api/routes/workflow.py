@@ -55,6 +55,11 @@ from api.services.workflow.configuration_policy import (
 from api.services.workflow.dto import ReactFlowDTO, sanitize_workflow_definition
 from api.services.workflow.duplicate import duplicate_workflow
 from api.services.workflow.errors import ItemKind, WorkflowError
+from api.services.langgraph_integration.endpoint_registration import FeatureDisabledError
+from api.services.workflow.langgraph_binding import (
+    LangGraphWorkflowBindingError,
+    validate_langgraph_workflow_binding,
+)
 from api.services.workflow.run_creation import prepare_workflow_run_inputs
 from api.services.workflow.run_usage_response import (
     format_public_cost_info,
@@ -138,6 +143,7 @@ async def _validate_workflow_definition(
     workflow_definition: Optional[dict],
     organization_id: int,
     exclude_workflow_id: Optional[int] = None,
+    workflow_configurations: Optional[dict] = None,
 ) -> list[WorkflowError]:
     """Run DTO, graph, tool-name, and trigger checks on a workflow definition.
 
@@ -180,6 +186,22 @@ async def _validate_workflow_definition(
             organization_id,
         )
     )
+
+    try:
+        await validate_langgraph_workflow_binding(
+            workflow_configurations=workflow_configurations,
+            organization_id=organization_id,
+            db_client=db_client,
+        )
+    except (FeatureDisabledError, LangGraphWorkflowBindingError, ValueError) as exc:
+        errors.append(
+            WorkflowError(
+                kind=ItemKind.workflow,
+                id=None,
+                field="workflow_configurations.langgraph_endpoint",
+                message=str(exc),
+            )
+        )
 
     # ----------- Trigger Path Conflict Check ------------
     trigger_paths = extract_trigger_paths(workflow_definition)
@@ -406,11 +428,17 @@ async def validate_workflow(
     workflow_definition = (
         draft.workflow_json if draft else workflow.released_definition.workflow_json
     )
+    workflow_configurations = (
+        draft.workflow_configurations
+        if draft
+        else workflow.released_definition.workflow_configurations
+    )
 
     errors = await _validate_workflow_definition(
         workflow_definition,
         organization_id=user.selected_organization_id,
         exclude_workflow_id=workflow_id,
+        workflow_configurations=workflow_configurations,
     )
 
     if errors:
@@ -788,6 +816,7 @@ async def publish_workflow(
         draft.workflow_json,
         organization_id=user.selected_organization_id,
         exclude_workflow_id=workflow_id,
+        workflow_configurations=draft.workflow_configurations,
     )
     if errors:
         raise _validation_errors_http_exception(errors)

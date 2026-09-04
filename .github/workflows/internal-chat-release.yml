@@ -1,0 +1,146 @@
+name: Internal Chat Compatibility release gates
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "ui/**"
+      - "scripts/**"
+      - ".github/workflows/internal-chat-release.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+  REDIS_URL: redis://localhost:6379/0
+  ENABLE_AWS_S3: "false"
+  MINIO_PUBLIC_ENDPOINT: http://localhost:9000
+  DEPLOYMENT_MODE: oss
+  ENVIRONMENT: test
+  LANGGRAPH_INTEGRATION_ENABLED: "false"
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  backend-conformance-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env: {POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: postgres}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    steps: &backend_steps
+      - uses: actions/checkout@v4
+        with: {submodules: recursive}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - name: Create virtual environment
+        run: python -m venv .venv && echo "${{ github.workspace }}/.venv/bin" >> "$GITHUB_PATH"
+      - name: Install backend dependencies
+        run: ./scripts/setup_requirements.sh --dev
+      - name: Run full-stack conformance and security suites
+        working-directory: api
+        run: pytest tests/langgraph_integration/test_internal_release_security.py tests/langgraph_integration/test_endpoint_registration_api.py tests/langgraph_integration/test_endpoint_lifecycle.py tests/langgraph_integration/test_task7_workflow_binding.py tests/langgraph_integration/test_text_preflight.py tests/langgraph_integration/test_gateway_discovery.py tests/langgraph_integration/test_gateway_runtime.py tests/langgraph_integration/test_persistence_and_access.py tests/langgraph_integration/test_run_diagnostics_api.py -x
+
+  fixed-environment-performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {submodules: recursive}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - name: Create virtual environment
+        run: python -m venv .venv && echo "${{ github.workspace }}/.venv/bin" >> "$GITHUB_PATH"
+      - name: Install backend dependencies
+        run: ./scripts/setup_requirements.sh --dev
+      - name: Run warmed 100-request performance and evidence gates
+        working-directory: api
+        run: pytest tests/langgraph_integration/test_internal_release_performance.py tests/langgraph_integration/test_internal_release_evidence.py -x
+
+  property-contract-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - name: Create virtual environment
+        run: python -m venv .venv && echo "${{ github.workspace }}/.venv/bin" >> "$GITHUB_PATH"
+      - name: Install backend dependencies
+        run: ./scripts/setup_requirements.sh --dev
+      - name: Run LangGraph correctness properties
+        working-directory: api
+        run: pytest tests/langgraph_integration/properties -x
+
+  migration-and-non-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {submodules: recursive}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - name: Create virtual environment
+        run: python -m venv .venv && echo "${{ github.workspace }}/.venv/bin" >> "$GITHUB_PATH"
+      - name: Install backend dependencies
+        run: ./scripts/setup_requirements.sh --dev
+      - name: Run additive migration and approved baseline suites
+        working-directory: api
+        run: pytest tests/langgraph_integration/test_persistence_and_access.py tests/langgraph_integration/test_task8_4_pipeline_regressions.py tests/langgraph_integration/test_task8_3_non_conversational_routing.py -x
+
+  frontend-experimental-surfaces:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: ui
+        run: npm ci
+      - name: Run endpoint registry and workflow integration UI tests
+        working-directory: ui
+        run: npm test -- src/app/langgraph-endpoints/page.test.tsx 'src/app/langgraph-endpoints/[endpointUuid]/page.test.tsx' src/components/flow/LangGraphWorkflowConfiguration.test.tsx
+
+  release-evidence-gate:
+    if: always()
+    needs:
+      - backend-conformance-security
+      - fixed-environment-performance
+      - property-contract-gates
+      - migration-and-non-regression
+      - frontend-experimental-surfaces
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every immutable evidence producer
+        env:
+          CONFORMANCE: ${{ needs.backend-conformance-security.result }}
+          PERFORMANCE: ${{ needs.fixed-environment-performance.result }}
+          PROPERTIES: ${{ needs.property-contract-gates.result }}
+          REGRESSIONS: ${{ needs.migration-and-non-regression.result }}
+          FRONTEND: ${{ needs.frontend-experimental-surfaces.result }}
+        run: |
+          for result in "$CONFORMANCE" "$PERFORMANCE" "$PROPERTIES" "$REGRESSIONS" "$FRONTEND"; do
+            test "$result" = "success" || {
+              echo "Internal Chat release evidence is incomplete"
+              exit 1
+            }
+          done
+          test "$LANGGRAPH_INTEGRATION_ENABLED" = "false"

@@ -1,6 +1,7 @@
 """ARQ worker configuration - setup logging before importing tasks"""
 
 import ssl
+from typing import ClassVar
 from urllib.parse import urlparse
 
 from api.constants import REDIS_URL, TEXT_CHAT_INACTIVITY_SWEEP_INTERVAL_MINUTES
@@ -12,7 +13,7 @@ from api.tasks.function_names import FunctionNames
 setup_logging()
 
 # Now import ARQ and task dependencies
-from arq import create_pool, cron
+from arq import create_pool, cron, func
 from arq.connections import ArqRedis, RedisSettings
 
 parsed_url = urlparse(REDIS_URL)
@@ -33,7 +34,7 @@ REDIS_SETTINGS = RedisSettings(
     password=parsed_url.password,
     conn_timeout=10,
     ssl=use_ssl,
-    ssl_ca_certs=None if not use_ssl else None,
+    ssl_ca_certs=None,
     ssl_certfile=None,
     ssl_keyfile=None,
     ssl_check_hostname=False if use_ssl else None,
@@ -44,6 +45,8 @@ from api.tasks.campaign_tasks import (
     sync_campaign_source,
 )
 from api.tasks.knowledge_base_processing import process_knowledge_base_document
+from api.tasks.langgraph_retention import sweep_langgraph_retention
+from api.tasks.langgraph_validation import validate_langgraph_endpoint
 from api.tasks.run_integrations import run_integrations_post_workflow_run
 from api.tasks.text_chat_inactivity import (
     complete_inactive_text_chat_session,
@@ -54,7 +57,7 @@ from api.tasks.workflow_completion import process_workflow_completion
 
 
 class WorkerSettings:
-    functions = [
+    functions: ClassVar[list] = [
         run_integrations_post_workflow_run,
         process_workflow_completion,
         sync_campaign_source,
@@ -62,8 +65,12 @@ class WorkerSettings:
         process_knowledge_base_document,
         deliver_webhook,
         complete_inactive_text_chat_session,
+        sweep_langgraph_retention,
+        # Keep the endpoint-scoped job ID only while validation is queued or
+        # running. Completed/failed results must not suppress explicit retries.
+        func(validate_langgraph_endpoint, keep_result=0),
     ]
-    cron_jobs = [
+    cron_jobs: ClassVar[list] = [
         # Safety net for webhook deliveries whose ARQ job was lost (worker
         # restart / Redis flush): re-enqueue any pending delivery that is overdue.
         cron(
@@ -78,6 +85,14 @@ class WorkerSettings:
             sweep_inactive_text_chat_sessions,
             minute=set(range(0, 60, TEXT_CHAT_INACTIVITY_SWEEP_INTERVAL_MINUTES)),
             second=30,
+            run_at_startup=True,
+        ),
+        # Governed integration data expires within 24 hours of its retention deadline.
+        cron(
+            sweep_langgraph_retention,
+            hour=2,
+            minute=15,
+            second=0,
             run_at_startup=True,
         ),
     ]

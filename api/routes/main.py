@@ -11,6 +11,7 @@ from api.routes.campaign import router as campaign_router
 from api.routes.credentials import router as credentials_router
 from api.routes.folder import router as folder_router
 from api.routes.knowledge_base import router as knowledge_base_router
+from api.routes.langgraph_endpoints import router as langgraph_endpoints_router
 from api.routes.node_types import router as node_types_router
 from api.routes.organization import router as organization_router
 from api.routes.organization_usage import router as organization_usage_router
@@ -28,8 +29,8 @@ from api.routes.turn_credentials import router as turn_credentials_router
 from api.routes.user import router as user_router
 from api.routes.webrtc_signaling import router as webrtc_signaling_router
 from api.routes.workflow import router as workflow_router
-from api.routes.workflow_generation import router as workflow_generation_router
 from api.routes.workflow_embed import router as workflow_embed_router
+from api.routes.workflow_generation import router as workflow_generation_router
 from api.routes.workflow_recording import router as workflow_recording_router
 from api.routes.workflow_text_chat import router as workflow_text_chat_router
 from api.services.integrations import all_routers
@@ -61,6 +62,7 @@ router.include_router(public_agent_router)
 router.include_router(public_download_router)
 router.include_router(workflow_embed_router)
 router.include_router(knowledge_base_router)
+router.include_router(langgraph_endpoints_router)
 router.include_router(workflow_recording_router)
 router.include_router(folder_router)
 router.include_router(auth_router)
@@ -228,7 +230,7 @@ async def autoscale_metric(
     _verify_devops_secret(SPINSCI_DEVOPS_SECRET, x_spinsci_devops_secret)
     try:
         calls = await call_concurrency.get_fleet_active_calls()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - convert dependency failures to HTTP 503
         logger.error(f"Fleet active-call count unavailable: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

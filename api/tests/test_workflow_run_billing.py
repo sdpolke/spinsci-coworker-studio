@@ -12,6 +12,12 @@ from api.services.workflow_run_billing import (
 )
 
 
+@pytest.fixture(autouse=True)
+def disable_local_credit_path(monkeypatch):
+    """These tests cover hosted MPS reporting, not the OSS credit ledger."""
+    monkeypatch.setattr(workflow_run_billing_mod, "LOCAL_CREDITS_ENABLED", False)
+
+
 def _make_workflow_run():
     return SimpleNamespace(
         id=123,

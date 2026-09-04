@@ -1,5 +1,7 @@
 from typing import Literal
 
+from typing import Any, Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from api.constants import (
@@ -46,6 +48,64 @@ class AmbientNoiseConfigurationDefaults(BaseModel):
     volume: float = 0.3
 
 
+class LangGraphEligibilityEvidence(BaseModel):
+    """Immutable evidence required before a workflow can serve live voice."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text_session_conformance: bool = False
+    accepted_transition: bool = False
+    cancellation_verified: bool = False
+    recording_verified: bool = False
+
+    @property
+    def complete(self) -> bool:
+        return all(
+            (
+                self.text_session_conformance,
+                self.accepted_transition,
+                self.cancellation_verified,
+                self.recording_verified,
+            )
+        )
+
+
+class LangGraphEndpointBinding(BaseModel):
+    """Complete workflow-version-pinned endpoint behavior snapshot."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    registration_uuid: str = Field(min_length=1, max_length=64)
+    validation_report_uuid: str = Field(min_length=1, max_length=64)
+    validation_report_digest: str = Field(min_length=1, max_length=128)
+    contract_version: str = Field(min_length=1, max_length=16)
+    compatibility_profile: Literal["chat", "stateful_run"]
+    state_mode: Literal["mural_authoritative", "endpoint_checkpointed"]
+    live_invocation_mode: Literal["streaming"]
+    non_conversational_modes: dict[str, Literal["synchronous", "asynchronous"]] = (
+        Field(default_factory=dict)
+    )
+    selected_capabilities: list[str] = Field(default_factory=list)
+    capability_snapshot_uuid: str = Field(min_length=1, max_length=64)
+    capability_snapshot_digest: str = Field(min_length=1, max_length=128)
+    capability_snapshot: dict[str, Any]
+    data_sharing_policy: dict[str, Any] = Field(default_factory=dict)
+    redaction_policy_id: str | None = Field(default=None, max_length=255)
+    compiled_policy_versions: dict[str, str] = Field(default_factory=dict)
+    data_region: str = Field(min_length=1, max_length=128)
+    first_event_deadline_ms: int = Field(ge=500, le=3000)
+    first_event_action: Literal["fallback_message", "transfer", "end_call"]
+    terminal_failure_action: Literal[
+        "retry_prompt", "fallback_message", "transfer", "end_call"
+    ]
+    evidence: LangGraphEligibilityEvidence
+    endpoint_url: str = Field(min_length=1, max_length=2048)
+    credential_reference: str = Field(min_length=1, max_length=64)
+    operations: dict[str, str]
+    limits: dict[str, int]
+    ownership: dict[str, str] = Field(default_factory=dict)
+
+
 class WorkflowConfigurationDefaults(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -88,6 +148,7 @@ class WorkflowConfigurationDefaults(BaseModel):
         default_factory=list,
         max_length=100,
     )
+    langgraph_endpoint: LangGraphEndpointBinding | None = None
 
 
 class TextChatInactivityTimeoutConstraints(BaseModel):

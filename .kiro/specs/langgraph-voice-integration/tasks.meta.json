@@ -1,0 +1,915 @@
+{
+  "pbtResults": {
+    "1.4 Write the property test for unsupported integration classification": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518408665
+    },
+    "1.5 Write the property test for manifest validation and version negotiation": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518409607
+    },
+    "1.6 Write the property test for pinned contract-version authority": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518411582
+    },
+    "2.4 Write the property test for mutation-free denied authorization": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518420838
+    },
+    "2.5 Write the property test for non-secret credential projections": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518421092
+    },
+    "2.6 Write the property test for bounded retention and disabled capture": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518421792
+    },
+    "3.3 Write the property test for live-voice eligibility": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518408185
+    },
+    "3.4 Write the property test for complete capability-change detection": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518424665
+    },
+    "4.7 Write the property test for conformance-oracle equality": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518425287
+    },
+    "4.5 Write the property test for hosted address classification": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518421684
+    },
+    "4.6 Write the property test for health degradation windows": {
+      "status": "passed",
+      "lastRunTimestamp": 1788509640133
+    },
+    "5.6 Write the property test for streaming terminal history": {
+      "status": "passed",
+      "lastRunTimestamp": 1788524563011
+    },
+    "5.11 Write the property test for Tool Call fragmentation": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518413999
+    },
+    "5.12 Write the property test for exactly-once speakable text": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518414437
+    },
+    "5.5 Write the property test for negotiated output progression": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518409494
+    },
+    "5.7 Write the property test for invocation-mode cardinality": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518412140
+    },
+    "5.8 Write the property test for asynchronous deadline outcomes": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518413396
+    },
+    "5.9 Write the property test for retry identity and event boundaries": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518413582
+    },
+    "5.10 Write the property test for terminal idempotency": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518413764
+    },
+    "6.5 Write the property test for canonical message order": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518408991
+    },
+    "6.6 Write the property test for transition bijection": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518409792
+    },
+    "6.7 Write the property test for one invocation per node entry": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518410359
+    },
+    "6.8 Write the property test for minimal authorized outbound requests": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518410616
+    },
+    "6.9 Write the property test for endpoint-controlled progression boundaries": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518410764
+    },
+    "6.10 Write the property test for Mural-authoritative conflict resolution": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518411156
+    },
+    "6.11 Write the property test for authorized exactly-once Platform Tool effects": {
+      "status": "passed",
+      "lastRunTimestamp": 1788509796975
+    },
+    "6.12 Write the property test for tool-history causality": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518414223
+    },
+    "6.13 Write the property test for immutable controls and secret rejection": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518423246
+    },
+    "7.4 Write the property test for first-event deadline policy": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518420636
+    },
+    "7.5 Write the property test for feature-off mutation safety": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518425522
+    },
+    "7.6 Write the property test for complete live-eligibility evidence": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518425823
+    },
+    "11.4 Write the property test for causal trace and metric projections": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518424951
+    },
+    "11.5 Write the property test for bounded redacted alerts": {
+      "status": "passed",
+      "lastRunTimestamp": 1788512488006
+    },
+    "11.6 Write the property test for malformed trace-header isolation": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518425258
+    },
+    "12.3 Write the property test for rollout-stage ordering": {
+      "status": "passed",
+      "lastRunTimestamp": 1788518425803
+    },
+    "12.4 Write the property test for qualifying rollout gates": {
+      "status": "passed",
+      "lastRunTimestamp": 1788515722730
+    },
+    "12.6 Write the property test for executable example publication": {
+      "status": "passed",
+      "lastRunTimestamp": 1788516077011
+    }
+  },
+  "executionHistory": {
+    "1. Establish the versioned contract and test foundation": [
+      {
+        "executionId": "04eeaa91-345f-4b81-a1e5-3df415e250d8",
+        "chatSessionId": "sess_a392c993-9f1f-4581-9ab3-10079d5993a1",
+        "timestamp": 1788493448611
+      },
+      {
+        "executionId": "04eeaa91-345f-4b81-a1e5-3df415e250d8",
+        "chatSessionId": "sess_a392c993-9f1f-4581-9ab3-10079d5993a1",
+        "timestamp": 1788494069809
+      }
+    ],
+    "1.1 Implement contract schemas, compatibility profiles, and immutable matrix definitions": [
+      {
+        "executionId": "04eeaa91-345f-4b81-a1e5-3df415e250d8",
+        "chatSessionId": "sess_a392c993-9f1f-4581-9ab3-10079d5993a1",
+        "timestamp": 1788494048040
+      }
+    ],
+    "1.2 Implement integration threat-model enforcement primitives": [
+      {
+        "executionId": "04eeaa91-345f-4b81-a1e5-3df415e250d8",
+        "chatSessionId": "sess_a392c993-9f1f-4581-9ab3-10079d5993a1",
+        "timestamp": 1788494052250
+      }
+    ],
+    "1.3 Add the pinned property-based testing dependency and harness": [
+      {
+        "executionId": "04eeaa91-345f-4b81-a1e5-3df415e250d8",
+        "chatSessionId": "sess_a392c993-9f1f-4581-9ab3-10079d5993a1",
+        "timestamp": 1788494056148
+      }
+    ],
+    "1.4 Write the property test for unsupported integration classification": [
+      {
+        "executionId": "04eeaa91-345f-4b81-a1e5-3df415e250d8",
+        "chatSessionId": "sess_a392c993-9f1f-4581-9ab3-10079d5993a1",
+        "timestamp": 1788494059952
+      }
+    ],
+    "1.5 Write the property test for manifest validation and version negotiation": [
+      {
+        "executionId": "04eeaa91-345f-4b81-a1e5-3df415e250d8",
+        "chatSessionId": "sess_a392c993-9f1f-4581-9ab3-10079d5993a1",
+        "timestamp": 1788494064903
+      }
+    ],
+    "1.6 Write the property test for pinned contract-version authority": [
+      {
+        "executionId": "04eeaa91-345f-4b81-a1e5-3df415e250d8",
+        "chatSessionId": "sess_a392c993-9f1f-4581-9ab3-10079d5993a1",
+        "timestamp": 1788494069779
+      }
+    ],
+    "2. Add tenant-scoped persistence, DB clients, feature flags, and permissions": [
+      {
+        "executionId": "f0b6df4b-2558-4385-a0aa-c61b05db5a6f",
+        "chatSessionId": "sess_8095c0a1-18c3-4bbb-b9d3-dd42909a1ce3",
+        "timestamp": 1788494098362
+      },
+      {
+        "executionId": "f0b6df4b-2558-4385-a0aa-c61b05db5a6f",
+        "chatSessionId": "sess_8095c0a1-18c3-4bbb-b9d3-dd42909a1ce3",
+        "timestamp": 1788494701113
+      }
+    ],
+    "2.1 Create additive database models and Alembic migrations": [
+      {
+        "executionId": "f0b6df4b-2558-4385-a0aa-c61b05db5a6f",
+        "chatSessionId": "sess_8095c0a1-18c3-4bbb-b9d3-dd42909a1ce3",
+        "timestamp": 1788494720956
+      }
+    ],
+    "2.2 Implement organization-scoped DB clients and immutable ledgers": [
+      {
+        "executionId": "f0b6df4b-2558-4385-a0aa-c61b05db5a6f",
+        "chatSessionId": "sess_8095c0a1-18c3-4bbb-b9d3-dd42909a1ce3",
+        "timestamp": 1788494725146
+      }
+    ],
+    "2.3 Implement experimental feature configuration, acknowledgment, and RBAC": [
+      {
+        "executionId": "f0b6df4b-2558-4385-a0aa-c61b05db5a6f",
+        "chatSessionId": "sess_8095c0a1-18c3-4bbb-b9d3-dd42909a1ce3",
+        "timestamp": 1788494733787
+      }
+    ],
+    "2.4 Write the property test for mutation-free denied authorization": [
+      {
+        "executionId": "f0b6df4b-2558-4385-a0aa-c61b05db5a6f",
+        "chatSessionId": "sess_8095c0a1-18c3-4bbb-b9d3-dd42909a1ce3",
+        "timestamp": 1788494741386
+      }
+    ],
+    "2.5 Write the property test for non-secret credential projections": [
+      {
+        "executionId": "f0b6df4b-2558-4385-a0aa-c61b05db5a6f",
+        "chatSessionId": "sess_8095c0a1-18c3-4bbb-b9d3-dd42909a1ce3",
+        "timestamp": 1788494745992
+      }
+    ],
+    "2.6 Write the property test for bounded retention and disabled capture": [
+      {
+        "executionId": "f0b6df4b-2558-4385-a0aa-c61b05db5a6f",
+        "chatSessionId": "sess_8095c0a1-18c3-4bbb-b9d3-dd42909a1ce3",
+        "timestamp": 1788494750678
+      }
+    ],
+    "3. Implement endpoint registration APIs and lifecycle controls": [
+      {
+        "executionId": "d7b77238-498d-4520-b4dc-f142e9c3c21e",
+        "chatSessionId": "sess_53724347-5643-41be-9cb7-50423d9faf12",
+        "timestamp": 1788494805620
+      },
+      {
+        "executionId": "44731c0d-69a5-46e0-984a-5fcbefa1fca7",
+        "chatSessionId": "sess_53724347-5643-41be-9cb7-50423d9faf12",
+        "timestamp": 1788496117016
+      },
+      {
+        "executionId": "44731c0d-69a5-46e0-984a-5fcbefa1fca7",
+        "chatSessionId": "sess_53724347-5643-41be-9cb7-50423d9faf12",
+        "timestamp": 1788496460350
+      }
+    ],
+    "3.1 Implement endpoint CRUD and tenant-safe response schemas": [
+      {
+        "executionId": "44731c0d-69a5-46e0-984a-5fcbefa1fca7",
+        "chatSessionId": "sess_53724347-5643-41be-9cb7-50423d9faf12",
+        "timestamp": 1788496477600
+      }
+    ],
+    "3.2 Implement lifecycle, validation-history, matrix, activation, and retirement APIs": [
+      {
+        "executionId": "44731c0d-69a5-46e0-984a-5fcbefa1fca7",
+        "chatSessionId": "sess_53724347-5643-41be-9cb7-50423d9faf12",
+        "timestamp": 1788496481501
+      }
+    ],
+    "3.3 Write the property test for live-voice eligibility": [
+      {
+        "executionId": "44731c0d-69a5-46e0-984a-5fcbefa1fca7",
+        "chatSessionId": "sess_53724347-5643-41be-9cb7-50423d9faf12",
+        "timestamp": 1788496484689
+      }
+    ],
+    "3.4 Write the property test for complete capability-change detection": [
+      {
+        "executionId": "44731c0d-69a5-46e0-984a-5fcbefa1fca7",
+        "chatSessionId": "sess_53724347-5643-41be-9cb7-50423d9faf12",
+        "timestamp": 1788496488105
+      }
+    ],
+    "4. Build discovery, SSRF hardening, conformance, and background validation": [
+      {
+        "executionId": "2f5047e2-6c5f-48fe-a7b9-e97b300653bc",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788496516890
+      },
+      {
+        "executionId": "e20adc72-ccea-4bf5-8b36-9595b3a331ab",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788496848865
+      }
+    ],
+    "4.1 Implement authenticated discovery with redirect and connection-time SSRF enforcement": [
+      {
+        "executionId": "60d322b8-4fed-474b-ba2c-7ee6dbf1a456",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788497006615
+      },
+      {
+        "executionId": "60d322b8-4fed-474b-ba2c-7ee6dbf1a456",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788498455100
+      }
+    ],
+    "4.2 Implement capability selection and contract negotiation": [
+      {
+        "executionId": "60d322b8-4fed-474b-ba2c-7ee6dbf1a456",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788497007624
+      },
+      {
+        "executionId": "92f91c05-1bb4-4f5a-8e44-13ce36ca5374",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788501918782
+      }
+    ],
+    "4.3 Implement deterministic conformance simulators and fixture runner": [
+      {
+        "executionId": "92f91c05-1bb4-4f5a-8e44-13ce36ca5374",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788501926281
+      },
+      {
+        "executionId": "3a346045-2a8b-4b2e-8ae0-e52eaf624dc0",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788502738020
+      }
+    ],
+    "4.4 Implement validation reports, ARQ scheduling, latency harness, and health sampling": [
+      {
+        "executionId": "92f91c05-1bb4-4f5a-8e44-13ce36ca5374",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788501926510
+      }
+    ],
+    "4.5 Write the property test for hosted address classification": [
+      {
+        "executionId": "c91c9de0-82a5-427a-b70d-3cd5852f8212",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788502797627
+      },
+      {
+        "executionId": "0c1e0eb3-a37b-4949-9ba5-d45079abd36a",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788503495131
+      }
+    ],
+    "4.6 Write the property test for health degradation windows": [
+      {
+        "executionId": "c91c9de0-82a5-427a-b70d-3cd5852f8212",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788502798013
+      },
+      {
+        "executionId": "0c1e0eb3-a37b-4949-9ba5-d45079abd36a",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788504052167
+      }
+    ],
+    "4.7 Write the property test for conformance-oracle equality": [
+      {
+        "executionId": "c91c9de0-82a5-427a-b70d-3cd5852f8212",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788502798050
+      },
+      {
+        "executionId": "c91c9de0-82a5-427a-b70d-3cd5852f8212",
+        "chatSessionId": "sess_f67f6c2b-e0d8-4dc9-868d-ee03b82617d1",
+        "timestamp": 1788502985444
+      }
+    ],
+    "5. Implement the Integration Gateway protocol engine": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504087580
+      },
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504796164
+      }
+    ],
+    "5.1 Implement bounded synchronous, streaming, and asynchronous clients": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504807101
+      }
+    ],
+    "5.2 Implement Runtime Event reduction and durable accepted-event/effect ledgers": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504812761
+      }
+    ],
+    "5.3 Implement invocation identity, retry, cancellation, and idempotency coordination": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504816951
+      }
+    ],
+    "5.4 Add gateway trace propagation, redacted metrics, and protocol/security errors": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504823136
+      }
+    ],
+    "5.5 Write the property test for negotiated output progression": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504828895
+      }
+    ],
+    "5.6 Write the property test for streaming terminal history": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504834883
+      }
+    ],
+    "5.7 Write the property test for invocation-mode cardinality": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504838994
+      }
+    ],
+    "5.8 Write the property test for asynchronous deadline outcomes": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504843832
+      }
+    ],
+    "5.9 Write the property test for retry identity and event boundaries": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504850373
+      }
+    ],
+    "5.10 Write the property test for terminal idempotency": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504855865
+      }
+    ],
+    "5.11 Write the property test for Tool Call fragmentation": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504862974
+      }
+    ],
+    "5.12 Write the property test for exactly-once speakable text": [
+      {
+        "executionId": "55a9ae6f-37f3-46a0-8712-d034b23ce4b0",
+        "chatSessionId": "sess_b2241e13-104c-4696-909b-3f686e85722a",
+        "timestamp": 1788504867702
+      }
+    ],
+    "6. Implement the Workflow Adapter and authorized tool boundary": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788504897815
+      },
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505437398
+      }
+    ],
+    "6.1 Implement prompt, canonical history, policy projection, and redaction mapping": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505449498
+      }
+    ],
+    "6.2 Implement stable transition mapping and node progression": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505454115
+      }
+    ],
+    "6.3 Implement Platform Tool authorization and exactly-once execution": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505459647
+      }
+    ],
+    "6.4 Implement Mural-authoritative state reconciliation and protocol conflict handling": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505463668
+      }
+    ],
+    "6.5 Write the property test for canonical message order": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505470940
+      }
+    ],
+    "6.6 Write the property test for transition bijection": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505476458
+      }
+    ],
+    "6.7 Write the property test for one invocation per node entry": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505483738
+      }
+    ],
+    "6.8 Write the property test for minimal authorized outbound requests": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505497098
+      }
+    ],
+    "6.9 Write the property test for endpoint-controlled progression boundaries": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505507807
+      }
+    ],
+    "6.10 Write the property test for Mural-authoritative conflict resolution": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505519301
+      }
+    ],
+    "6.11 Write the property test for authorized exactly-once Platform Tool effects": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505525909
+      }
+    ],
+    "6.12 Write the property test for tool-history causality": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505530507
+      }
+    ],
+    "6.13 Write the property test for immutable controls and secret rejection": [
+      {
+        "executionId": "2b8b084e-a1da-4c3d-bbf7-80e8e7b8db78",
+        "chatSessionId": "sess_0951892e-7a83-41d7-aae6-4ff4ec9c516d",
+        "timestamp": 1788505538774
+      }
+    ],
+    "7. Add text preflight and immutable workflow publication gates": [
+      {
+        "executionId": "e25601b8-cd75-43ec-8c2f-a268f5262f16",
+        "chatSessionId": "sess_f4df4917-e529-4ce5-b9c5-782d29ccb476",
+        "timestamp": 1788505618546
+      },
+      {
+        "executionId": "e25601b8-cd75-43ec-8c2f-a268f5262f16",
+        "chatSessionId": "sess_f4df4917-e529-4ce5-b9c5-782d29ccb476",
+        "timestamp": 1788506946452
+      }
+    ],
+    "7.1 Wire the adapter and gateway into text-session preflight": [
+      {
+        "executionId": "e25601b8-cd75-43ec-8c2f-a268f5262f16",
+        "chatSessionId": "sess_f4df4917-e529-4ce5-b9c5-782d29ccb476",
+        "timestamp": 1788506955009
+      }
+    ],
+    "7.2 Implement workflow binding, immutable snapshot, and publication validation": [
+      {
+        "executionId": "e25601b8-cd75-43ec-8c2f-a268f5262f16",
+        "chatSessionId": "sess_f4df4917-e529-4ce5-b9c5-782d29ccb476",
+        "timestamp": 1788506958527
+      }
+    ],
+    "7.3 Implement first-event and terminal-failure policy validation/effects": [
+      {
+        "executionId": "e25601b8-cd75-43ec-8c2f-a268f5262f16",
+        "chatSessionId": "sess_f4df4917-e529-4ce5-b9c5-782d29ccb476",
+        "timestamp": 1788506963401
+      }
+    ],
+    "7.4 Write the property test for first-event deadline policy": [
+      {
+        "executionId": "e25601b8-cd75-43ec-8c2f-a268f5262f16",
+        "chatSessionId": "sess_f4df4917-e529-4ce5-b9c5-782d29ccb476",
+        "timestamp": 1788506972420
+      }
+    ],
+    "7.5 Write the property test for feature-off mutation safety": [
+      {
+        "executionId": "e25601b8-cd75-43ec-8c2f-a268f5262f16",
+        "chatSessionId": "sess_f4df4917-e529-4ce5-b9c5-782d29ccb476",
+        "timestamp": 1788506990247
+      }
+    ],
+    "7.6 Write the property test for complete live-eligibility evidence": [
+      {
+        "executionId": "e25601b8-cd75-43ec-8c2f-a268f5262f16",
+        "chatSessionId": "sess_f4df4917-e529-4ce5-b9c5-782d29ccb476",
+        "timestamp": 1788506995910
+      }
+    ],
+    "8.1 Implement the contract-backed reasoning processor in the standard pipeline": [
+      {
+        "executionId": "098ee22f-014e-480f-a33b-50f084f9176c",
+        "chatSessionId": "sess_796a6951-5951-4925-9129-dc43544cdcfa",
+        "timestamp": 1788507725409
+      },
+      {
+        "executionId": "098ee22f-014e-480f-a33b-50f084f9176c",
+        "chatSessionId": "sess_796a6951-5951-4925-9129-dc43544cdcfa",
+        "timestamp": 1788508308181
+      }
+    ],
+    "8.2 Wire barge-in, hangup, node-change, and shutdown cancellation": [
+      {
+        "executionId": "098ee22f-014e-480f-a33b-50f084f9176c",
+        "chatSessionId": "sess_796a6951-5951-4925-9129-dc43544cdcfa",
+        "timestamp": 1788508312753
+      },
+      {
+        "executionId": "098ee22f-014e-480f-a33b-50f084f9176c",
+        "chatSessionId": "sess_796a6951-5951-4925-9129-dc43544cdcfa",
+        "timestamp": 1788508933305
+      }
+    ],
+    "8.3 Implement synchronous non-conversational routing and realtime rejection": [
+      {
+        "executionId": "098ee22f-014e-480f-a33b-50f084f9176c",
+        "chatSessionId": "sess_796a6951-5951-4925-9129-dc43544cdcfa",
+        "timestamp": 1788508321739
+      },
+      {
+        "executionId": "098ee22f-014e-480f-a33b-50f084f9176c",
+        "chatSessionId": "sess_796a6951-5951-4925-9129-dc43544cdcfa",
+        "timestamp": 1788508942182
+      }
+    ],
+    "8.4 Add required non-LangGraph and live-pipeline regression tests": [
+      {
+        "executionId": "098ee22f-014e-480f-a33b-50f084f9176c",
+        "chatSessionId": "sess_796a6951-5951-4925-9129-dc43544cdcfa",
+        "timestamp": 1788508949856
+      },
+      {
+        "executionId": "098ee22f-014e-480f-a33b-50f084f9176c",
+        "chatSessionId": "sess_796a6951-5951-4925-9129-dc43544cdcfa",
+        "timestamp": 1788509282529
+      }
+    ],
+    "8. Integrate the non-realtime Pipecat voice path without changing media ownership": [
+      {
+        "executionId": "098ee22f-014e-480f-a33b-50f084f9176c",
+        "chatSessionId": "sess_796a6951-5951-4925-9129-dc43544cdcfa",
+        "timestamp": 1788509282585
+      }
+    ],
+    "9. Checkpoint — internal Chat runtime": [
+      {
+        "executionId": "161066d2-2dd2-4d89-ad76-3b288b92c790",
+        "chatSessionId": "sess_af6a1835-3a18-44d7-8724-c7f89b27032f",
+        "timestamp": 1788509328577
+      }
+    ],
+    "10. Build the frontend endpoint, workflow, and Chat diagnostics surfaces": [
+      {
+        "executionId": "c5fdc0bf-9fe8-487a-afc9-c74badf702ef",
+        "chatSessionId": "sess_cebb3c0d-96a9-4086-afd2-8fcd78e0749d",
+        "timestamp": 1788509841068
+      },
+      {
+        "executionId": "c5fdc0bf-9fe8-487a-afc9-c74badf702ef",
+        "chatSessionId": "sess_cebb3c0d-96a9-4086-afd2-8fcd78e0749d",
+        "timestamp": 1788511160359
+      }
+    ],
+    "10.1 Generate the typed API client and implement endpoint registry pages": [
+      {
+        "executionId": "c5fdc0bf-9fe8-487a-afc9-c74badf702ef",
+        "chatSessionId": "sess_cebb3c0d-96a9-4086-afd2-8fcd78e0749d",
+        "timestamp": 1788511169132
+      }
+    ],
+    "10.2 Implement workflow endpoint configuration, ownership, and publication feedback": [
+      {
+        "executionId": "c5fdc0bf-9fe8-487a-afc9-c74badf702ef",
+        "chatSessionId": "sess_cebb3c0d-96a9-4086-afd2-8fcd78e0749d",
+        "timestamp": 1788511179634
+      }
+    ],
+    "10.3 Implement tenant-scoped Chat run diagnostics": [
+      {
+        "executionId": "c5fdc0bf-9fe8-487a-afc9-c74badf702ef",
+        "chatSessionId": "sess_cebb3c0d-96a9-4086-afd2-8fcd78e0749d",
+        "timestamp": 1788511197732
+      }
+    ],
+    "11. Complete observability, privacy, retention, and security operations": [
+      {
+        "executionId": "797892c9-6f74-4f8e-80e3-8f9a11dc9375",
+        "chatSessionId": "sess_df61a5a5-3774-457c-ac36-a3af64b38e5e",
+        "timestamp": 1788511262411
+      }
+    ],
+    "12. Implement rollout, rollback, release automation, and evidence": [
+      {
+        "executionId": "f2a9acbe-8663-4916-9e22-b02ca3df9583",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788512985579
+      }
+    ],
+    "12.1 Implement ordered rollout stages, kill-switch propagation, and evaluation windows": [
+      {
+        "executionId": "89e144be-e628-434a-b7fa-e6f2a4ed65de",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788514069502
+      },
+      {
+        "executionId": "89e144be-e628-434a-b7fa-e6f2a4ed65de",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788514688159
+      }
+    ],
+    "12.2 Implement prior-version rollback selection": [
+      {
+        "executionId": "89e144be-e628-434a-b7fa-e6f2a4ed65de",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788514695681
+      }
+    ],
+    "12.5 Implement generated contract reference and executable example validation": [
+      {
+        "executionId": "f282b554-a1c6-4f98-831d-0f34d6a4eda3",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788514863979
+      },
+      {
+        "executionId": "f282b554-a1c6-4f98-831d-0f34d6a4eda3",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788515394315
+      }
+    ],
+    "12.3 Write the property test for rollout-stage ordering": [
+      {
+        "executionId": "f282b554-a1c6-4f98-831d-0f34d6a4eda3",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788515412903
+      },
+      {
+        "executionId": "f282b554-a1c6-4f98-831d-0f34d6a4eda3",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788515570454
+      }
+    ],
+    "12.4 Write the property test for qualifying rollout gates": [
+      {
+        "executionId": "f282b554-a1c6-4f98-831d-0f34d6a4eda3",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788515587773
+      },
+      {
+        "executionId": "f282b554-a1c6-4f98-831d-0f34d6a4eda3",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788515772043
+      }
+    ],
+    "12.6 Write the property test for executable example publication": [
+      {
+        "executionId": "f282b554-a1c6-4f98-831d-0f34d6a4eda3",
+        "chatSessionId": "sess_2bb2a98a-dac5-4fe6-8a41-d06182e2e0aa",
+        "timestamp": 1788515792155
+      },
+      {
+        "executionId": "84c36431-2c14-4eca-bc77-934a0a827c4a",
+        "chatSessionId": "sess_1e3162e7-21a0-42ff-b09f-0dd9743e290e",
+        "timestamp": 1788515971945
+      },
+      {
+        "executionId": "84c36431-2c14-4eca-bc77-934a0a827c4a",
+        "chatSessionId": "sess_1e3162e7-21a0-42ff-b09f-0dd9743e290e",
+        "timestamp": 1788516122928
+      }
+    ],
+    "13. Validate and package the internal experimental Chat Compatibility release": [
+      {
+        "executionId": "7384e466-d524-49a5-a568-6e6376f1069f",
+        "chatSessionId": "sess_a34d40e3-cedb-431b-9b4e-6c8394f9cef2",
+        "timestamp": 1788516148489
+      },
+      {
+        "executionId": "7384e466-d524-49a5-a568-6e6376f1069f",
+        "chatSessionId": "sess_a34d40e3-cedb-431b-9b4e-6c8394f9cef2",
+        "timestamp": 1788516972443
+      }
+    ],
+    "13.1 Add full-stack conformance, tenant-isolation, and security integration suites": [
+      {
+        "executionId": "7384e466-d524-49a5-a568-6e6376f1069f",
+        "chatSessionId": "sess_a34d40e3-cedb-431b-9b4e-6c8394f9cef2",
+        "timestamp": 1788516977146
+      }
+    ],
+    "13.2 Add fixed-environment load, latency, cancellation, and capacity tests": [
+      {
+        "executionId": "7384e466-d524-49a5-a568-6e6376f1069f",
+        "chatSessionId": "sess_a34d40e3-cedb-431b-9b4e-6c8394f9cef2",
+        "timestamp": 1788516982367
+      }
+    ],
+    "13.3 Add internal-release CI gates and immutable evidence assembly": [
+      {
+        "executionId": "7384e466-d524-49a5-a568-6e6376f1069f",
+        "chatSessionId": "sess_a34d40e3-cedb-431b-9b4e-6c8394f9cef2",
+        "timestamp": 1788516986424
+      }
+    ],
+    "16. Final checkpoint — full Chat plus optional Stateful profile": [
+      {
+        "executionId": "38bc13f2-8eb2-4d1f-8617-8c4b50f17ded",
+        "chatSessionId": "sess_93c9e00c-0f76-4133-a557-959e2bb1d30e",
+        "timestamp": 1788517023525
+      }
+    ],
+    "17.1 Implement the organization feature-settings mutation API and authorization boundary": [
+      {
+        "executionId": "814a58eb-4a2f-4d84-8b5b-6e702ecb9137",
+        "chatSessionId": "sess_9a7cd5e0-fe15-4b5d-b926-007dc03cf4cb",
+        "timestamp": 1788519947109
+      },
+      {
+        "executionId": "814a58eb-4a2f-4d84-8b5b-6e702ecb9137",
+        "chatSessionId": "sess_9a7cd5e0-fe15-4b5d-b926-007dc03cf4cb",
+        "timestamp": 1788520257472
+      }
+    ],
+    "17.2 Implement the authoritative Platform Settings card and immediate context refresh": [
+      {
+        "executionId": "814a58eb-4a2f-4d84-8b5b-6e702ecb9137",
+        "chatSessionId": "sess_9a7cd5e0-fe15-4b5d-b926-007dc03cf4cb",
+        "timestamp": 1788520272980
+      },
+      {
+        "executionId": "814a58eb-4a2f-4d84-8b5b-6e702ecb9137",
+        "chatSessionId": "sess_9a7cd5e0-fe15-4b5d-b926-007dc03cf4cb",
+        "timestamp": 1788520785841
+      }
+    ],
+    "17.3 Update disabled endpoint guidance and add feature-disable preservation regressions": [
+      {
+        "executionId": "814a58eb-4a2f-4d84-8b5b-6e702ecb9137",
+        "chatSessionId": "sess_9a7cd5e0-fe15-4b5d-b926-007dc03cf4cb",
+        "timestamp": 1788520793715
+      },
+      {
+        "executionId": "814a58eb-4a2f-4d84-8b5b-6e702ecb9137",
+        "chatSessionId": "sess_9a7cd5e0-fe15-4b5d-b926-007dc03cf4cb",
+        "timestamp": 1788521266007
+      }
+    ],
+    "17. Add required authoritative Platform Settings enablement follow-up": [
+      {
+        "executionId": "814a58eb-4a2f-4d84-8b5b-6e702ecb9137",
+        "chatSessionId": "sess_9a7cd5e0-fe15-4b5d-b926-007dc03cf4cb",
+        "timestamp": 1788521266073
+      }
+    ]
+  }
+}

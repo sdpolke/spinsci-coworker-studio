@@ -1,10 +1,10 @@
 "use client";
 
-import { Loader2, PlusIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, Loader2, PlusIcon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { listCredentialsApiV1CredentialsGet } from "@/client";
-import { CredentialResponse } from "@/client/types.gen";
+import type { CredentialResponse } from "@/client/types.gen";
 import { CreateCredentialDialog } from "@/components/http/create-credential-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { detailFromError } from "@/lib/apiError";
 import { useAuth } from "@/lib/auth";
 
 interface CredentialSelectorProps {
@@ -25,6 +26,11 @@ interface CredentialSelectorProps {
     label?: string;
     description?: string;
     showLabel?: boolean;
+    required?: boolean;
+    currentCredential?: {
+        uuid: string;
+        label: string;
+    };
 }
 
 export function CredentialSelector({
@@ -35,94 +41,124 @@ export function CredentialSelector({
     label = "Credential",
     description = "Select a credential for authentication, or leave empty for no auth.",
     showLabel = true,
+    required = false,
+    currentCredential,
 }: CredentialSelectorProps) {
-    useAuth();
-
+    const { user, loading: authLoading } = useAuth();
+    const hasFetched = useRef(false);
     const [credentials, setCredentials] = useState<CredentialResponse[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
     const fetchCredentials = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             const response = await listCredentialsApiV1CredentialsGet({});
             if (response.error) {
-                console.error("Failed to fetch credentials:", response.error);
                 setCredentials([]);
+                setError(detailFromError(response.error, "Failed to load credentials"));
                 return;
             }
-            if (response.data) {
-                setCredentials(response.data);
-            }
-        } catch (error) {
-            console.error("Failed to fetch credentials:", error);
+            setCredentials(response.data ?? []);
+        } catch (cause) {
             setCredentials([]);
+            setError(detailFromError(cause, "Failed to load credentials"));
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchCredentials();
-    }, [fetchCredentials]);
+        if (authLoading || !user || hasFetched.current) return;
+        hasFetched.current = true;
+        void fetchCredentials();
+    }, [authLoading, fetchCredentials, user]);
 
     const handleCredentialCreated = async (credential: CredentialResponse) => {
         await fetchCredentials();
         onChange(credential.uuid);
     };
 
+    const currentCredentialMissing = Boolean(
+        currentCredential
+        && currentCredential.uuid === value
+        && !credentials.some((credential) => credential.uuid === currentCredential.uuid),
+    );
+    const selectorLoading = authLoading || loading;
+    const selectValue = value || (required ? undefined : "none");
+
     return (
         <div className="grid gap-2">
             {showLabel && (
                 <>
-                    <Label>{label}</Label>
+                    <Label htmlFor="credential-selector">{label}</Label>
                     {description && (
-                        <Label className="text-xs text-muted-foreground">
+                        <p id="credential-selector-description" className="text-xs text-muted-foreground">
                             {description}
-                        </Label>
+                        </p>
                     )}
                 </>
             )}
             <div className="flex gap-2">
                 <Select
-                    value={value || "none"}
-                    onValueChange={(v) => onChange(v === "none" ? "" : v)}
-                    disabled={disabled || loading}
+                    value={selectValue}
+                    onValueChange={(selected) => onChange(selected === "none" ? "" : selected)}
+                    disabled={disabled || selectorLoading || !user}
+                    required={required}
                 >
-                    <SelectTrigger className="flex-1">
-                        {loading ? (
-                            <div className="flex items-center gap-2">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>Loading...</span>
-                            </div>
+                    <SelectTrigger
+                        id="credential-selector"
+                        className="flex-1"
+                        aria-describedby={showLabel && description ? "credential-selector-description" : undefined}
+                        aria-busy={selectorLoading}
+                    >
+                        {selectorLoading ? (
+                            <span className="flex items-center gap-2" role="status">
+                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                                Loading credentials…
+                            </span>
                         ) : (
                             <SelectValue placeholder={placeholder} />
                         )}
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="none">{placeholder}</SelectItem>
-                        {credentials.map((cred) => (
-                            <SelectItem key={cred.uuid} value={cred.uuid}>
-                                {cred.name} ({cred.credential_type})
+                        {!required && <SelectItem value="none">{placeholder}</SelectItem>}
+                        {currentCredentialMissing && currentCredential && (
+                            <SelectItem value={currentCredential.uuid}>{currentCredential.label}</SelectItem>
+                        )}
+                        {credentials.map((credential) => (
+                            <SelectItem key={credential.uuid} value={credential.uuid}>
+                                {credential.name} ({credential.credential_type})
                             </SelectItem>
                         ))}
                     </SelectContent>
                 </Select>
                 <Button
+                    type="button"
                     variant="outline"
                     size="icon"
                     onClick={() => setIsAddDialogOpen(true)}
                     title="Add new credential"
-                    disabled={disabled}
+                    aria-label="Add new credential"
+                    disabled={disabled || selectorLoading || !user}
                 >
-                    <PlusIcon className="h-4 w-4" />
+                    <PlusIcon className="h-4 w-4" aria-hidden="true" />
                 </Button>
             </div>
 
-            {credentials.length === 0 && !loading && (
-                <div className="p-3 border rounded-md bg-muted/20">
+            {error && (
+                <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>{error}</span>
+                </div>
+            )}
+
+            {!error && credentials.length === 0 && !selectorLoading && user && !currentCredentialMissing && (
+                <div className="rounded-md border bg-muted/20 p-3">
                     <p className="text-sm text-muted-foreground">
-                        No credentials found. Click the + button to create one.
+                        No credentials found for this organization. Use Add new credential to create one.
                     </p>
                 </div>
             )}

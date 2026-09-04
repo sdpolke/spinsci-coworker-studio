@@ -292,6 +292,18 @@ async def execute_pending_text_chat_turn(
     )
     completed_turns[-1]["events"] = execution.events
     completed_turns[-1]["usage"] = execution.usage
+    preflight_event = next(
+        (
+            event
+            for event in execution.events
+            if event.get("type") == "langgraph_preflight"
+        ),
+        None,
+    )
+    if preflight_event is not None:
+        completed_turns[-1]["langgraph_preflight"] = dict(
+            preflight_event.get("payload") or {}
+        )
     completed_turns[-1]["checkpoint_after_turn"] = execution.checkpoint
     completed_session_data["turns"] = completed_turns
     completed_session_data["status"] = "completed" if execution.is_completed else "idle"

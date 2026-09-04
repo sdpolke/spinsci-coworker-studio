@@ -4,7 +4,9 @@ from datetime import UTC, datetime
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Enum,
@@ -1534,4 +1536,395 @@ class KnowledgeBaseChunkModel(Base):
             postgresql_with={"lists": 100},  # Adjust based on dataset size
             postgresql_ops={"embedding": "vector_cosine_ops"},
         ),
+    )
+
+
+# LangGraph integration persistence is deliberately additive. Existing workflow
+# definitions and runs remain non-endpoint resources unless an optional binding
+# row is created for them.
+LANGGRAPH_LIFECYCLE_STATUSES = (
+    "pending_validation",
+    "validation_only",
+    "active",
+    "degraded",
+    "disabled",
+    "incompatible",
+    "retired",
+)
+LANGGRAPH_ROLLOUT_STAGES = (
+    "internal_test_tenant",
+    "selected_tenant_allowlist",
+    "percentage_cohort",
+    "general_experimental_availability",
+)
+
+
+class LangGraphEndpointRegistrationModel(Base):
+    __tablename__ = "langgraph_endpoint_registrations"
+
+    id = Column(Integer, primary_key=True)
+    endpoint_uuid = Column(String(36), nullable=False, unique=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    endpoint_url = Column(String(2048), nullable=False)
+    credential_id = Column(Integer, ForeignKey("external_credentials.id", ondelete="RESTRICT"), nullable=False)
+    selected_profile = Column(String(64), nullable=False)
+    selected_capabilities = Column(JSON, nullable=False, default=list)
+    lifecycle_status = Column(String(32), nullable=False, default="pending_validation", server_default=text("'pending_validation'"))
+    current_validation_report_id = Column(Integer, ForeignKey("langgraph_validation_reports.id", ondelete="SET NULL", use_alter=True), nullable=True)
+    current_capability_snapshot_id = Column(Integer, ForeignKey("langgraph_capability_snapshots.id", ondelete="SET NULL", use_alter=True), nullable=True)
+    private_network_enabled = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    retired_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("organization_id", "name", name="uq_langgraph_endpoint_org_name"),
+        CheckConstraint(f"lifecycle_status IN {LANGGRAPH_LIFECYCLE_STATUSES}", name="ck_langgraph_endpoint_lifecycle"),
+        CheckConstraint("char_length(endpoint_url) <= 2048", name="ck_langgraph_endpoint_url_length"),
+        Index("ix_langgraph_endpoint_org_status", "organization_id", "lifecycle_status"),
+    )
+
+
+class LangGraphCapabilitySnapshotModel(Base):
+    __tablename__ = "langgraph_capability_snapshots"
+
+    id = Column(Integer, primary_key=True)
+    snapshot_uuid = Column(String(36), nullable=False, unique=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    registration_id = Column(Integer, ForeignKey("langgraph_endpoint_registrations.id", ondelete="CASCADE"), nullable=False)
+    manifest = Column(JSON, nullable=False)
+    manifest_digest = Column(String(64), nullable=False)
+    schema_version = Column(String(16), nullable=False)
+    discovered_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        UniqueConstraint("registration_id", "manifest_digest", name="uq_langgraph_snapshot_registration_digest"),
+        Index("ix_langgraph_snapshot_org_registration", "organization_id", "registration_id"),
+    )
+
+
+class LangGraphCompatibilityMatrixModel(Base):
+    __tablename__ = "langgraph_compatibility_matrices"
+
+    id = Column(Integer, primary_key=True)
+    matrix_uuid = Column(String(36), nullable=False, unique=True, default=lambda: str(uuid.uuid4()))
+    matrix_version = Column(String(32), nullable=False, unique=True)
+    effective_at = Column(DateTime(timezone=True), nullable=False)
+    mural_release_version = Column(String(64), nullable=False)
+    matrix = Column(JSON, nullable=False)
+    published_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+
+class LangGraphValidationReportModel(Base):
+    __tablename__ = "langgraph_validation_reports"
+
+    id = Column(Integer, primary_key=True)
+    report_uuid = Column(String(36), nullable=False, unique=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    registration_id = Column(Integer, ForeignKey("langgraph_endpoint_registrations.id", ondelete="CASCADE"), nullable=False)
+    capability_snapshot_id = Column(Integer, ForeignKey("langgraph_capability_snapshots.id", ondelete="RESTRICT"), nullable=True)
+    compatibility_matrix_id = Column(Integer, ForeignKey("langgraph_compatibility_matrices.id", ondelete="RESTRICT"), nullable=False)
+    suite_version = Column(String(32), nullable=False)
+    contract_version = Column(String(16), nullable=False)
+    selected_profile = Column(String(64), nullable=False)
+    status = Column(String(32), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    evidence = Column(JSON, nullable=False, default=dict)
+    report_digest = Column(String(64), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        UniqueConstraint("registration_id", "report_digest", name="uq_langgraph_report_registration_digest"),
+        Index("ix_langgraph_report_org_registration", "organization_id", "registration_id"),
+    )
+
+
+class LangGraphValidationResultModel(Base):
+    __tablename__ = "langgraph_validation_results"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    report_id = Column(Integer, ForeignKey("langgraph_validation_reports.id", ondelete="CASCADE"), nullable=False)
+    test_identifier = Column(String(128), nullable=False)
+    test_version = Column(String(32), nullable=False)
+    required = Column(Boolean, nullable=False)
+    outcome = Column(String(32), nullable=False)
+    duration_ms = Column(Integer, nullable=True)
+    measurements = Column(JSON, nullable=False, default=dict)
+    redacted_error = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        UniqueConstraint("report_id", "test_identifier", "test_version", name="uq_langgraph_validation_result_test"),
+        Index("ix_langgraph_result_org_report", "organization_id", "report_id"),
+    )
+
+
+class LangGraphValidationObservationModel(Base):
+    """Immutable scheduled-validation and health-window evidence."""
+
+    __tablename__ = "langgraph_validation_observations"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    registration_id = Column(Integer, ForeignKey("langgraph_endpoint_registrations.id", ondelete="CASCADE"), nullable=False)
+    event_key = Column(String(255), nullable=False)
+    event_type = Column(String(64), nullable=False)
+    successful = Column(Boolean, nullable=False)
+    observed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    window_started_at = Column(DateTime(timezone=True), nullable=True)
+    details = Column(JSON, nullable=False, default=dict)
+
+    __table_args__ = (
+        UniqueConstraint("registration_id", "event_key", name="uq_langgraph_observation_registration_key"),
+        Index(
+            "ix_langgraph_observation_org_registration_time",
+            "organization_id",
+            "registration_id",
+            "observed_at",
+        ),
+    )
+
+
+class LangGraphVoiceRunBindingModel(Base):
+    __tablename__ = "langgraph_voice_run_bindings"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    workflow_run_id = Column(Integer, ForeignKey("workflow_runs.id", ondelete="CASCADE"), nullable=False, unique=True)
+    workflow_definition_id = Column(Integer, ForeignKey("workflow_definitions.id", ondelete="RESTRICT"), nullable=False)
+    registration_id = Column(Integer, ForeignKey("langgraph_endpoint_registrations.id", ondelete="RESTRICT"), nullable=False)
+    pinned_snapshot = Column(JSON, nullable=False)
+    contract_version = Column(String(16), nullable=False)
+    compatibility_profile = Column(String(64), nullable=False)
+    state_mode = Column(String(32), nullable=False)
+    invocation_modes = Column(JSON, nullable=False)
+    feature_enabled_at_creation = Column(Boolean, nullable=False)
+    external_identifiers = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (Index("ix_langgraph_binding_org_run", "organization_id", "workflow_run_id"),)
+
+
+class LangGraphExternalIdentifierModel(Base):
+    """Opaque endpoint identifier associated with its protected originating trace."""
+
+    __tablename__ = "langgraph_external_identifiers"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    run_binding_id = Column(Integer, ForeignKey("langgraph_voice_run_bindings.id", ondelete="CASCADE"), nullable=False)
+    identifier_type = Column(String(32), nullable=False)
+    opaque_value = Column(String(512), nullable=False)
+    trace_id = Column(String(64), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        UniqueConstraint("run_binding_id", "identifier_type", "opaque_value", name="uq_langgraph_external_identifier_value"),
+        Index("ix_langgraph_external_identifier_org_binding", "organization_id", "run_binding_id"),
+    )
+
+
+class LangGraphInvocationModel(Base):
+    __tablename__ = "langgraph_invocations"
+
+    id = Column(Integer, primary_key=True)
+    invocation_uuid = Column(String(64), nullable=False, unique=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    run_binding_id = Column(Integer, ForeignKey("langgraph_voice_run_bindings.id", ondelete="CASCADE"), nullable=False)
+    operation = Column(String(32), nullable=False)
+    active_node_id = Column(String(255), nullable=True)
+    mode = Column(String(32), nullable=False)
+    status = Column(String(32), nullable=False)
+    retry_count = Column(Integer, nullable=False, default=0, server_default=text("0"))
+    terminal_outcome = Column(JSON, nullable=True)
+    first_event_at = Column(DateTime(timezone=True), nullable=True)
+    terminal_at = Column(DateTime(timezone=True), nullable=True)
+    cancellation_accepted_at = Column(DateTime(timezone=True), nullable=True)
+    trace_id = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (Index("ix_langgraph_invocation_org_binding", "organization_id", "run_binding_id"),)
+
+
+class LangGraphRunObservationModel(Base):
+    """Tenant-scoped causal observation used for metrics and run diagnostics."""
+
+    __tablename__ = "langgraph_run_observations"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    workflow_run_id = Column(Integer, ForeignKey("workflow_runs.id", ondelete="CASCADE"), nullable=False)
+    invocation_id = Column(Integer, ForeignKey("langgraph_invocations.id", ondelete="CASCADE"), nullable=True)
+    observation_type = Column(String(64), nullable=False)
+    monotonic_order = Column(Integer, nullable=False)
+    observed_at_ms = Column(BigInteger, nullable=False)
+    runtime_sequence = Column(Integer, nullable=True)
+    attributes = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        UniqueConstraint("workflow_run_id", "monotonic_order", name="uq_langgraph_run_observation_order"),
+        Index("ix_langgraph_run_observation_org_run", "organization_id", "workflow_run_id"),
+    )
+
+
+class LangGraphInvocationAttemptModel(Base):
+    __tablename__ = "langgraph_invocation_attempts"
+
+    id = Column(Integer, primary_key=True)
+    attempt_uuid = Column(String(64), nullable=False, unique=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    invocation_id = Column(Integer, ForeignKey("langgraph_invocations.id", ondelete="CASCADE"), nullable=False)
+    ordinal = Column(Integer, nullable=False)
+    dispatched_at = Column(DateTime(timezone=True), nullable=False)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    http_status = Column(Integer, nullable=True)
+    transport_outcome = Column(String(64), nullable=True)
+    accepted_event = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    error_category = Column(String(64), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("invocation_id", "ordinal", name="uq_langgraph_attempt_invocation_ordinal"),
+        Index("ix_langgraph_attempt_org_invocation", "organization_id", "invocation_id"),
+    )
+
+
+class LangGraphAcceptedEventModel(Base):
+    __tablename__ = "langgraph_accepted_events"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    invocation_id = Column(Integer, ForeignKey("langgraph_invocations.id", ondelete="CASCADE"), nullable=False)
+    sequence = Column(Integer, nullable=False)
+    endpoint_event_id = Column(String(128), nullable=True)
+    event_type = Column(String(64), nullable=False)
+    payload_digest = Column(String(64), nullable=False)
+    metadata_json = Column("metadata", JSON, nullable=False, default=dict)
+    mutation_outcome = Column(String(64), nullable=False)
+    accepted_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        UniqueConstraint("invocation_id", "sequence", name="uq_langgraph_event_invocation_sequence"),
+        UniqueConstraint("invocation_id", "endpoint_event_id", name="uq_langgraph_event_invocation_event_id"),
+        Index("ix_langgraph_event_org_invocation", "organization_id", "invocation_id"),
+    )
+
+
+class LangGraphToolEffectModel(Base):
+    __tablename__ = "langgraph_tool_effects"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    invocation_id = Column(Integer, ForeignKey("langgraph_invocations.id", ondelete="CASCADE"), nullable=False)
+    tool_call_id = Column(String(128), nullable=False)
+    name = Column(String(255), nullable=False)
+    argument_digest = Column(String(64), nullable=False)
+    authorization_outcome = Column(String(64), nullable=False)
+    execution_status = Column(String(64), nullable=False)
+    result_digest = Column(String(64), nullable=True)
+    cached_result = Column(JSON, nullable=True)
+    transition_target = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        UniqueConstraint("invocation_id", "tool_call_id", name="uq_langgraph_tool_effect_invocation_call"),
+        Index("ix_langgraph_tool_effect_org_invocation", "organization_id", "invocation_id"),
+    )
+
+
+class LangGraphSecurityEventModel(Base):
+    __tablename__ = "langgraph_security_events"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    registration_id = Column(Integer, ForeignKey("langgraph_endpoint_registrations.id", ondelete="CASCADE"), nullable=False)
+    workflow_run_id = Column(Integer, ForeignKey("workflow_runs.id", ondelete="SET NULL"), nullable=True)
+    invocation_id = Column(Integer, ForeignKey("langgraph_invocations.id", ondelete="SET NULL"), nullable=True)
+    tool_call_id = Column(String(128), nullable=True)
+    tool_name = Column(String(255), nullable=True)
+    violation_category = Column(String(64), nullable=False)
+    enforcement_decision = Column(String(64), nullable=False)
+    trace_id = Column(String(64), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (Index("ix_langgraph_security_event_org_created", "organization_id", "created_at"),)
+
+
+class LangGraphRetentionPolicyModel(Base):
+    __tablename__ = "langgraph_retention_policies"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, unique=True)
+    invocation_metadata_days = Column(Integer, nullable=False)
+    external_identifier_days = Column(Integer, nullable=False)
+    checkpoint_days = Column(Integer, nullable=False)
+    payload_days = Column(Integer, nullable=False)
+    capture_payloads = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    policy = Column(JSON, nullable=False, default=dict)
+    updated_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        CheckConstraint("invocation_metadata_days >= 0 AND external_identifier_days >= 0 AND checkpoint_days >= 0 AND payload_days >= 0", name="ck_langgraph_retention_nonnegative"),
+        Index("ix_langgraph_retention_org", "organization_id"),
+    )
+
+
+class LangGraphRolloutStateModel(Base):
+    __tablename__ = "langgraph_rollout_states"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, unique=True)
+    feature_enabled = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    disabled_at = Column(DateTime(timezone=True), nullable=True)
+    experimental_acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+    experimental_acknowledged_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    rollout_stage = Column(String(64), nullable=False, default="internal_test_tenant", server_default=text("'internal_test_tenant'"))
+    internal_tenant_ids = Column(JSON, nullable=False, default=list, server_default=text("'[]'::json"))
+    allowlisted_tenant_ids = Column(JSON, nullable=False, default=list, server_default=text("'[]'::json"))
+    percentage_cohort = Column(Integer, nullable=False, default=0, server_default=text("0"))
+    cohort_salt = Column(String(128), nullable=False, default="langgraph-rollout-v1", server_default=text("'langgraph-rollout-v1'"))
+    expansion_halted = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    expansion_halted_at = Column(DateTime(timezone=True), nullable=True)
+    last_evaluated_at = Column(DateTime(timezone=True), nullable=True)
+    private_network_enabled = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    private_network_decided_at = Column(DateTime(timezone=True), nullable=True)
+    private_network_decided_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        CheckConstraint(f"rollout_stage IN {LANGGRAPH_ROLLOUT_STAGES}", name="ck_langgraph_rollout_stage"),
+        CheckConstraint("percentage_cohort >= 0 AND percentage_cohort <= 100", name="ck_langgraph_rollout_percentage"),
+        CheckConstraint("feature_enabled = false OR experimental_acknowledged_at IS NOT NULL", name="ck_langgraph_feature_requires_ack"),
+        CheckConstraint("private_network_enabled = false OR (private_network_decided_at IS NOT NULL AND private_network_decided_by IS NOT NULL)", name="ck_langgraph_private_network_audit"),
+        Index("ix_langgraph_rollout_org", "organization_id"),
+    )
+
+
+class LangGraphRolloutAlertModel(Base):
+    __tablename__ = "langgraph_rollout_alerts"
+
+    id = Column(Integer, primary_key=True)
+    organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    rollout_stage = Column(String(64), nullable=False)
+    evaluation_started_at = Column(DateTime(timezone=True), nullable=False)
+    evaluation_ended_at = Column(DateTime(timezone=True), nullable=False)
+    reason = Column(String(255), nullable=False)
+    payload = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "rollout_stage",
+            "evaluation_ended_at",
+            "reason",
+            name="uq_langgraph_rollout_alert_window",
+        ),
+        Index("ix_langgraph_rollout_alert_org_end", "organization_id", "evaluation_ended_at"),
     )

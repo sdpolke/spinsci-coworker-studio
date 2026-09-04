@@ -1111,6 +1111,34 @@ export type CampaignsResponse = {
 };
 
 /**
+ * CapabilitySnapshotSummary
+ */
+export type CapabilitySnapshotSummary = {
+    /**
+     * Snapshot Uuid
+     */
+    snapshot_uuid: string;
+    /**
+     * Manifest Digest
+     */
+    manifest_digest: string;
+    /**
+     * Schema Version
+     */
+    schema_version: string;
+    /**
+     * Manifest
+     */
+    manifest: {
+        [key: string]: unknown;
+    };
+    /**
+     * Discovered At
+     */
+    discovered_at: string;
+};
+
+/**
  * Cartesia
  */
 export type CartesiaSttConfiguration = {
@@ -1385,6 +1413,47 @@ export type CloudonixConfigurationResponse = {
      */
     from_numbers: Array<string>;
 };
+
+/**
+ * CompatibilityMatrixResponse
+ */
+export type CompatibilityMatrixResponse = {
+    /**
+     * Matrix Uuid
+     */
+    matrix_uuid: string;
+    /**
+     * Matrix Version
+     */
+    matrix_version: string;
+    /**
+     * Effective At
+     */
+    effective_at: string;
+    /**
+     * Mural Release Version
+     */
+    mural_release_version: string;
+    /**
+     * Matrix
+     */
+    matrix: {
+        [key: string]: unknown;
+    };
+    /**
+     * Published At
+     */
+    published_at: string;
+    /**
+     * Current
+     */
+    current: boolean;
+};
+
+/**
+ * CompatibilityProfile
+ */
+export type CompatibilityProfile = 'chat' | 'stateful_run';
 
 /**
  * ContextDestinationMappingConfig
@@ -1763,6 +1832,24 @@ export type CreatedByResponse = {
 };
 
 /**
+ * CredentialProjection
+ */
+export type CredentialProjection = {
+    /**
+     * Credential Type
+     */
+    credential_type: string;
+    /**
+     * Reference Id
+     */
+    reference_id: string;
+    /**
+     * Last Updated At
+     */
+    last_updated_at: string | null;
+};
+
+/**
  * CredentialResponse
  *
  * Response schema for a webhook credential (never includes sensitive data).
@@ -1807,7 +1894,7 @@ export type CurrentUsageResponse = {
      */
     period_end: string;
     /**
-     * Used SpinSci Tokens
+     * Used Spinsci Tokens
      */
     used_spinsci_tokens: number;
     /**
@@ -1881,7 +1968,7 @@ export type DailyUsageBreakdownResponse = {
      */
     total_cost_usd?: number | null;
     /**
-     * Total SpinSci Tokens
+     * Total Spinsci Tokens
      */
     total_spinsci_tokens: number;
     /**
@@ -1907,7 +1994,7 @@ export type DailyUsageItem = {
      */
     cost_usd?: number | null;
     /**
-     * SpinSci Tokens
+     * Spinsci Tokens
      */
     spinsci_tokens: number;
     /**
@@ -2014,6 +2101,20 @@ export type DefaultConfigurationsResponse = {
     };
     workflow_configurations: WorkflowConfigurationDefaults;
     text_chat_inactivity_timeout_constraints: TextChatInactivityTimeoutConstraints;
+};
+
+/**
+ * DeleteEndpointResponse
+ */
+export type DeleteEndpointResponse = {
+    /**
+     * Endpoint Uuid
+     */
+    endpoint_uuid: string;
+    /**
+     * Outcome
+     */
+    outcome: 'deleted' | 'retired';
 };
 
 /**
@@ -2206,126 +2307,6 @@ export type DocumentUploadResponseSchema = {
      * S3 key where file should be uploaded
      */
     s3_key: string;
-};
-
-/**
- * SpinSci
- */
-export type SpinSciEmbeddingsConfiguration = {
-    /**
-     * Provider
-     */
-    provider?: 'spinsci';
-    /**
-     * Api Key
-     */
-    api_key: string | Array<string>;
-    /**
-     * Model
-     *
-     * SpinSci-managed embedding model.
-     */
-    model?: string;
-};
-
-/**
- * SpinSci
- */
-export type SpinSciLlmService = {
-    /**
-     * Provider
-     */
-    provider?: 'spinsci';
-    /**
-     * Api Key
-     */
-    api_key: string | Array<string>;
-    /**
-     * Model
-     *
-     * SpinSci-hosted model tier.
-     */
-    model?: string;
-};
-
-/**
- * SpinSciManagedAIModelConfiguration
- */
-export type SpinSciManagedAiModelConfiguration = {
-    /**
-     * Api Key
-     */
-    api_key: string;
-    /**
-     * Voice
-     */
-    voice?: string;
-    /**
-     * Speed
-     */
-    speed?: number;
-    /**
-     * Language
-     */
-    language?: string;
-};
-
-/**
- * SpinSci
- */
-export type SpinSciSttService = {
-    /**
-     * Provider
-     */
-    provider?: 'spinsci';
-    /**
-     * Api Key
-     */
-    api_key: string | Array<string>;
-    /**
-     * Model
-     *
-     * SpinSci STT tier.
-     */
-    model?: string;
-    /**
-     * Language
-     *
-     * Language code; use 'multi' for auto-detect.
-     */
-    language?: string;
-};
-
-/**
- * SpinSci
- */
-export type SpinSciTtsService = {
-    /**
-     * Provider
-     */
-    provider?: 'spinsci';
-    /**
-     * Api Key
-     */
-    api_key: string | Array<string>;
-    /**
-     * Model
-     *
-     * SpinSci TTS tier.
-     */
-    model?: string;
-    /**
-     * Voice
-     *
-     * Voice preset.
-     */
-    voice?: string;
-    /**
-     * Speed
-     *
-     * Speed of the voice.
-     */
-    speed?: number;
 };
 
 /**
@@ -2604,6 +2585,104 @@ export type EndTextChatSessionRequest = {
      * Expected Revision
      */
     expected_revision?: number | null;
+};
+
+/**
+ * EndpointCreateRequest
+ */
+export type EndpointCreateRequest = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Endpoint Url
+     */
+    endpoint_url: string;
+    /**
+     * Credential Uuid
+     */
+    credential_uuid: string;
+    selected_profile: CompatibilityProfile;
+    /**
+     * Selected Capabilities
+     */
+    selected_capabilities: Array<string>;
+};
+
+/**
+ * EndpointResponse
+ */
+export type EndpointResponse = {
+    /**
+     * Endpoint Uuid
+     */
+    endpoint_uuid: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Endpoint Url
+     */
+    endpoint_url: string;
+    /**
+     * Selected Profile
+     */
+    selected_profile: string;
+    /**
+     * Selected Capabilities
+     */
+    selected_capabilities: Array<string>;
+    /**
+     * Lifecycle Status
+     */
+    lifecycle_status: 'pending_validation' | 'validation_only' | 'active' | 'degraded' | 'disabled' | 'incompatible' | 'retired';
+    credential: CredentialProjection;
+    /**
+     * Current Validation Report Uuid
+     */
+    current_validation_report_uuid?: string | null;
+    current_capability_snapshot?: CapabilitySnapshotSummary | null;
+    /**
+     * Private Network Enabled
+     */
+    private_network_enabled: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Retired At
+     */
+    retired_at?: string | null;
+};
+
+/**
+ * EndpointUpdateRequest
+ */
+export type EndpointUpdateRequest = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Endpoint Url
+     */
+    endpoint_url?: string | null;
+    /**
+     * Credential Uuid
+     */
+    credential_uuid?: string | null;
+    selected_profile?: CompatibilityProfile | null;
+    /**
+     * Selected Capabilities
+     */
+    selected_capabilities?: Array<string> | null;
 };
 
 /**
@@ -3662,6 +3741,205 @@ export type InworldTtsConfiguration = {
 export type ItemKind = 'node' | 'edge' | 'workflow';
 
 /**
+ * LangGraphEligibilityEvidence
+ *
+ * Immutable evidence required before a workflow can serve live voice.
+ */
+export type LangGraphEligibilityEvidence = {
+    /**
+     * Text Session Conformance
+     */
+    text_session_conformance?: boolean;
+    /**
+     * Accepted Transition
+     */
+    accepted_transition?: boolean;
+    /**
+     * Cancellation Verified
+     */
+    cancellation_verified?: boolean;
+    /**
+     * Recording Verified
+     */
+    recording_verified?: boolean;
+};
+
+/**
+ * LangGraphEndpointBinding
+ *
+ * Complete workflow-version-pinned endpoint behavior snapshot.
+ */
+export type LangGraphEndpointBinding = {
+    /**
+     * Registration Uuid
+     */
+    registration_uuid: string;
+    /**
+     * Validation Report Uuid
+     */
+    validation_report_uuid: string;
+    /**
+     * Validation Report Digest
+     */
+    validation_report_digest: string;
+    /**
+     * Contract Version
+     */
+    contract_version: string;
+    /**
+     * Compatibility Profile
+     */
+    compatibility_profile: 'chat' | 'stateful_run';
+    /**
+     * State Mode
+     */
+    state_mode: 'mural_authoritative' | 'endpoint_checkpointed';
+    /**
+     * Live Invocation Mode
+     */
+    live_invocation_mode: 'streaming';
+    /**
+     * Non Conversational Modes
+     */
+    non_conversational_modes?: {
+        [key: string]: 'synchronous' | 'asynchronous';
+    };
+    /**
+     * Selected Capabilities
+     */
+    selected_capabilities?: Array<string>;
+    /**
+     * Capability Snapshot Uuid
+     */
+    capability_snapshot_uuid: string;
+    /**
+     * Capability Snapshot Digest
+     */
+    capability_snapshot_digest: string;
+    /**
+     * Capability Snapshot
+     */
+    capability_snapshot: {
+        [key: string]: unknown;
+    };
+    /**
+     * Data Sharing Policy
+     */
+    data_sharing_policy?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Redaction Policy Id
+     */
+    redaction_policy_id?: string | null;
+    /**
+     * Compiled Policy Versions
+     */
+    compiled_policy_versions?: {
+        [key: string]: string;
+    };
+    /**
+     * Data Region
+     */
+    data_region: string;
+    /**
+     * First Event Deadline Ms
+     */
+    first_event_deadline_ms: number;
+    /**
+     * First Event Action
+     */
+    first_event_action: 'fallback_message' | 'transfer' | 'end_call';
+    /**
+     * Terminal Failure Action
+     */
+    terminal_failure_action: 'retry_prompt' | 'fallback_message' | 'transfer' | 'end_call';
+    evidence: LangGraphEligibilityEvidence;
+    /**
+     * Endpoint Url
+     */
+    endpoint_url: string;
+    /**
+     * Credential Reference
+     */
+    credential_reference: string;
+    /**
+     * Operations
+     */
+    operations: {
+        [key: string]: string;
+    };
+    /**
+     * Limits
+     */
+    limits: {
+        [key: string]: number;
+    };
+    /**
+     * Ownership
+     */
+    ownership?: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * LangGraphFeatureStatusResponse
+ */
+export type LangGraphFeatureStatusResponse = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Experimental
+     */
+    experimental?: boolean;
+    /**
+     * Acknowledged
+     */
+    acknowledged: boolean;
+    /**
+     * Rollout Stage
+     */
+    rollout_stage: string;
+    /**
+     * Can Configure
+     */
+    can_configure: boolean;
+    /**
+     * Private Network Configurable
+     */
+    private_network_configurable: boolean;
+    /**
+     * Private Network Enabled
+     */
+    private_network_enabled: boolean;
+};
+
+/**
+ * LangGraphFeatureUpdateRequest
+ */
+export type LangGraphFeatureUpdateRequest = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Experimental Risk Acknowledged
+     */
+    experimental_risk_acknowledged?: boolean;
+    /**
+     * Private Network Enabled
+     */
+    private_network_enabled?: boolean | null;
+    /**
+     * Private Network Risk Acknowledged
+     */
+    private_network_risk_acknowledged?: boolean;
+};
+
+/**
  * LangfuseCredentialsRequest
  */
 export type LangfuseCredentialsRequest = {
@@ -3720,6 +3998,20 @@ export type LastCampaignSettingsResponse = {
     max_concurrency?: number | null;
     schedule_config?: ScheduleConfigResponse | null;
     circuit_breaker?: CircuitBreakerConfigResponse | null;
+};
+
+/**
+ * LifecycleActionResponse
+ */
+export type LifecycleActionResponse = {
+    /**
+     * Endpoint Uuid
+     */
+    endpoint_uuid: string;
+    /**
+     * Lifecycle Status
+     */
+    lifecycle_status: 'pending_validation' | 'validation_only' | 'active' | 'degraded' | 'disabled' | 'incompatible' | 'retired';
 };
 
 /**
@@ -5456,6 +5748,100 @@ export type RimeTtsConfiguration = {
 };
 
 /**
+ * RunDiagnosticEventResponse
+ */
+export type RunDiagnosticEventResponse = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Category
+     */
+    category: 'pipecat' | 'attempt' | 'runtime_event' | 'tool_call' | 'transition' | 'observation' | 'security' | 'error';
+    /**
+     * Occurred At
+     */
+    occurred_at: string;
+    /**
+     * Order
+     */
+    order: number;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Invocation Id
+     */
+    invocation_id?: string | null;
+    /**
+     * Attempt Id
+     */
+    attempt_id?: string | null;
+    /**
+     * Sequence
+     */
+    sequence?: number | null;
+    /**
+     * Trace Id
+     */
+    trace_id?: string | null;
+    /**
+     * Trace Url
+     */
+    trace_url?: string | null;
+    /**
+     * Details
+     */
+    details?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * RunDiagnosticsResponse
+ */
+export type RunDiagnosticsResponse = {
+    /**
+     * Workflow Run Id
+     */
+    workflow_run_id: number;
+    /**
+     * Endpoint Registration Uuid
+     */
+    endpoint_registration_uuid: string;
+    /**
+     * Contract Version
+     */
+    contract_version: string;
+    /**
+     * Compatibility Profile
+     */
+    compatibility_profile: string;
+    /**
+     * State Mode
+     */
+    state_mode: string;
+    /**
+     * External Identifiers
+     */
+    external_identifiers?: {
+        [key: string]: unknown;
+    };
+    /**
+     * External Identifier Traces
+     */
+    external_identifier_traces?: Array<{
+        [key: string]: string;
+    }>;
+    /**
+     * Events
+     */
+    events: Array<RunDiagnosticEventResponse>;
+};
+
+/**
  * S3SignedUrlResponse
  */
 export type S3SignedUrlResponse = {
@@ -5855,6 +6241,126 @@ export type SpeechmaticsSttConfiguration = {
      * ISO 639-1 language code.
      */
     language?: string;
+};
+
+/**
+ * SpinSci
+ */
+export type SpinSciEmbeddingsConfiguration = {
+    /**
+     * Provider
+     */
+    provider?: 'spinsci';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * SpinSci-managed embedding model.
+     */
+    model?: string;
+};
+
+/**
+ * SpinSci
+ */
+export type SpinSciLlmService = {
+    /**
+     * Provider
+     */
+    provider?: 'spinsci';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * SpinSci-hosted model tier.
+     */
+    model?: string;
+};
+
+/**
+ * SpinSciManagedAIModelConfiguration
+ */
+export type SpinSciManagedAiModelConfiguration = {
+    /**
+     * Api Key
+     */
+    api_key: string;
+    /**
+     * Voice
+     */
+    voice?: string;
+    /**
+     * Speed
+     */
+    speed?: number;
+    /**
+     * Language
+     */
+    language?: string;
+};
+
+/**
+ * SpinSci
+ */
+export type SpinSciSttService = {
+    /**
+     * Provider
+     */
+    provider?: 'spinsci';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * SpinSci STT tier.
+     */
+    model?: string;
+    /**
+     * Language
+     *
+     * Language code; use 'multi' for auto-detect.
+     */
+    language?: string;
+};
+
+/**
+ * SpinSci
+ */
+export type SpinSciTtsService = {
+    /**
+     * Provider
+     */
+    provider?: 'spinsci';
+    /**
+     * Api Key
+     */
+    api_key: string | Array<string>;
+    /**
+     * Model
+     *
+     * SpinSci TTS tier.
+     */
+    model?: string;
+    /**
+     * Voice
+     *
+     * Voice preset.
+     */
+    voice?: string;
+    /**
+     * Speed
+     *
+     * Speed of the voice.
+     */
+    speed?: number;
 };
 
 /**
@@ -6962,7 +7468,7 @@ export type UsageHistoryResponse = {
      */
     runs: Array<WorkflowRunUsageResponse>;
     /**
-     * Total SpinSci Tokens
+     * Total Spinsci Tokens
      */
     total_spinsci_tokens: number;
     /**
@@ -7107,6 +7613,104 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * ValidationReportResponse
+ */
+export type ValidationReportResponse = {
+    /**
+     * Report Uuid
+     */
+    report_uuid: string;
+    /**
+     * Capability Snapshot Uuid
+     */
+    capability_snapshot_uuid: string | null;
+    /**
+     * Matrix Version
+     */
+    matrix_version: string;
+    /**
+     * Suite Version
+     */
+    suite_version: string;
+    /**
+     * Contract Version
+     */
+    contract_version: string;
+    /**
+     * Selected Profile
+     */
+    selected_profile: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Completed At
+     */
+    completed_at: string | null;
+    /**
+     * Evidence
+     */
+    evidence: {
+        [key: string]: unknown;
+    };
+    /**
+     * Report Digest
+     */
+    report_digest: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Results
+     */
+    results: Array<ValidationResultResponse>;
+};
+
+/**
+ * ValidationResultResponse
+ */
+export type ValidationResultResponse = {
+    /**
+     * Test Identifier
+     */
+    test_identifier: string;
+    /**
+     * Test Version
+     */
+    test_version: string;
+    /**
+     * Required
+     */
+    required: boolean;
+    /**
+     * Outcome
+     */
+    outcome: string;
+    /**
+     * Duration Ms
+     */
+    duration_ms: number | null;
+    /**
+     * Measurements
+     */
+    measurements: {
+        [key: string]: unknown;
+    };
+    /**
+     * Redacted Error
+     */
+    redacted_error: {
+        [key: string]: unknown;
+    } | null;
 };
 
 /**
@@ -7464,6 +8068,7 @@ export type WorkflowConfigurationDefaults = {
      * External Pbx Field Mappings
      */
     external_pbx_field_mappings?: Array<ExternalPbxFieldMapping>;
+    langgraph_endpoint?: LangGraphEndpointBinding | null;
     [key: string]: unknown;
 };
 
@@ -7855,7 +8460,7 @@ export type WorkflowRunUsageResponse = {
      */
     created_at: string;
     /**
-     * SpinSci Token Usage
+     * Spinsci Token Usage
      */
     spinsci_token_usage: number;
     /**
@@ -13451,7 +14056,7 @@ export type GrantBillingCreditsApiV1OrganizationsBillingCreditsGrantPostData = {
          */
         'X-API-Key'?: string | null;
         /**
-         * X-SpinSci-Devops-Secret
+         * X-Spinsci-Devops-Secret
          */
         'X-SpinSci-Devops-Secret'?: string | null;
     };
@@ -14907,6 +15512,559 @@ export type SearchChunksApiV1KnowledgeBaseSearchPostResponses = {
 
 export type SearchChunksApiV1KnowledgeBaseSearchPostResponse = SearchChunksApiV1KnowledgeBaseSearchPostResponses[keyof SearchChunksApiV1KnowledgeBaseSearchPostResponses];
 
+export type ListLanggraphEndpointsApiV1LanggraphEndpointsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/langgraph-endpoints';
+};
+
+export type ListLanggraphEndpointsApiV1LanggraphEndpointsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListLanggraphEndpointsApiV1LanggraphEndpointsGetError = ListLanggraphEndpointsApiV1LanggraphEndpointsGetErrors[keyof ListLanggraphEndpointsApiV1LanggraphEndpointsGetErrors];
+
+export type ListLanggraphEndpointsApiV1LanggraphEndpointsGetResponses = {
+    /**
+     * Response List Langgraph Endpoints Api V1 Langgraph Endpoints Get
+     *
+     * Successful Response
+     */
+    200: Array<EndpointResponse>;
+};
+
+export type ListLanggraphEndpointsApiV1LanggraphEndpointsGetResponse = ListLanggraphEndpointsApiV1LanggraphEndpointsGetResponses[keyof ListLanggraphEndpointsApiV1LanggraphEndpointsGetResponses];
+
+export type CreateLanggraphEndpointApiV1LanggraphEndpointsPostData = {
+    body: EndpointCreateRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/langgraph-endpoints';
+};
+
+export type CreateLanggraphEndpointApiV1LanggraphEndpointsPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateLanggraphEndpointApiV1LanggraphEndpointsPostError = CreateLanggraphEndpointApiV1LanggraphEndpointsPostErrors[keyof CreateLanggraphEndpointApiV1LanggraphEndpointsPostErrors];
+
+export type CreateLanggraphEndpointApiV1LanggraphEndpointsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: EndpointResponse;
+};
+
+export type CreateLanggraphEndpointApiV1LanggraphEndpointsPostResponse = CreateLanggraphEndpointApiV1LanggraphEndpointsPostResponses[keyof CreateLanggraphEndpointApiV1LanggraphEndpointsPostResponses];
+
+export type DeleteLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Endpoint Uuid
+         */
+        endpoint_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/langgraph-endpoints/{endpoint_uuid}';
+};
+
+export type DeleteLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeleteError = DeleteLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeleteErrors[keyof DeleteLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeleteErrors];
+
+export type DeleteLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: DeleteEndpointResponse;
+};
+
+export type DeleteLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeleteResponse = DeleteLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeleteResponses[keyof DeleteLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeleteResponses];
+
+export type GetLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Endpoint Uuid
+         */
+        endpoint_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/langgraph-endpoints/{endpoint_uuid}';
+};
+
+export type GetLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidGetError = GetLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidGetErrors[keyof GetLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidGetErrors];
+
+export type GetLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EndpointResponse;
+};
+
+export type GetLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidGetResponse = GetLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidGetResponses[keyof GetLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidGetResponses];
+
+export type UpdateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidPatchData = {
+    body: EndpointUpdateRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Endpoint Uuid
+         */
+        endpoint_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/langgraph-endpoints/{endpoint_uuid}';
+};
+
+export type UpdateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidPatchError = UpdateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidPatchErrors[keyof UpdateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidPatchErrors];
+
+export type UpdateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: EndpointResponse;
+};
+
+export type UpdateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidPatchResponse = UpdateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidPatchResponses[keyof UpdateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidPatchResponses];
+
+export type ValidateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidValidatePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Endpoint Uuid
+         */
+        endpoint_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/langgraph-endpoints/{endpoint_uuid}/validate';
+};
+
+export type ValidateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidValidatePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ValidateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidValidatePostError = ValidateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidValidatePostErrors[keyof ValidateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidValidatePostErrors];
+
+export type ValidateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidValidatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: LifecycleActionResponse;
+};
+
+export type ValidateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidValidatePostResponse = ValidateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidValidatePostResponses[keyof ValidateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidValidatePostResponses];
+
+export type ActivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidActivatePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Endpoint Uuid
+         */
+        endpoint_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/langgraph-endpoints/{endpoint_uuid}/activate';
+};
+
+export type ActivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidActivatePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ActivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidActivatePostError = ActivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidActivatePostErrors[keyof ActivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidActivatePostErrors];
+
+export type ActivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidActivatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: LifecycleActionResponse;
+};
+
+export type ActivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidActivatePostResponse = ActivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidActivatePostResponses[keyof ActivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidActivatePostResponses];
+
+export type DeactivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeactivatePostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Endpoint Uuid
+         */
+        endpoint_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/langgraph-endpoints/{endpoint_uuid}/deactivate';
+};
+
+export type DeactivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeactivatePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeactivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeactivatePostError = DeactivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeactivatePostErrors[keyof DeactivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeactivatePostErrors];
+
+export type DeactivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeactivatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: LifecycleActionResponse;
+};
+
+export type DeactivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeactivatePostResponse = DeactivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeactivatePostResponses[keyof DeactivateLanggraphEndpointApiV1LanggraphEndpointsEndpointUuidDeactivatePostResponses];
+
+export type ListLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Endpoint Uuid
+         */
+        endpoint_uuid: string;
+    };
+    query?: never;
+    url: '/api/v1/langgraph-endpoints/{endpoint_uuid}/validation-reports';
+};
+
+export type ListLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGetError = ListLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGetErrors[keyof ListLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGetErrors];
+
+export type ListLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGetResponses = {
+    /**
+     * Response List Langgraph Validation Reports Api V1 Langgraph Endpoints  Endpoint Uuid  Validation Reports Get
+     *
+     * Successful Response
+     */
+    200: Array<ValidationReportResponse>;
+};
+
+export type ListLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGetResponse = ListLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGetResponses[keyof ListLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGetResponses];
+
+export type ListLanggraphCompatibilityMatricesApiV1LanggraphCompatibilityMatricesGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/langgraph-compatibility-matrices';
+};
+
+export type ListLanggraphCompatibilityMatricesApiV1LanggraphCompatibilityMatricesGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListLanggraphCompatibilityMatricesApiV1LanggraphCompatibilityMatricesGetError = ListLanggraphCompatibilityMatricesApiV1LanggraphCompatibilityMatricesGetErrors[keyof ListLanggraphCompatibilityMatricesApiV1LanggraphCompatibilityMatricesGetErrors];
+
+export type ListLanggraphCompatibilityMatricesApiV1LanggraphCompatibilityMatricesGetResponses = {
+    /**
+     * Response List Langgraph Compatibility Matrices Api V1 Langgraph Compatibility Matrices Get
+     *
+     * Successful Response
+     */
+    200: Array<CompatibilityMatrixResponse>;
+};
+
+export type ListLanggraphCompatibilityMatricesApiV1LanggraphCompatibilityMatricesGetResponse = ListLanggraphCompatibilityMatricesApiV1LanggraphCompatibilityMatricesGetResponses[keyof ListLanggraphCompatibilityMatricesApiV1LanggraphCompatibilityMatricesGetResponses];
+
+export type GetLanggraphFeatureStatusApiV1LanggraphFeatureGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/langgraph-feature';
+};
+
+export type GetLanggraphFeatureStatusApiV1LanggraphFeatureGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetLanggraphFeatureStatusApiV1LanggraphFeatureGetError = GetLanggraphFeatureStatusApiV1LanggraphFeatureGetErrors[keyof GetLanggraphFeatureStatusApiV1LanggraphFeatureGetErrors];
+
+export type GetLanggraphFeatureStatusApiV1LanggraphFeatureGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: LangGraphFeatureStatusResponse;
+};
+
+export type GetLanggraphFeatureStatusApiV1LanggraphFeatureGetResponse = GetLanggraphFeatureStatusApiV1LanggraphFeatureGetResponses[keyof GetLanggraphFeatureStatusApiV1LanggraphFeatureGetResponses];
+
+export type UpdateLanggraphFeatureStatusApiV1LanggraphFeaturePatchData = {
+    body: LangGraphFeatureUpdateRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/langgraph-feature';
+};
+
+export type UpdateLanggraphFeatureStatusApiV1LanggraphFeaturePatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateLanggraphFeatureStatusApiV1LanggraphFeaturePatchError = UpdateLanggraphFeatureStatusApiV1LanggraphFeaturePatchErrors[keyof UpdateLanggraphFeatureStatusApiV1LanggraphFeaturePatchErrors];
+
+export type UpdateLanggraphFeatureStatusApiV1LanggraphFeaturePatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: LangGraphFeatureStatusResponse;
+};
+
+export type UpdateLanggraphFeatureStatusApiV1LanggraphFeaturePatchResponse = UpdateLanggraphFeatureStatusApiV1LanggraphFeaturePatchResponses[keyof UpdateLanggraphFeatureStatusApiV1LanggraphFeaturePatchResponses];
+
+export type GetLanggraphRunDiagnosticsApiV1WorkflowRunsWorkflowRunIdLanggraphDiagnosticsGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Run Id
+         */
+        workflow_run_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow-runs/{workflow_run_id}/langgraph-diagnostics';
+};
+
+export type GetLanggraphRunDiagnosticsApiV1WorkflowRunsWorkflowRunIdLanggraphDiagnosticsGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetLanggraphRunDiagnosticsApiV1WorkflowRunsWorkflowRunIdLanggraphDiagnosticsGetError = GetLanggraphRunDiagnosticsApiV1WorkflowRunsWorkflowRunIdLanggraphDiagnosticsGetErrors[keyof GetLanggraphRunDiagnosticsApiV1WorkflowRunsWorkflowRunIdLanggraphDiagnosticsGetErrors];
+
+export type GetLanggraphRunDiagnosticsApiV1WorkflowRunsWorkflowRunIdLanggraphDiagnosticsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RunDiagnosticsResponse;
+};
+
+export type GetLanggraphRunDiagnosticsApiV1WorkflowRunsWorkflowRunIdLanggraphDiagnosticsGetResponse = GetLanggraphRunDiagnosticsApiV1WorkflowRunsWorkflowRunIdLanggraphDiagnosticsGetResponses[keyof GetLanggraphRunDiagnosticsApiV1WorkflowRunsWorkflowRunIdLanggraphDiagnosticsGetResponses];
+
 export type GetUploadUrlsApiV1WorkflowRecordingsUploadUrlPostData = {
     body: BatchRecordingUploadRequestSchema;
     headers?: {
@@ -15551,7 +16709,7 @@ export type ActiveCallsApiV1HealthActiveCallsGetData = {
     body?: never;
     headers?: {
         /**
-         * X-SpinSci-Devops-Secret
+         * X-Spinsci-Devops-Secret
          */
         'X-SpinSci-Devops-Secret'?: string | null;
     };
@@ -15586,7 +16744,7 @@ export type AutoscaleMetricApiV1HealthAutoscaleMetricGetData = {
     body?: never;
     headers?: {
         /**
-         * X-SpinSci-Devops-Secret
+         * X-Spinsci-Devops-Secret
          */
         'X-SpinSci-Devops-Secret'?: string | null;
     };

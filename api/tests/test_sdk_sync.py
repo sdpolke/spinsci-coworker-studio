@@ -84,6 +84,7 @@ def test_typescript_sdk_typed_in_sync(tmp_path: Path) -> None:
     result = subprocess.run(
         [
             "node",
+            "--experimental-strip-types",
             str(TS_CODEGEN),
             "--input",
             str(specs_file),
