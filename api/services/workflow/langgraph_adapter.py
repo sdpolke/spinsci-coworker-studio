@@ -323,7 +323,6 @@ class WorkflowAdapter:
                       redaction: RedactionPolicy | None = None) -> ReasoningRequest:
         sharing = sharing or DataSharingPolicy()
         redaction = redaction or RedactionPolicy()
-        prompt = ReasoningMessage("system", _redact(state.node_prompt, redaction))
         history = tuple(
             ReasoningMessage(
                 message.role,
@@ -333,12 +332,30 @@ class WorkflowAdapter:
             )
             for message in state.history
         )
+        endpoint_checkpointed = (
+            state.state_mode == StateMode.ENDPOINT_CHECKPOINTED.value
+        )
+        if endpoint_checkpointed:
+            # The endpoint owns graph prompts, routing, and retained history. Send
+            # only the newest caller/tool input so accepted turns are not replayed.
+            new_inputs = tuple(
+                message for message in history if message.role in {"user", "tool"}
+            )
+            messages = new_inputs[-1:] or history[-1:]
+            tools: tuple[ReasoningToolDefinition, ...] = ()
+        else:
+            prompt = ReasoningMessage("system", _redact(state.node_prompt, redaction))
+            messages = (prompt, *history)
+            tools = tuple(
+                tool
+                for tool in state.tools
+                if tool.enabled and tool.owner != ToolOwner.ENDPOINT_INTERNAL.value
+            )
         context = {
             key: _redact(value, redaction, key)
             for key, value in state.context.items()
             if key in sharing.context_fields and key.lower() not in _BLOCKED_CONTEXT_KEYS
         }
-        tools = tuple(tool for tool in state.tools if tool.enabled and tool.owner != ToolOwner.ENDPOINT_INTERNAL.value)
         return ReasoningRequest(
             contract_version=state.contract_version,
             invocation_id=invocation_id,
@@ -346,10 +363,10 @@ class WorkflowAdapter:
             workflow_version_id=state.workflow_version_id,
             mode=state.mode,
             state_mode=state.state_mode,
-            messages=(prompt, *history),
+            messages=messages,
             tools=tools,
             context=context,
-            state=dict(state.endpoint_state) if state.state_mode == StateMode.ENDPOINT_CHECKPOINTED.value else {},
+            state=dict(state.endpoint_state) if endpoint_checkpointed else {},
         )
 
     def begin_node_entry(self, *, voice_run_id: str, node_entry_id: str) -> bool:
@@ -451,15 +468,29 @@ class WorkflowAdapter:
                                        claimed_node_id: str | None = None,
                                        claimed_history_digest: str | None = None,
                                        identifiers: Mapping[str, str] | None = None) -> None:
+        endpoint_checkpointed = (
+            state.state_mode == StateMode.ENDPOINT_CHECKPOINTED.value
+        )
         conflict = (
             claimed_organization_id not in (None, state.organization_id)
             or claimed_voice_run_id not in (None, state.voice_run_id)
-            or claimed_node_id not in (None, state.active_node_id)
-            or claimed_history_digest not in (None, canonical_digest([m.to_wire() for m in state.history]))
+            or (
+                not endpoint_checkpointed
+                and claimed_node_id not in (None, state.active_node_id)
+            )
+            or (
+                not endpoint_checkpointed
+                and claimed_history_digest
+                not in (
+                    None,
+                    canonical_digest([m.to_wire() for m in state.history]),
+                )
+            )
         )
         if conflict:
+            authority = "endpoint-checkpointed" if endpoint_checkpointed else "Mural-authoritative"
             raise ProtocolViolation(
-                "state_conflict", "endpoint state conflicts with Mural-authoritative state",
+                "state_conflict", f"endpoint state conflicts with {authority} controls",
                 category=ErrorCategory.STATE_CONFLICT,
             )
         safe_identifiers = {}

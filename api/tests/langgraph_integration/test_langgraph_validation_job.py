@@ -20,6 +20,8 @@ from api.services.langgraph_integration.configuration import (
     LangGraphFeatureConfiguration,
 )
 from api.services.langgraph_integration.conformance import ConformanceSuiteResult
+from api.services.langgraph_integration.conformance.live import LiveEndpointEvidence
+from api.services.langgraph_integration.conformance.platform import PlatformEvidence
 from api.services.langgraph_integration.contract import (
     MatrixVersion,
     ProfileRequirements,
@@ -248,10 +250,36 @@ async def test_successful_negotiation_persists_report_from_conformance_suite_res
             )
         ),
     )
-    negotiated = SimpleNamespace(contract_version="1.1")
+    negotiated = SimpleNamespace(
+        contract_version="1.1",
+        invocation_modes=frozenset({"streaming"}),
+        features=frozenset(),
+    )
     monkeypatch.setattr(job_module, "negotiate_capabilities", lambda **_: negotiated)
     suite_result = _suite_result(passed=passed)
     monkeypatch.setattr(job_module, "run_suite", lambda: suite_result)
+    monkeypatch.setattr(
+        job_module,
+        "run_live_endpoint_evidence",
+        AsyncMock(
+            return_value=LiveEndpointEvidence(
+                text_session_conformance=True,
+                endpoint_state_continuity=False,
+                checks=(),
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        job_module,
+        "run_platform_evidence",
+        AsyncMock(
+            return_value=PlatformEvidence(
+                cancellation_verified=True,
+                recording_verified=True,
+                checks=(),
+            )
+        ),
+    )
 
     await job_module.validate_langgraph_endpoint(
         {}, organization_id=11, endpoint_uuid="endpoint-uuid"
@@ -262,12 +290,28 @@ async def test_successful_negotiation_persists_report_from_conformance_suite_res
     assert kwargs["capability_snapshot_id"] == 77
     assert kwargs["status"] == expected_status
     assert kwargs["contract_version"] == "1.1"
-    assert kwargs["suite_version"] == "chat-1.0.0"
-    assert kwargs["evidence"] == suite_result.report_evidence()
+    expected_suite_version = "chat-1.0.0+eligibility-1.0.0"
+    expected_evidence = {
+        "text_session_conformance": True,
+        "accepted_transition": False,
+        "endpoint_state_continuity": False,
+        "cancellation_verified": True,
+        "recording_verified": True,
+    }
+    assert kwargs["suite_version"] == expected_suite_version
+    assert kwargs["evidence"] == expected_evidence
     assert kwargs["results"] == suite_result.persistence_results()
     assert kwargs["report_digest"] == job_module.deterministic_digest(
         {
-            "evidence": suite_result.report_evidence(),
+            "capability_snapshot_id": 77,
+            "compatibility_matrix_id": 9,
+            "suite_version": expected_suite_version,
+            "contract_version": "1.1",
+            "selected_profile": "chat",
+            "status": expected_status,
+            "started_at": kwargs["started_at"].isoformat(),
+            "completed_at": kwargs["completed_at"].isoformat(),
+            "evidence": expected_evidence,
             "results": suite_result.persistence_results(),
         }
     )

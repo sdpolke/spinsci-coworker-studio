@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useOnboarding } from '@/context/OnboardingContext';
+import { detailFromError } from '@/lib/apiError';
 import { WorkflowConfigurations } from '@/types/workflow-configurations';
 
 import AddNodePanel from "../../../components/flow/AddNodePanel";
@@ -251,20 +252,24 @@ function RenderWorkflow({
         const response = await createWorkflowDraftApiV1WorkflowWorkflowIdCreateDraftPost({
             path: { workflow_id: workflowId },
         });
-        const draft = response.data;
-        if (draft) {
-            setCurrentVersionNumber(draft.version_number);
-            setCurrentVersionStatus(draft.status);
-            // Load draft nodes/edges via the Zustand store (same approach as handleSelectVersion)
-            const flowNodes = (draft.workflow_json?.nodes ?? []) as FlowNode[];
-            const flowEdges = (draft.workflow_json?.edges ?? []) as FlowEdge[];
-            setNodes(flowNodes);
-            setEdges(flowEdges);
-            setActiveVersionId(draft.id);
-            setIsDirty(false);
-            // Refresh the version list so the new draft appears
-            fetchVersions(true);
+        if (response.error) {
+            throw new Error(detailFromError(response.error, "Failed to create an editable draft"));
         }
+        const draft = response.data;
+        if (!draft) {
+            throw new Error("Failed to create an editable draft");
+        }
+        setCurrentVersionNumber(draft.version_number);
+        setCurrentVersionStatus(draft.status);
+        // Load draft nodes/edges via the Zustand store (same approach as handleSelectVersion)
+        const flowNodes = (draft.workflow_json?.nodes ?? []) as FlowNode[];
+        const flowEdges = (draft.workflow_json?.edges ?? []) as FlowEdge[];
+        setNodes(flowNodes);
+        setEdges(flowEdges);
+        setActiveVersionId(draft.id);
+        setIsDirty(false);
+        // Refresh the version list so the new draft appears
+        void fetchVersions(true);
     }, [versions, handleSelectVersion, workflowId, setNodes, setEdges, setIsDirty, fetchVersions]);
 
     // After a successful publish, refresh the version list and update status
@@ -732,6 +737,7 @@ function RenderWorkflow({
                     workflowConfigurations={workflowConfigurations}
                     workflowName={workflowName}
                     onSave={saveWorkflowConfigurations}
+                    onCreateDraft={handleBackToDraft}
                     immutable={currentVersionStatus === 'published'}
                     transitionLabels={edges.map((edge) => String(edge.data?.label ?? ''))}
                 />

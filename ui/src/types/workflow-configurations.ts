@@ -122,6 +122,7 @@ type WorkflowConfigurationBase = Omit<
 export interface LangGraphEligibilityEvidence {
     text_session_conformance: boolean;
     accepted_transition: boolean;
+    endpoint_state_continuity: boolean;
     cancellation_verified: boolean;
     recording_verified: boolean;
 }

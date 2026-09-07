@@ -152,14 +152,29 @@ async def update_langgraph_feature_configuration(
             else now
         )
     )
+    resolved_internal_tenant_ids = tuple(
+        sorted(
+            set(
+                current("internal_tenant_ids")
+                if internal_tenant_ids is None
+                else internal_tenant_ids
+            )
+        )
+    )
+    if DEPLOYMENT_MODE == "oss" and enabled:
+        # Self-hosted installations are organization-local: enabling the feature
+        # must also select that organization for the initial rollout stage.
+        # Otherwise the settings UI reports enabled while every run is rejected.
+        resolved_internal_tenant_ids = tuple(
+            sorted({*resolved_internal_tenant_ids, organization_id})
+        )
+
     config = LangGraphFeatureConfiguration(
         enabled=enabled,
         experimental_acknowledged_at=experimental_acknowledged_at,
         experimental_acknowledged_by=experimental_acknowledged_by,
         rollout_stage=target_stage.value,
-        internal_tenant_ids=tuple(
-            sorted(set(current("internal_tenant_ids") if internal_tenant_ids is None else internal_tenant_ids))
-        ),
+        internal_tenant_ids=resolved_internal_tenant_ids,
         allowlisted_tenant_ids=tuple(
             sorted(set(current("allowlisted_tenant_ids") if allowlisted_tenant_ids is None else allowlisted_tenant_ids))
         ),

@@ -152,7 +152,9 @@ async def _resolve_live_langgraph_binding(
         raise FeatureDisabledError(
             "LangGraph integration is disabled for this organization"
         )
-    if not live_eligibility_evidence_complete(binding.evidence):
+    if not live_eligibility_evidence_complete(
+        binding.evidence, profile=binding.compatibility_profile
+    ):
         raise LangGraphWorkflowBindingError(
             "pinned LangGraph binding lacks complete live-eligibility evidence"
         )
@@ -166,6 +168,7 @@ def _create_non_realtime_reasoner(
     correlation_id: str | None,
     organization_id: int,
     state_factory,
+    private_network_enabled: bool = False,
 ):
     """Select local or remote conversational reasoning without silent fallback."""
     if binding is None:
@@ -182,6 +185,7 @@ def _create_non_realtime_reasoner(
         organization_id=organization_id,
         credential_resolver=DatabaseCredentialResolver(db_client),
         state_factory=state_factory,
+        private_network_enabled=private_network_enabled,
     )
     return reasoner, inference_llm
 
@@ -192,6 +196,7 @@ def _create_pinned_non_conversational_reasoner(
     binding,
     organization_id: int,
     state_factory,
+    private_network_enabled: bool = False,
 ):
     """Create a synchronous endpoint client only for an explicitly pinned operation."""
     if binding is None or binding.non_conversational_modes.get(operation) != "synchronous":
@@ -205,6 +210,7 @@ def _create_pinned_non_conversational_reasoner(
         credential_resolver=DatabaseCredentialResolver(db_client),
         state_factory=state_factory,
         invocation_mode="synchronous",
+        private_network_enabled=private_network_enabled,
     )
 
 
@@ -762,6 +768,16 @@ async def _run_pipeline_impl(
         organization_id=workflow.organization_id,
         is_realtime=is_realtime,
     )
+    langgraph_private_network_enabled = False
+    if langgraph_binding is not None:
+        from api.services.langgraph_integration.configuration import (
+            get_langgraph_feature_configuration,
+        )
+
+        langgraph_feature = await get_langgraph_feature_configuration(
+            workflow.organization_id
+        )
+        langgraph_private_network_enabled = langgraph_feature.private_network_enabled
     endpoint_state_factory = lambda context: engine.build_langgraph_reasoning_state(
         context=context,
         binding=langgraph_binding,
@@ -799,6 +815,7 @@ async def _run_pipeline_impl(
             correlation_id=mps_correlation_id,
             organization_id=workflow.organization_id,
             state_factory=endpoint_state_factory,
+            private_network_enabled=langgraph_private_network_enabled,
         )
 
     # A shared LLM cannot carry an extraction usage_context without also tagging
@@ -810,6 +827,7 @@ async def _run_pipeline_impl(
             binding=langgraph_binding,
             organization_id=workflow.organization_id,
             state_factory=endpoint_state_factory,
+            private_network_enabled=langgraph_private_network_enabled,
         )
         if uses_variable_extraction
         else None
@@ -1001,11 +1019,25 @@ async def _run_pipeline_impl(
         correct_aggregation_callback=engine.create_aggregation_correction_callback(),
     )
 
-    user_mute_strategies = [
-        MuteUntilFirstBotCompleteUserMuteStrategy(),
-        FunctionCallUserMuteStrategy(),
-        CallbackUserMuteStrategy(should_mute_callback=engine.should_mute_user),
-    ]
+    endpoint_caller_first = bool(
+        langgraph_binding
+        and langgraph_binding.state_mode == "endpoint_checkpointed"
+        and engine.get_start_greeting() is None
+    )
+    user_mute_strategies = []
+    if not endpoint_caller_first:
+        user_mute_strategies.append(MuteUntilFirstBotCompleteUserMuteStrategy())
+    user_mute_strategies.extend(
+        [
+            FunctionCallUserMuteStrategy(),
+            CallbackUserMuteStrategy(should_mute_callback=engine.should_mute_user),
+        ]
+    )
+    if endpoint_caller_first:
+        logger.info(
+            f"[run {workflow_run_id}] Caller-first input enabled for "
+            "endpoint-checkpointed workflow without a media greeting"
+        )
     user_vad_analyzer = SileroVADAnalyzer(params=VADParams(stop_secs=0.2))
 
     # Configure turn strategies based on STT provider, model, and workflow configuration
@@ -1113,6 +1145,7 @@ async def _run_pipeline_impl(
             binding=langgraph_binding,
             organization_id=workflow.organization_id,
             state_factory=endpoint_state_factory,
+            private_network_enabled=langgraph_private_network_enabled,
         )
         if voicemail_llm is None and voicemail_config.get("use_workflow_llm", True):
             voicemail_llm = create_llm_service(

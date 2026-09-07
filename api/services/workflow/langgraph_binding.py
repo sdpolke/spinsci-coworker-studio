@@ -108,13 +108,17 @@ def require_langgraph_feature_for_operation(*, enabled: bool, operation: str) ->
 
 def live_eligibility_evidence_complete(
     evidence: LangGraphEligibilityEvidence | Mapping[str, Any],
+    *,
+    profile: str = "chat",
 ) -> bool:
     if not isinstance(evidence, LangGraphEligibilityEvidence):
         try:
             evidence = LangGraphEligibilityEvidence.model_validate(evidence)
         except ValidationError:
             return False
-    return evidence.complete
+    if profile not in {"chat", "stateful_run"}:
+        return False
+    return evidence.complete_for(profile)
 
 
 def parse_langgraph_binding(
@@ -167,7 +171,9 @@ def validate_binding_against_evidence(
         if report.selected_profile != binding.compatibility_profile:
             errors.append("compatibility profile does not match validation report")
         report_evidence = report.evidence or {}
-        if report_evidence and not live_eligibility_evidence_complete(report_evidence):
+        if report_evidence and not live_eligibility_evidence_complete(
+            report_evidence, profile=binding.compatibility_profile
+        ):
             errors.append("validation report lacks required live-eligibility evidence")
     if snapshot is not None:
         manifest = snapshot.manifest or {}
@@ -197,7 +203,18 @@ def validate_binding_against_evidence(
             errors.append("selected capabilities do not exactly match registration")
     if endpoint.selected_profile != binding.compatibility_profile:
         errors.append("selected profile does not exactly match registration")
-    if not live_eligibility_evidence_complete(binding.evidence):
+    expected_state_mode = (
+        "endpoint_checkpointed"
+        if binding.compatibility_profile == "stateful_run"
+        else "mural_authoritative"
+    )
+    if binding.state_mode != expected_state_mode:
+        errors.append(
+            f"{binding.compatibility_profile} profile requires {expected_state_mode} state"
+        )
+    if not live_eligibility_evidence_complete(
+        binding.evidence, profile=binding.compatibility_profile
+    ):
         errors.append("workflow binding lacks complete live-eligibility evidence")
     if not binding.data_sharing_policy:
         errors.append("data-sharing policy is required")

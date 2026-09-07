@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-SUPPORTED_EXAMPLE_VERSIONS = ("1.0", "1.1")
+SUPPORTED_EXAMPLE_VERSIONS = ("1.0", "1.1", "1.2")
 
 
 def _invocation(
@@ -24,7 +24,7 @@ def _invocation(
         "tools": tools or [],
         "deadlines": {"first_event_ms": 1500, "turn_ms": 10000},
     }
-    if version == "1.1":
+    if version in {"1.1", "1.2"}:
         payload["locale"] = "en-US"
     return payload
 
@@ -40,7 +40,7 @@ def _event(
         "type": event_type,
         "data": data,
     }
-    if version == "1.1":
+    if version in {"1.1", "1.2"}:
         payload["timestamp_ms"] = sequence
     return payload
 
@@ -58,7 +58,7 @@ def _assistant_result(version: str) -> dict[str, Any]:
             "status": "completed",
         },
     }
-    if version == "1.1":
+    if version in {"1.1", "1.2"}:
         payload["response_id"] = "response_example"
     return payload
 
@@ -69,7 +69,7 @@ def _manifest(version: str) -> dict[str, Any]:
         "endpoint_id": "support-agent",
         "display_name": "Support Agent",
         "data_regions": ["us-east"],
-        "contract_versions": ["1.0", "1.1"],
+        "contract_versions": list(SUPPORTED_EXAMPLE_VERSIONS),
         "compatibility_profiles": ["chat"],
         "invocation_modes": ["streaming", "synchronous", "asynchronous"],
         "state_modes": ["mural_authoritative"],
@@ -80,7 +80,7 @@ def _manifest(version: str) -> dict[str, Any]:
             "health": "/v1/health",
         },
     }
-    if version == "1.1":
+    if version in {"1.1", "1.2"}:
         payload["metadata"] = {"deployment": "example"}
     return payload
 
@@ -134,7 +134,7 @@ def _example_steps(version: str, category: str) -> list[dict[str, Any]]:
             "status": "accepted",
             "external_run_id": "external_run_example",
         }
-        if version == "1.1":
+        if version in {"1.1", "1.2"}:
             acceptance["poll_after_ms"] = 250
         return [
             {"schema": "invocation", "payload": _invocation(version, "asynchronous")},

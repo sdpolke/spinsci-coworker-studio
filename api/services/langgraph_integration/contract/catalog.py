@@ -17,8 +17,8 @@ from api.schemas.langgraph_integration.common import (
 
 from .models import MatrixVersion, ProfileRequirements
 
-DOCUMENTATION_VERSION = "2026-01"
-DOCUMENTATION_PUBLISHED_AT = "2026-01-15T00:00:00Z"
+DOCUMENTATION_VERSION = "2026-02"
+DOCUMENTATION_PUBLISHED_AT = "2026-02-15T00:00:00Z"
 
 COMPATIBILITY_MATRICES = (
     MatrixVersion(
@@ -49,6 +49,37 @@ COMPATIBILITY_MATRICES = (
         limitations=(
             "The integration is experimental.",
             "Realtime speech-to-speech workflows bypass the chat integration.",
+            "Compatibility is based on contract behavior, not a specific LangGraph package version.",
+        ),
+    ),
+    MatrixVersion(
+        matrix_version="2026-02",
+        effective_date=date(2026, 2, 15),
+        mural_release_version="1.44.0",
+        supported_contract_versions=("1.0", "1.1", "1.2"),
+        profiles=(
+            ProfileRequirements(
+                profile=CompatibilityProfile.CHAT,
+                required_invocation_modes=frozenset({InvocationMode.STREAMING}),
+                allowed_state_modes=frozenset({StateMode.MURAL_AUTHORITATIVE}),
+                limitations=(
+                    "Live voice requires streaming mode.",
+                    "The endpoint receives chat-oriented requests, never raw audio or Pipecat processors.",
+                ),
+            ),
+            ProfileRequirements(
+                profile=CompatibilityProfile.STATEFUL_RUN,
+                required_invocation_modes=frozenset({InvocationMode.STREAMING}),
+                allowed_state_modes=frozenset({StateMode.ENDPOINT_CHECKPOINTED}),
+                limitations=(
+                    "The endpoint owns graph orchestration and checkpoint state.",
+                    "Interrupt and resume behavior is optional and must be selected explicitly.",
+                ),
+            ),
+        ),
+        limitations=(
+            "The integration is experimental.",
+            "Realtime speech-to-speech workflows bypass the text integration.",
             "Compatibility is based on contract behavior, not a specific LangGraph package version.",
         ),
     ),

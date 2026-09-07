@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { listLanggraphEndpointsApiV1LanggraphEndpointsGet, listLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGet } from '@/client/sdk.gen';
 import type { EndpointResponse, ValidationReportResponse } from '@/client/types.gen';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,12 +27,13 @@ export function transitionNameCollisions(labels: string[]) {
   return [...collisions];
 }
 
-export function LangGraphWorkflowConfiguration({ value, onChange, realtime = false, immutable = false, transitionLabels = [] }: { value?: LangGraphEndpointBinding | null; onChange: (value: LangGraphEndpointBinding | null) => void; realtime?: boolean; immutable?: boolean; transitionLabels?: string[] }) {
+export function LangGraphWorkflowConfiguration({ value, onChange, onCreateDraft, realtime = false, immutable = false, transitionLabels = [] }: { value?: LangGraphEndpointBinding | null; onChange: (value: LangGraphEndpointBinding | null) => void; onCreateDraft?: () => Promise<void>; realtime?: boolean; immutable?: boolean; transitionLabels?: string[] }) {
   const { user, loading: authLoading } = useAuth();
   const { langGraphEnabled } = useOrgConfig();
   const [endpoints, setEndpoints] = useState<EndpointResponse[]>([]);
   const [reports, setReports] = useState<Record<string, ValidationReportResponse>>({});
   const [error, setError] = useState<string | null>(null);
+  const [creatingDraft, setCreatingDraft] = useState(false);
   const collisions = useMemo(() => transitionNameCollisions(transitionLabels), [transitionLabels]);
 
   useEffect(() => { if (authLoading || !user || !langGraphEnabled) return; void (async () => { const response = await listLanggraphEndpointsApiV1LanggraphEndpointsGet(); if (response.error) { setError(detailFromError(response.error, 'Failed to load endpoints')); return; } setEndpoints((response.data ?? []).filter((endpoint) => endpoint.lifecycle_status === 'active')); })(); }, [authLoading, langGraphEnabled, user]);
@@ -50,13 +52,20 @@ export function LangGraphWorkflowConfiguration({ value, onChange, realtime = fal
     const modes = manifestArray(manifest, 'invocation_modes');
     if (!modes.includes('streaming')) { setError('This endpoint lacks streaming capability and cannot be used for live voice.'); return; }
     const evidence = report.evidence as Record<string, unknown>;
+    const compatibilityProfile = endpoint.selected_profile as 'chat' | 'stateful_run';
+    const stateMode = compatibilityProfile === 'stateful_run' ? 'endpoint_checkpointed' : 'mural_authoritative';
+    if (!manifestArray(manifest, 'state_modes').includes(stateMode)) {
+      setError(`The endpoint does not declare the required ${stateMode} state mode.`);
+      return;
+    }
+    const endpointOrchestrated = compatibilityProfile === 'stateful_run';
     onChange({
       registration_uuid: endpoint.endpoint_uuid,
       validation_report_uuid: report.report_uuid,
       validation_report_digest: report.report_digest,
       contract_version: report.contract_version,
-      compatibility_profile: endpoint.selected_profile as 'chat' | 'stateful_run',
-      state_mode: (manifestArray(manifest, 'state_modes')[0] ?? 'mural_authoritative') as 'mural_authoritative' | 'endpoint_checkpointed',
+      compatibility_profile: compatibilityProfile,
+      state_mode: stateMode,
       live_invocation_mode: 'streaming',
       non_conversational_modes: {},
       selected_capabilities: endpoint.selected_capabilities,
@@ -73,6 +82,7 @@ export function LangGraphWorkflowConfiguration({ value, onChange, realtime = fal
       evidence: {
         text_session_conformance: evidence.text_session_conformance === true,
         accepted_transition: evidence.accepted_transition === true,
+        endpoint_state_continuity: evidence.endpoint_state_continuity === true,
         cancellation_verified: evidence.cancellation_verified === true,
         recording_verified: evidence.recording_verified === true,
       },
@@ -80,17 +90,32 @@ export function LangGraphWorkflowConfiguration({ value, onChange, realtime = fal
       credential_reference: endpoint.credential.reference_id,
       operations: Object.fromEntries(Object.entries(manifestRecord(manifest, 'operations')).map(([key, item]) => [key, String(item)])),
       limits: Object.fromEntries(Object.entries(manifestRecord(manifest, 'limits')).filter(([, item]) => typeof item === 'number')) as Record<string, number>,
-      ownership: { prompts: 'mural', conversation_history: 'mural', transitions: 'mural', platform_tools: 'mural', endpoint_internal_tools: 'endpoint', telephony: 'mural', recordings: 'mural' },
+      ownership: endpointOrchestrated
+        ? { prompts: 'endpoint', conversation_history: 'endpoint', transitions: 'endpoint', platform_tools: 'mural', endpoint_internal_tools: 'endpoint', telephony: 'mural', recordings: 'mural' }
+        : { prompts: 'mural', conversation_history: 'mural', transitions: 'mural', platform_tools: 'mural', endpoint_internal_tools: 'endpoint', telephony: 'mural', recordings: 'mural' },
     });
+  };
+
+  const createDraft = async () => {
+    if (!onCreateDraft || creatingDraft) return;
+    setCreatingDraft(true);
+    setError(null);
+    try {
+      await onCreateDraft();
+    } catch (draftError) {
+      setError(draftError instanceof Error ? draftError.message : 'Failed to create an editable draft.');
+    } finally {
+      setCreatingDraft(false);
+    }
   };
 
   if (!langGraphEnabled) return null;
   const report = value ? reports[value.registration_uuid] : undefined;
   const hasEndpointInternalTools = value ? manifestArray(value.capability_snapshot, 'capabilities').includes('endpoint_internal_tools') || value.selected_capabilities.includes('endpoint_internal_tools') : false;
   return <section className="space-y-4 border-t pt-5" aria-label="Reasoning endpoint">
-    <div><div className="flex items-center gap-2"><h3 className="text-sm font-semibold">Reasoning endpoint</h3><Badge variant="secondary">Experimental</Badge></div><p className="text-xs text-muted-foreground">Attach a validated endpoint to workflow configuration—not to an individual node. Publishing creates a new immutable workflow version.</p></div>
+    <div><div className="flex items-center gap-2"><h3 className="text-sm font-semibold">Reasoning endpoint</h3><Badge variant="secondary">Experimental</Badge></div><p className="text-xs text-muted-foreground">Attach a validated endpoint at workflow scope. Stateful Run endpoints own their internal LangGraph orchestration; Dograh continues to own voice, media, and call controls.</p></div>
     {error && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{error}</div>}
-    {immutable && <p className="text-xs text-amber-600">Published versions are immutable. Create or edit a draft to change this binding.</p>}
+    {immutable && <div className="flex items-center justify-between gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3"><p className="text-xs text-amber-700 dark:text-amber-300">Published versions are immutable. Create a draft to attach or change the endpoint.</p>{onCreateDraft && <Button type="button" size="sm" variant="outline" disabled={creatingDraft} onClick={() => void createDraft()}>{creatingDraft ? 'Creating draft...' : 'Edit as draft'}</Button>}</div>}
     {realtime && <div role="alert" className="flex gap-2 rounded-md border border-destructive/40 p-3 text-xs text-destructive"><AlertTriangle className="h-4 w-4" />LangGraph chat endpoints are unavailable for realtime speech-to-speech workflows.</div>}
     <div className="space-y-2"><Label>Endpoint</Label><Select disabled={immutable || realtime} value={value?.registration_uuid ?? 'none'} onValueChange={(next) => void selectEndpoint(next)}><SelectTrigger><SelectValue placeholder="Use existing model reasoning" /></SelectTrigger><SelectContent><SelectItem value="none">Existing model reasoning</SelectItem>{endpoints.map((endpoint) => <SelectItem key={endpoint.endpoint_uuid} value={endpoint.endpoint_uuid}>{endpoint.name} · {endpoint.selected_profile}</SelectItem>)}</SelectContent></Select></div>
     {value && <div className="space-y-4 rounded-md border p-3">
@@ -102,6 +127,6 @@ export function LangGraphWorkflowConfiguration({ value, onChange, realtime = fal
       {hasEndpointInternalTools && <div className="rounded-md border p-3 text-xs">Endpoint-internal tools are endpoint-owned and outside Mural&apos;s authorization guarantee.</div>}
       {report && <p className="text-xs text-muted-foreground">Pinned report: {report.report_uuid}</p>}
     </div>}
-    {collisions.length > 0 && <div role="alert" className="rounded-md border border-destructive/40 p-3 text-xs text-destructive">Transition names collide after normalization: {collisions.join(', ')}. Rename the affected edges before publication.</div>}
+    {value?.compatibility_profile === 'chat' && collisions.length > 0 && <div role="alert" className="rounded-md border border-destructive/40 p-3 text-xs text-destructive">Transition names collide after normalization: {collisions.join(', ')}. Rename the affected edges before publication.</div>}
   </section>;
 }

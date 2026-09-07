@@ -254,6 +254,8 @@ import api.tasks.langgraph_validation as job_module
 from api.schemas.langgraph_integration import v1_0
 from api.schemas.langgraph_integration.examples import EXECUTABLE_EXAMPLES
 from api.services.langgraph_integration.conformance import ConformanceSuiteResult
+from api.services.langgraph_integration.conformance.live import LiveEndpointEvidence
+from api.services.langgraph_integration.conformance.platform import PlatformEvidence
 from api.services.langgraph_integration.contract import (
     MatrixVersion,
     ProfileRequirements,
@@ -428,6 +430,28 @@ def _install_harness(monkeypatch, harness):
         AsyncMock(return_value=LangGraphFeatureConfiguration()),
     )
     monkeypatch.setattr(job_module, "build_auth_header", lambda credential: {})
+    monkeypatch.setattr(
+        job_module,
+        "run_live_endpoint_evidence",
+        AsyncMock(
+            return_value=LiveEndpointEvidence(
+                text_session_conformance=True,
+                endpoint_state_continuity=False,
+                checks=(),
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        job_module,
+        "run_platform_evidence",
+        AsyncMock(
+            return_value=PlatformEvidence(
+                cancellation_verified=True,
+                recording_verified=True,
+                checks=(),
+            )
+        ),
+    )
 
 
 async def _run_enqueued_job(enqueue_mock, harness):
@@ -496,7 +520,11 @@ def test_validate_job_then_activate_succeeds_for_passing_manifest(monkeypatch):
     monkeypatch.setattr(
         job_module,
         "negotiate_capabilities",
-        lambda **_: SimpleNamespace(contract_version="1.1"),
+        lambda **_: SimpleNamespace(
+            contract_version="1.1",
+            invocation_modes=frozenset({"streaming"}),
+            features=frozenset(),
+        ),
     )
     monkeypatch.setattr(job_module, "run_suite", lambda: _suite_result(passed=True))
 
@@ -629,7 +657,11 @@ def test_revalidate_pending_endpoint_creates_new_report_for_corrected_manifest(
     monkeypatch.setattr(
         job_module,
         "negotiate_capabilities",
-        lambda **_: SimpleNamespace(contract_version="1.1"),
+        lambda **_: SimpleNamespace(
+            contract_version="1.1",
+            invocation_modes=frozenset({"streaming"}),
+            features=frozenset(),
+        ),
     )
     monkeypatch.setattr(job_module, "run_suite", lambda: _suite_result(passed=True))
 

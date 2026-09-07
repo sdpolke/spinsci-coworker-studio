@@ -3755,6 +3755,10 @@ export type LangGraphEligibilityEvidence = {
      */
     accepted_transition?: boolean;
     /**
+     * Endpoint State Continuity
+     */
+    endpoint_state_continuity?: boolean;
+    /**
      * Cancellation Verified
      */
     cancellation_verified?: boolean;

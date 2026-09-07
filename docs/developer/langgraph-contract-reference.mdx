@@ -13,8 +13,9 @@ The complete generated schema and policy inventory is available in [`langgraph-c
 
 | Contract | Documentation | Mural releases |
 | --- | --- | --- |
-| `1.0` | `2026-01` | `1.44.0` |
-| `1.1` | `2026-01` | `1.44.0` |
+| `1.0` | `2026-02` | `1.44.0`, `1.44.0` |
+| `1.1` | `2026-02` | `1.44.0`, `1.44.0` |
+| `1.2` | `2026-02` | `1.44.0` |
 
 Prior contract versions remain present in this artifact when a compatible minor is added.
 
@@ -22,6 +23,8 @@ Prior contract versions remain present in this artifact when a compatible minor 
 
 | Profile | Required invocation modes | Allowed state modes |
 | --- | --- | --- |
+| `chat` | `streaming` | `mural_authoritative` |
+| `stateful_run` | `streaming` | `endpoint_checkpointed` |
 | `chat` | `streaming` | `mural_authoritative` |
 | `stateful_run` | `streaming` | `endpoint_checkpointed` |
 
@@ -62,7 +65,7 @@ Publication is blocked unless every example below validates against every contra
 
 ### Sync — contract 1.0
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: Exactly one completed assistant result is accepted.
+Validated at `2026-02-15T00:00:00Z`. Expected result: Exactly one completed assistant result is accepted.
 
 ```json
 [
@@ -121,7 +124,7 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: Exactly one completed assi
 ```
 ### Sync — contract 1.1
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: Exactly one completed assistant result is accepted.
+Validated at `2026-02-15T00:00:00Z`. Expected result: Exactly one completed assistant result is accepted.
 
 ```json
 [
@@ -180,9 +183,70 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: Exactly one completed assi
   }
 ]
 ```
+### Sync — contract 1.2
+
+Validated at `2026-02-15T00:00:00Z`. Expected result: Exactly one completed assistant result is accepted.
+
+```json
+[
+  {
+    "payload": {
+      "attempt_id": "att_example",
+      "context": {},
+      "contract_version": "1.2",
+      "deadlines": {
+        "first_event_ms": 1500,
+        "turn_ms": 10000
+      },
+      "invocation_id": "inv_example",
+      "locale": "en-US",
+      "messages": [
+        {
+          "content": [
+            {
+              "text": "Help the caller",
+              "type": "text"
+            }
+          ],
+          "role": "system"
+        }
+      ],
+      "mode": "synchronous",
+      "operation": "invoke",
+      "state_mode": "mural_authoritative",
+      "tools": [],
+      "trace": {},
+      "voice_run_id": "run_example",
+      "workflow_version_id": "wf_1"
+    },
+    "schema": "invocation"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "invocation_id": "inv_example",
+      "response_id": "response_example",
+      "result": {
+        "message": {
+          "content": [
+            {
+              "text": "I can help.",
+              "type": "text"
+            }
+          ],
+          "role": "assistant"
+        },
+        "status": "completed",
+        "type": "assistant"
+      }
+    },
+    "schema": "synchronous_response"
+  }
+]
+```
 ### Stream — contract 1.0
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: One text event is accepted before exactly one terminal completion.
+Validated at `2026-02-15T00:00:00Z`. Expected result: One text event is accepted before exactly one terminal completion.
 
 ```json
 [
@@ -247,7 +311,7 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: One text event is accepted
 ```
 ### Stream — contract 1.1
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: One text event is accepted before exactly one terminal completion.
+Validated at `2026-02-15T00:00:00Z`. Expected result: One text event is accepted before exactly one terminal completion.
 
 ```json
 [
@@ -313,9 +377,77 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: One text event is accepted
   }
 ]
 ```
+### Stream — contract 1.2
+
+Validated at `2026-02-15T00:00:00Z`. Expected result: One text event is accepted before exactly one terminal completion.
+
+```json
+[
+  {
+    "payload": {
+      "attempt_id": "att_example",
+      "context": {},
+      "contract_version": "1.2",
+      "deadlines": {
+        "first_event_ms": 1500,
+        "turn_ms": 10000
+      },
+      "invocation_id": "inv_example",
+      "locale": "en-US",
+      "messages": [
+        {
+          "content": [
+            {
+              "text": "Help the caller",
+              "type": "text"
+            }
+          ],
+          "role": "system"
+        }
+      ],
+      "mode": "streaming",
+      "operation": "invoke",
+      "state_mode": "mural_authoritative",
+      "tools": [],
+      "trace": {},
+      "voice_run_id": "run_example",
+      "workflow_version_id": "wf_1"
+    },
+    "schema": "invocation"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "data": {
+        "text": "Hello"
+      },
+      "event_id": "evt_text",
+      "invocation_id": "inv_example",
+      "sequence": 0,
+      "timestamp_ms": 0,
+      "type": "text_delta"
+    },
+    "schema": "runtime_event"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "data": {
+        "status": "completed"
+      },
+      "event_id": "evt_done",
+      "invocation_id": "inv_example",
+      "sequence": 1,
+      "timestamp_ms": 1,
+      "type": "completed"
+    },
+    "schema": "runtime_event"
+  }
+]
+```
 ### Async — contract 1.0
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: One non-empty external run ID is accepted and authenticated status reaches one terminal assistant result.
+Validated at `2026-02-15T00:00:00Z`. Expected result: One non-empty external run ID is accepted and authenticated status reaches one terminal assistant result.
 
 ```json
 [
@@ -386,7 +518,7 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: One non-empty external run
 ```
 ### Async — contract 1.1
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: One non-empty external run ID is accepted and authenticated status reaches one terminal assistant result.
+Validated at `2026-02-15T00:00:00Z`. Expected result: One non-empty external run ID is accepted and authenticated status reaches one terminal assistant result.
 
 ```json
 [
@@ -457,9 +589,82 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: One non-empty external run
   }
 ]
 ```
+### Async — contract 1.2
+
+Validated at `2026-02-15T00:00:00Z`. Expected result: One non-empty external run ID is accepted and authenticated status reaches one terminal assistant result.
+
+```json
+[
+  {
+    "payload": {
+      "attempt_id": "att_example",
+      "context": {},
+      "contract_version": "1.2",
+      "deadlines": {
+        "first_event_ms": 1500,
+        "turn_ms": 10000
+      },
+      "invocation_id": "inv_example",
+      "locale": "en-US",
+      "messages": [
+        {
+          "content": [
+            {
+              "text": "Help the caller",
+              "type": "text"
+            }
+          ],
+          "role": "system"
+        }
+      ],
+      "mode": "asynchronous",
+      "operation": "invoke",
+      "state_mode": "mural_authoritative",
+      "tools": [],
+      "trace": {},
+      "voice_run_id": "run_example",
+      "workflow_version_id": "wf_1"
+    },
+    "schema": "invocation"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "external_run_id": "external_run_example",
+      "invocation_id": "inv_example",
+      "poll_after_ms": 250,
+      "status": "accepted"
+    },
+    "schema": "asynchronous_acceptance"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "external_run_id": "external_run_example",
+      "invocation_id": "inv_example",
+      "operation": "status",
+      "result": {
+        "message": {
+          "content": [
+            {
+              "text": "I can help.",
+              "type": "text"
+            }
+          ],
+          "role": "assistant"
+        },
+        "status": "completed",
+        "type": "assistant"
+      },
+      "status": "completed"
+    },
+    "schema": "status"
+  }
+]
+```
 ### Tool — contract 1.0
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: One declared Tool Call is assembled from ordered fragments before terminal completion.
+Validated at `2026-02-15T00:00:00Z`. Expected result: One declared Tool Call is assembled from ordered fragments before terminal completion.
 
 ```json
 [
@@ -641,7 +846,7 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: One declared Tool Call is 
 ```
 ### Tool — contract 1.1
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: One declared Tool Call is assembled from ordered fragments before terminal completion.
+Validated at `2026-02-15T00:00:00Z`. Expected result: One declared Tool Call is assembled from ordered fragments before terminal completion.
 
 ```json
 [
@@ -827,9 +1032,197 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: One declared Tool Call is 
   }
 ]
 ```
+### Tool — contract 1.2
+
+Validated at `2026-02-15T00:00:00Z`. Expected result: One declared Tool Call is assembled from ordered fragments before terminal completion.
+
+```json
+[
+  {
+    "payload": {
+      "attempt_id": "att_example",
+      "context": {},
+      "contract_version": "1.2",
+      "deadlines": {
+        "first_event_ms": 1500,
+        "turn_ms": 10000
+      },
+      "invocation_id": "inv_example",
+      "locale": "en-US",
+      "messages": [
+        {
+          "content": [
+            {
+              "text": "Help the caller",
+              "type": "text"
+            }
+          ],
+          "role": "system"
+        }
+      ],
+      "mode": "streaming",
+      "operation": "invoke",
+      "state_mode": "mural_authoritative",
+      "tools": [
+        {
+          "authorization": "current_node",
+          "description": "Look up an account owned by the current tenant.",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "account_id"
+            ],
+            "type": "object"
+          },
+          "name": "lookup_account",
+          "owner": "mural_platform"
+        }
+      ],
+      "trace": {},
+      "voice_run_id": "run_example",
+      "workflow_version_id": "wf_1"
+    },
+    "schema": "invocation"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "data": {
+        "name": "lookup_account",
+        "tool_call_id": "call_1"
+      },
+      "event_id": "evt_tool_start",
+      "invocation_id": "inv_example",
+      "sequence": 0,
+      "timestamp_ms": 0,
+      "type": "tool_call_start"
+    },
+    "schema": "runtime_event"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "data": {
+        "fragment": "{\"account_id\":\"A-1\"}",
+        "tool_call_id": "call_1"
+      },
+      "event_id": "evt_tool_delta",
+      "invocation_id": "inv_example",
+      "sequence": 1,
+      "timestamp_ms": 1,
+      "type": "tool_call_delta"
+    },
+    "schema": "runtime_event"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "data": {
+        "tool_call_id": "call_1"
+      },
+      "event_id": "evt_tool_end",
+      "invocation_id": "inv_example",
+      "sequence": 2,
+      "timestamp_ms": 2,
+      "type": "tool_call_end"
+    },
+    "schema": "runtime_event"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "data": {
+        "status": "completed"
+      },
+      "event_id": "evt_tool_done",
+      "invocation_id": "inv_example",
+      "sequence": 3,
+      "timestamp_ms": 3,
+      "type": "completed"
+    },
+    "schema": "runtime_event"
+  },
+  {
+    "payload": {
+      "attempt_id": "att_example_after_tool",
+      "context": {},
+      "contract_version": "1.2",
+      "deadlines": {
+        "first_event_ms": 1500,
+        "turn_ms": 10000
+      },
+      "invocation_id": "inv_example",
+      "locale": "en-US",
+      "messages": [
+        {
+          "content": [
+            {
+              "text": "Help the caller",
+              "type": "text"
+            }
+          ],
+          "role": "system"
+        },
+        {
+          "content": [
+            {
+              "text": "{\"account_id\":\"A-1\"}",
+              "type": "text"
+            }
+          ],
+          "role": "tool_call",
+          "tool_call_id": "call_1"
+        },
+        {
+          "content": [
+            {
+              "text": "{\"status\":\"found\"}",
+              "type": "text"
+            }
+          ],
+          "role": "tool_result",
+          "tool_call_id": "call_1"
+        }
+      ],
+      "mode": "streaming",
+      "operation": "invoke",
+      "state_mode": "mural_authoritative",
+      "tools": [
+        {
+          "authorization": "current_node",
+          "description": "Look up an account owned by the current tenant.",
+          "input_schema": {
+            "additionalProperties": false,
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "account_id"
+            ],
+            "type": "object"
+          },
+          "name": "lookup_account",
+          "owner": "mural_platform"
+        }
+      ],
+      "trace": {},
+      "voice_run_id": "run_example",
+      "workflow_version_id": "wf_1"
+    },
+    "schema": "invocation"
+  }
+]
+```
 ### Error — contract 1.0
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: One structured overloaded error terminates the invocation without state progression.
+Validated at `2026-02-15T00:00:00Z`. Expected result: One structured overloaded error terminates the invocation without state progression.
 
 ```json
 [
@@ -883,7 +1276,7 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: One structured overloaded 
 ```
 ### Error — contract 1.1
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: One structured overloaded error terminates the invocation without state progression.
+Validated at `2026-02-15T00:00:00Z`. Expected result: One structured overloaded error terminates the invocation without state progression.
 
 ```json
 [
@@ -937,9 +1330,65 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: One structured overloaded 
   }
 ]
 ```
+### Error — contract 1.2
+
+Validated at `2026-02-15T00:00:00Z`. Expected result: One structured overloaded error terminates the invocation without state progression.
+
+```json
+[
+  {
+    "payload": {
+      "attempt_id": "att_example",
+      "context": {},
+      "contract_version": "1.2",
+      "deadlines": {
+        "first_event_ms": 1500,
+        "turn_ms": 10000
+      },
+      "invocation_id": "inv_example",
+      "locale": "en-US",
+      "messages": [
+        {
+          "content": [
+            {
+              "text": "Help the caller",
+              "type": "text"
+            }
+          ],
+          "role": "system"
+        }
+      ],
+      "mode": "streaming",
+      "operation": "invoke",
+      "state_mode": "mural_authoritative",
+      "tools": [],
+      "trace": {},
+      "voice_run_id": "run_example",
+      "workflow_version_id": "wf_1"
+    },
+    "schema": "invocation"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "data": {
+        "category": "overloaded",
+        "code": "capacity",
+        "retryable": true
+      },
+      "event_id": "evt_error",
+      "invocation_id": "inv_example",
+      "sequence": 0,
+      "timestamp_ms": 0,
+      "type": "error"
+    },
+    "schema": "runtime_event"
+  }
+]
+```
 ### Cancel — contract 1.0
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: The idempotent cancellation request returns a cancelled terminal status.
+Validated at `2026-02-15T00:00:00Z`. Expected result: The idempotent cancellation request returns a cancelled terminal status.
 
 ```json
 [
@@ -964,7 +1413,7 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: The idempotent cancellatio
 ```
 ### Cancel — contract 1.1
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: The idempotent cancellation request returns a cancelled terminal status.
+Validated at `2026-02-15T00:00:00Z`. Expected result: The idempotent cancellation request returns a cancelled terminal status.
 
 ```json
 [
@@ -988,9 +1437,34 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: The idempotent cancellatio
   }
 ]
 ```
+### Cancel — contract 1.2
+
+Validated at `2026-02-15T00:00:00Z`. Expected result: The idempotent cancellation request returns a cancelled terminal status.
+
+```json
+[
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "invocation_id": "inv_example",
+      "operation": "cancel",
+      "reason": "caller_barge_in"
+    },
+    "schema": "cancellation_request"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "invocation_id": "inv_example",
+      "status": "cancelled"
+    },
+    "schema": "cancellation_response"
+  }
+]
+```
 ### Interrupt — contract 1.0
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: A complete Endpoint Interrupt pauses execution with allowed decisions and an expiring checkpoint reference.
+Validated at `2026-02-15T00:00:00Z`. Expected result: A complete Endpoint Interrupt pauses execution with allowed decisions and an expiring checkpoint reference.
 
 ```json
 [
@@ -1049,7 +1523,7 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: A complete Endpoint Interr
 ```
 ### Interrupt — contract 1.1
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: A complete Endpoint Interrupt pauses execution with allowed decisions and an expiring checkpoint reference.
+Validated at `2026-02-15T00:00:00Z`. Expected result: A complete Endpoint Interrupt pauses execution with allowed decisions and an expiring checkpoint reference.
 
 ```json
 [
@@ -1108,9 +1582,70 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: A complete Endpoint Interr
   }
 ]
 ```
+### Interrupt — contract 1.2
+
+Validated at `2026-02-15T00:00:00Z`. Expected result: A complete Endpoint Interrupt pauses execution with allowed decisions and an expiring checkpoint reference.
+
+```json
+[
+  {
+    "payload": {
+      "attempt_id": "att_example",
+      "context": {},
+      "contract_version": "1.2",
+      "deadlines": {
+        "first_event_ms": 1500,
+        "turn_ms": 10000
+      },
+      "invocation_id": "inv_example",
+      "locale": "en-US",
+      "messages": [
+        {
+          "content": [
+            {
+              "text": "Help the caller",
+              "type": "text"
+            }
+          ],
+          "role": "system"
+        }
+      ],
+      "mode": "streaming",
+      "operation": "invoke",
+      "state_mode": "mural_authoritative",
+      "tools": [],
+      "trace": {},
+      "voice_run_id": "run_example",
+      "workflow_version_id": "wf_1"
+    },
+    "schema": "invocation"
+  },
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "data": {
+        "allowed_decisions": [
+          "approve",
+          "reject"
+        ],
+        "checkpoint_reference": "checkpoint_example",
+        "expires_at": "2026-01-15T00:05:00Z",
+        "interrupt_type": "approval",
+        "reason": "Approve the high-impact action."
+      },
+      "event_id": "evt_interrupt",
+      "invocation_id": "inv_example",
+      "sequence": 0,
+      "timestamp_ms": 0,
+      "type": "interrupt"
+    },
+    "schema": "runtime_event"
+  }
+]
+```
 ### Resume — contract 1.0
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: A new Invocation ID resumes the prior invocation from its opaque checkpoint using an allowed decision.
+Validated at `2026-02-15T00:00:00Z`. Expected result: A new Invocation ID resumes the prior invocation from its opaque checkpoint using an allowed decision.
 
 ```json
 [
@@ -1135,7 +1670,7 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: A new Invocation ID resume
 ```
 ### Resume — contract 1.1
 
-Validated at `2026-01-15T00:00:00Z`. Expected result: A new Invocation ID resumes the prior invocation from its opaque checkpoint using an allowed decision.
+Validated at `2026-02-15T00:00:00Z`. Expected result: A new Invocation ID resumes the prior invocation from its opaque checkpoint using an allowed decision.
 
 ```json
 [
@@ -1149,6 +1684,31 @@ Validated at `2026-01-15T00:00:00Z`. Expected result: A new Invocation ID resume
       "metadata": {
         "review_source": "operator"
       },
+      "operation": "resume",
+      "prior_invocation_id": "inv_example",
+      "state": {
+        "checkpoint_reference": "checkpoint_example",
+        "thread_id": "thread_example"
+      },
+      "voice_run_id": "run_example"
+    },
+    "schema": "resume"
+  }
+]
+```
+### Resume — contract 1.2
+
+Validated at `2026-02-15T00:00:00Z`. Expected result: A new Invocation ID resumes the prior invocation from its opaque checkpoint using an allowed decision.
+
+```json
+[
+  {
+    "payload": {
+      "contract_version": "1.2",
+      "decision": {
+        "type": "approve"
+      },
+      "invocation_id": "inv_resume_example",
       "operation": "resume",
       "prior_invocation_id": "inv_example",
       "state": {

@@ -27,6 +27,7 @@ interface ConfigurationsDialogProps {
     workflowConfigurations: WorkflowConfigurations | null;
     workflowName: string;
     onSave: (configurations: WorkflowConfigurations, workflowName: string) => Promise<void>;
+    onCreateDraft?: () => Promise<void>;
     immutable?: boolean;
     transitionLabels?: string[];
 }
@@ -37,6 +38,7 @@ export const ConfigurationsDialog = ({
     workflowConfigurations,
     workflowName,
     onSave,
+    onCreateDraft,
     immutable = false,
     transitionLabels = [],
 }: ConfigurationsDialogProps) => {
@@ -505,6 +507,7 @@ export const ConfigurationsDialog = ({
                         <LangGraphWorkflowConfiguration
                             value={langGraphEndpoint}
                             onChange={setLangGraphEndpoint}
+                            onCreateDraft={onCreateDraft}
                             realtime={resolvedWorkflowConfigurations.model_overrides?.is_realtime === true}
                             immutable={immutable}
                             transitionLabels={transitionLabels}

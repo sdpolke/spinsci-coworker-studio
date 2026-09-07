@@ -4,9 +4,9 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
-from . import v1_0, v1_1
+from . import v1_0, v1_1, v1_2
 
-SUPPORTED_SCHEMA_VERSIONS = (v1_0.V1_0, v1_1.V1_1)
+SUPPORTED_SCHEMA_VERSIONS = (v1_0.V1_0, v1_1.V1_1, v1_2.V1_2)
 
 _SCHEMA_REGISTRY: dict[str, dict[str, type[BaseModel]]] = {
     "1.0": {
@@ -32,6 +32,18 @@ _SCHEMA_REGISTRY: dict[str, dict[str, type[BaseModel]]] = {
         "cancellation_response": v1_1.CancellationResponse,
         "resume": v1_1.ResumeRequest,
         "health": v1_1.HealthResponse,
+    },
+    "1.2": {
+        "manifest": v1_2.CapabilityManifest,
+        "invocation": v1_2.InvocationRequest,
+        "synchronous_response": v1_2.SynchronousResponse,
+        "asynchronous_acceptance": v1_2.AsynchronousAcceptance,
+        "status": v1_2.StatusResponse,
+        "runtime_event": v1_2.RuntimeEventEnvelope,
+        "cancellation_request": v1_2.CancellationRequest,
+        "cancellation_response": v1_2.CancellationResponse,
+        "resume": v1_2.ResumeRequest,
+        "health": v1_2.HealthResponse,
     },
 }
 
@@ -64,5 +76,6 @@ __all__ = [
     "schema_operations",
     "v1_0",
     "v1_1",
+    "v1_2",
     "validate_payload",
 ]

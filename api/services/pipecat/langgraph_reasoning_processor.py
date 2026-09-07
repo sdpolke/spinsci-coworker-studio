@@ -123,6 +123,7 @@ class LangGraphReasoningProcessor(LLMService):
         self.turn_deadline_ms = turn_deadline_ms
         self.invocation_mode = invocation_mode
         self._active_invocation: _ActiveInvocation | None = None
+        self._endpoint_state: dict[str, str] = {}
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         cancellation = self._accept_active_cancellation(
@@ -270,6 +271,12 @@ class LangGraphReasoningProcessor(LLMService):
             raise PermissionError("endpoint snapshot is not owned by Voice Run organization")
         if state.registration_id != self.endpoint_snapshot.registration_id:
             raise PermissionError("endpoint snapshot does not match pinned registration")
+        if state.state_mode == "endpoint_checkpointed":
+            state = replace(
+                state,
+                tools=(),
+                endpoint_state={**state.endpoint_state, **self._endpoint_state},
+            )
 
         invocation_id = f"inv_{uuid.uuid4().hex}"
         attempt_id = f"att_{uuid.uuid4().hex}"
@@ -279,6 +286,15 @@ class LangGraphReasoningProcessor(LLMService):
             sharing=self.sharing_policy,
             redaction=self.redaction_policy,
         )
+        if (
+            state.state_mode == "endpoint_checkpointed"
+            and not reasoning_request.messages
+        ):
+            logger.debug(
+                "Skipping endpoint-checkpointed LangGraph invocation until caller or "
+                "tool input is available"
+            )
+            return
         request = {
             **reasoning_request.to_wire(),
             "messages": _contract_messages(reasoning_request.messages),
@@ -319,6 +335,19 @@ class LangGraphReasoningProcessor(LLMService):
                 cancellation=cancellation,
                 trace_context=trace_context,
             ):
+                if (
+                    getattr(accepted.event, "type", None) == "checkpoint"
+                    and cancellation.forwarding_allowed()
+                ):
+                    identifiers = accepted.event.data.model_dump(
+                        mode="json", exclude_none=True
+                    )
+                    await self.adapter.reconcile_endpoint_state(
+                        state=replace(state, trace_id=trace_context.trace_id),
+                        claimed_voice_run_id=state.voice_run_id,
+                        identifiers=identifiers,
+                    )
+                    self._endpoint_state.update(identifiers)
                 if not cancellation.forwarding_allowed() or not accepted.speakable_text:
                     continue
                 if first_text:

@@ -1,5 +1,4 @@
 import asyncio
-import asyncio
 import hashlib
 import time
 from dataclasses import dataclass, field
@@ -33,6 +32,14 @@ from pipecat.utils.run_context import set_current_org_id
 from api.db import db_client
 from api.enums import WorkflowRunMode, WorkflowRunState
 from api.services.configuration.registry import ServiceProviders
+from api.services.langgraph_integration.configuration import (
+    get_langgraph_feature_configuration,
+)
+from api.services.langgraph_integration.gateway import (
+    DatabaseCredentialResolver,
+    IntegrationGateway,
+    RuntimeEndpointSnapshot,
+)
 from api.services.pipecat.audio_config import create_audio_config
 from api.services.pipecat.pipeline_builder import create_pipeline_task
 from api.services.pipecat.pipeline_metrics_aggregator import (
@@ -49,11 +56,8 @@ from api.services.pipecat.worker_runner import (
     run_pipeline_worker,
     wait_for_pipeline_worker_started,
 )
-from api.services.langgraph_integration.gateway import (
-    DatabaseCredentialResolver,
-    IntegrationGateway,
-    RuntimeEndpointSnapshot,
-)
+from api.services.workflow.dto import ReactFlowDTO
+from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.langgraph_adapter import (
     PinnedReasoningState,
     WorkflowAdapter,
@@ -63,10 +67,8 @@ from api.services.workflow.langgraph_binding import parse_langgraph_binding
 from api.services.workflow.langgraph_text_preflight import (
     execute_langgraph_text_preflight,
 )
-from api.services.workflow.reasoning import ReasoningMessage
-from api.services.workflow.dto import ReactFlowDTO
-from api.services.workflow.initial_context import merge_external_initial_context
 from api.services.workflow.pipecat_engine import PipecatEngine
+from api.services.workflow.reasoning import ReasoningMessage
 from api.services.workflow.workflow_graph import WorkflowGraph
 
 TEXT_CHAT_CHECKPOINT_VERSION = 1
@@ -469,13 +471,18 @@ async def _execute_langgraph_pending_turn(
 ) -> TextChatTurnExecutionResult:
     current_node_id = base_checkpoint.get("current_node_id") or workflow_graph.start_node_id
     node = workflow_graph.nodes[current_node_id]
-    tools = transition_tools_for_node(
-        edges=node.out_edges,
-        node_id=node.id,
-        workflow_version_id=str(workflow_run.definition_id),
-        organization_id=workflow.organization_id,
-        voice_run_id=str(workflow_run.id),
-        registration_id=binding.registration_uuid,
+    endpoint_checkpointed = binding.state_mode == "endpoint_checkpointed"
+    tools = (
+        ()
+        if endpoint_checkpointed
+        else transition_tools_for_node(
+            edges=node.out_edges,
+            node_id=node.id,
+            workflow_version_id=str(workflow_run.definition_id),
+            organization_id=workflow.organization_id,
+            voice_run_id=str(workflow_run.id),
+            registration_id=binding.registration_uuid,
+        )
     )
     state = PinnedReasoningState(
         organization_id=workflow.organization_id,
@@ -484,14 +491,19 @@ async def _execute_langgraph_pending_turn(
         registration_id=binding.registration_uuid,
         contract_version=binding.contract_version,
         active_node_id=node.id,
-        node_prompt=node.prompt or "",
+        node_prompt="" if endpoint_checkpointed else (node.prompt or ""),
         history=_checkpoint_reasoning_history(base_checkpoint, pending_user_message),
         tools=tools,
         state_mode=binding.state_mode,
         context=initial_context,
-        endpoint_state=base_checkpoint.get("tool_state") or {},
+        endpoint_state=(
+            base_checkpoint.get("endpoint_state")
+            or base_checkpoint.get("tool_state")
+            or {}
+        ),
     )
     limits = binding.limits
+    feature = await get_langgraph_feature_configuration(workflow.organization_id)
     snapshot = RuntimeEndpointSnapshot(
         organization_id=workflow.organization_id,
         registration_id=binding.registration_uuid,
@@ -507,6 +519,7 @@ async def _execute_langgraph_pending_turn(
         stateful_profile=binding.compatibility_profile == "stateful_run",
         interrupts_selected="interrupts" in binding.selected_capabilities,
         cancellation_declared="cancellation" in binding.selected_capabilities,
+        private_network_enabled=feature.private_network_enabled,
     )
     result = await execute_langgraph_text_preflight(
         state=state,
@@ -536,6 +549,7 @@ async def _execute_langgraph_pending_turn(
         "anchor_turn_id": pending_turn.get("id"),
         "current_node_id": result.state.active_node_id,
         "messages": checkpoint_messages,
+        "endpoint_state": dict(result.state.endpoint_state),
     }
     return TextChatTurnExecutionResult(
         assistant_text=result.assistant_text,

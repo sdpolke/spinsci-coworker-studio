@@ -17,6 +17,7 @@ def create_langgraph_reasoning_processor(
     state_factory,
     credential_resolver,
     invocation_mode: str = "streaming",
+    private_network_enabled: bool = False,
 ):
     """Create the remote reasoner only after runtime eligibility is established."""
     from api.services.langgraph_integration.gateway import (
@@ -46,6 +47,7 @@ def create_langgraph_reasoning_processor(
         stateful_profile=binding.compatibility_profile == "stateful_run",
         interrupts_selected="interrupts" in binding.selected_capabilities,
         cancellation_declared="cancellation" in binding.selected_capabilities,
+        private_network_enabled=private_network_enabled,
     )
     allowed_context = binding.data_sharing_policy.get("context_fields", ())
     return LangGraphReasoningProcessor(

@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../pipecat-langgraph-example"
+		}
+	],
+	"settings": {}
+}

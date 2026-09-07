@@ -7,10 +7,18 @@ workflow-completion job is enqueued so QA and webhooks see the artifacts
 in storage.
 """
 
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
+from typing import Any
+
 from loguru import logger
 
 from api.db import db_client
 from api.services.storage import get_current_storage_backend, storage_fs
+
+CreateFile = Callable[[str, bytes], Awaitable[bool]]
+UpdateWorkflowRun = Callable[..., Awaitable[Any]]
 
 
 def _recording_metadata(storage_key: str, storage_backend: str, track: str) -> dict:
@@ -27,10 +35,12 @@ async def _upload_bytes(
     data: bytes,
     storage_key: str,
     label: str,
+    *,
+    create_file: CreateFile,
 ) -> bool:
     try:
         logger.debug(f"{label} size: {len(data)} bytes")
-        if await storage_fs.acreate_file_from_bytes(storage_key, data):
+        if await create_file(storage_key, data):
             logger.info(f"Successfully uploaded {label}: {storage_key}")
             return True
         logger.error(
@@ -38,9 +48,90 @@ async def _upload_bytes(
             f"{workflow_run_id}: {storage_key}"
         )
         return False
-    except Exception as e:
-        logger.error(f"Error uploading {label} for workflow {workflow_run_id}: {e}")
+    except Exception as exc:  # noqa: BLE001 - one artifact must not block the others
+        logger.error(f"Error uploading {label} for workflow {workflow_run_id}: {exc}")
         return False
+
+
+async def persist_workflow_run_artifacts(
+    workflow_run_id: int,
+    *,
+    storage_backend_name: str,
+    storage_backend_value: str,
+    create_file: CreateFile,
+    update_workflow_run: UpdateWorkflowRun,
+    mixed_audio_wav: bytes | None = None,
+    user_audio_wav: bytes | None = None,
+    bot_audio_wav: bytes | None = None,
+    transcript_text: str | None = None,
+) -> None:
+    """Persist artifacts through explicit dependencies for runtime use and probes."""
+
+    recordings_metadata: dict[str, dict] = {}
+
+    if mixed_audio_wav:
+        recording_url = f"recordings/{workflow_run_id}.wav"
+        logger.info(
+            f"Uploading mixed audio to {storage_backend_name} - workflow_run_id: {workflow_run_id}"
+        )
+        if await _upload_bytes(
+            workflow_run_id,
+            mixed_audio_wav,
+            recording_url,
+            "mixed audio",
+            create_file=create_file,
+        ):
+            recordings_metadata["mixed"] = _recording_metadata(
+                recording_url, storage_backend_value, "mixed"
+            )
+            await update_workflow_run(
+                run_id=workflow_run_id,
+                recording_url=recording_url,
+                storage_backend=storage_backend_value,
+            )
+
+    for track, data in (("user", user_audio_wav), ("bot", bot_audio_wav)):
+        if not data:
+            continue
+        recording_url = f"recordings/{workflow_run_id}/{track}.wav"
+        logger.info(
+            f"Uploading {track} audio to {storage_backend_name} - workflow_run_id: {workflow_run_id}"
+        )
+        if await _upload_bytes(
+            workflow_run_id,
+            data,
+            recording_url,
+            f"{track} audio",
+            create_file=create_file,
+        ):
+            recordings_metadata[track] = _recording_metadata(
+                recording_url, storage_backend_value, track
+            )
+
+    if recordings_metadata:
+        await update_workflow_run(
+            run_id=workflow_run_id,
+            storage_backend=storage_backend_value,
+            extra={"recordings": recordings_metadata},
+        )
+
+    if transcript_text:
+        transcript_url = f"transcripts/{workflow_run_id}.txt"
+        logger.info(
+            f"Uploading transcript to {storage_backend_name} - workflow_run_id: {workflow_run_id}"
+        )
+        if await _upload_bytes(
+            workflow_run_id,
+            transcript_text.encode("utf-8"),
+            transcript_url,
+            "transcript",
+            create_file=create_file,
+        ):
+            await update_workflow_run(
+                run_id=workflow_run_id,
+                transcript_url=transcript_url,
+                storage_backend=storage_backend_value,
+            )
 
 
 async def upload_workflow_run_artifacts(
@@ -51,76 +142,17 @@ async def upload_workflow_run_artifacts(
     bot_audio_wav: bytes | None = None,
     transcript_text: str | None = None,
 ) -> None:
-    """Upload call artifacts to object storage and persist their metadata.
+    """Upload call artifacts to object storage and persist their metadata."""
 
-    Each artifact is uploaded independently; a failure is logged and the
-    remaining artifacts are still attempted.
-    """
     storage_backend = get_current_storage_backend()
-
-    recordings_metadata: dict[str, dict] = {}
-
-    if mixed_audio_wav:
-        recording_url = f"recordings/{workflow_run_id}.wav"
-        logger.info(
-            f"Uploading mixed audio to {storage_backend.name} - workflow_run_id: {workflow_run_id}"
-        )
-        if await _upload_bytes(
-            workflow_run_id, mixed_audio_wav, recording_url, "mixed audio"
-        ):
-            recordings_metadata["mixed"] = _recording_metadata(
-                recording_url, storage_backend.value, "mixed"
-            )
-            await db_client.update_workflow_run(
-                run_id=workflow_run_id,
-                recording_url=recording_url,
-                storage_backend=storage_backend.value,
-            )
-
-    if user_audio_wav:
-        user_recording_url = f"recordings/{workflow_run_id}/user.wav"
-        logger.info(
-            f"Uploading user audio to {storage_backend.name} - workflow_run_id: {workflow_run_id}"
-        )
-        if await _upload_bytes(
-            workflow_run_id, user_audio_wav, user_recording_url, "user audio"
-        ):
-            recordings_metadata["user"] = _recording_metadata(
-                user_recording_url, storage_backend.value, "user"
-            )
-
-    if bot_audio_wav:
-        bot_recording_url = f"recordings/{workflow_run_id}/bot.wav"
-        logger.info(
-            f"Uploading bot audio to {storage_backend.name} - workflow_run_id: {workflow_run_id}"
-        )
-        if await _upload_bytes(
-            workflow_run_id, bot_audio_wav, bot_recording_url, "bot audio"
-        ):
-            recordings_metadata["bot"] = _recording_metadata(
-                bot_recording_url, storage_backend.value, "bot"
-            )
-
-    if recordings_metadata:
-        await db_client.update_workflow_run(
-            run_id=workflow_run_id,
-            storage_backend=storage_backend.value,
-            extra={"recordings": recordings_metadata},
-        )
-
-    if transcript_text:
-        transcript_url = f"transcripts/{workflow_run_id}.txt"
-        logger.info(
-            f"Uploading transcript to {storage_backend.name} - workflow_run_id: {workflow_run_id}"
-        )
-        if await _upload_bytes(
-            workflow_run_id,
-            transcript_text.encode("utf-8"),
-            transcript_url,
-            "transcript",
-        ):
-            await db_client.update_workflow_run(
-                run_id=workflow_run_id,
-                transcript_url=transcript_url,
-                storage_backend=storage_backend.value,
-            )
+    await persist_workflow_run_artifacts(
+        workflow_run_id,
+        storage_backend_name=storage_backend.name,
+        storage_backend_value=storage_backend.value,
+        create_file=storage_fs.acreate_file_from_bytes,
+        update_workflow_run=db_client.update_workflow_run,
+        mixed_audio_wav=mixed_audio_wav,
+        user_audio_wav=user_audio_wav,
+        bot_audio_wav=bot_audio_wav,
+        transcript_text=transcript_text,
+    )

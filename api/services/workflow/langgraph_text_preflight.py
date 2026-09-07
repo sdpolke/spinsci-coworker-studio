@@ -97,7 +97,9 @@ async def execute_langgraph_text_preflight(
     cancellation = cancellation or CancellationState()
     texts: list[str] = []
     events: list[dict[str, Any]] = []
-    current_state = state
+    current_state = PinnedReasoningState(
+        **{**state.__dict__, "trace_id": trace_id}
+    )
     requested_transition: str | None = None
     target_node_id: str | None = None
 
@@ -110,6 +112,21 @@ async def execute_langgraph_text_preflight(
     ):
         event = accepted.event.model_dump(mode="json")
         events.append(event)
+        if accepted.event.type == "checkpoint":
+            identifiers = accepted.event.data.model_dump(
+                mode="json", exclude_none=True
+            )
+            await adapter.reconcile_endpoint_state(
+                state=current_state,
+                claimed_voice_run_id=current_state.voice_run_id,
+                identifiers=identifiers,
+            )
+            current_state = PinnedReasoningState(
+                **{
+                    **current_state.__dict__,
+                    "endpoint_state": identifiers,
+                }
+            )
         if accepted.speakable_text:
             texts.append(accepted.speakable_text)
             history = adapter.accept_endpoint_text(

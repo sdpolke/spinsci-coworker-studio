@@ -1,5 +1,3 @@
-from typing import Literal
-
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -55,15 +53,25 @@ class LangGraphEligibilityEvidence(BaseModel):
 
     text_session_conformance: bool = False
     accepted_transition: bool = False
+    endpoint_state_continuity: bool = False
     cancellation_verified: bool = False
     recording_verified: bool = False
 
     @property
     def complete(self) -> bool:
+        """Return Chat-profile completeness for backward compatibility."""
+        return self.complete_for("chat")
+
+    def complete_for(self, profile: Literal["chat", "stateful_run"]) -> bool:
+        orchestration_verified = (
+            self.accepted_transition
+            if profile == "chat"
+            else self.endpoint_state_continuity
+        )
         return all(
             (
                 self.text_session_conformance,
-                self.accepted_transition,
+                orchestration_verified,
                 self.cancellation_verified,
                 self.recording_verified,
             )

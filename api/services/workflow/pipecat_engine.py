@@ -263,6 +263,7 @@ class PipecatEngine:
                     name=message.get("name"),
                 )
             )
+        endpoint_checkpointed = binding.state_mode == "endpoint_checkpointed"
         return PinnedReasoningState(
             organization_id=organization_id,
             voice_run_id=str(self._workflow_run_id),
@@ -270,9 +271,9 @@ class PipecatEngine:
             registration_id=binding.registration_uuid,
             contract_version=binding.contract_version,
             active_node_id=self._current_node.id,
-            node_prompt=self._current_system_prompt,
+            node_prompt="" if endpoint_checkpointed else self._current_system_prompt,
             history=tuple(history),
-            tools=self._current_reasoning_tools,
+            tools=() if endpoint_checkpointed else self._current_reasoning_tools,
             state_mode=binding.state_mode,
             mode=binding.live_invocation_mode,
             context=self._call_context_vars,

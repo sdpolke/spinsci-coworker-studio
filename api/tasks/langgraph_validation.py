@@ -16,10 +16,20 @@ from loguru import logger
 
 from api.db import db_client
 from api.schemas.langgraph_integration.common import InvocationMode, StateMode
+from api.schemas.workflow_configurations import LangGraphEligibilityEvidence
 from api.services.langgraph_integration.configuration import (
     get_langgraph_feature_configuration,
 )
 from api.services.langgraph_integration.conformance import SUITE_VERSION, run_suite
+from api.services.langgraph_integration.conformance.evidence import (
+    ELIGIBILITY_SUITE_VERSION,
+)
+from api.services.langgraph_integration.conformance.live import (
+    run_live_endpoint_evidence,
+)
+from api.services.langgraph_integration.conformance.platform import (
+    run_platform_evidence,
+)
 from api.services.langgraph_integration.conformance.runner import deterministic_digest
 from api.services.langgraph_integration.contract.models import MatrixVersion
 from api.services.langgraph_integration.discovery import (
@@ -27,7 +37,13 @@ from api.services.langgraph_integration.discovery import (
     negotiate_capabilities,
     record_capability_snapshot,
 )
-from api.services.langgraph_integration.gateway import DiscoveryError, discover_manifest
+from api.services.langgraph_integration.gateway import (
+    DiscoveryError,
+    IntegrationGateway,
+    RuntimeEndpointSnapshot,
+    StaticCredentialResolver,
+    discover_manifest,
+)
 from api.utils.credential_auth import build_auth_header
 
 _KNOWN_INVOCATION_MODES = frozenset(mode.value for mode in InvocationMode)
@@ -77,7 +93,20 @@ async def _persist_report(
     evidence: dict[str, Any],
     results: list[dict[str, Any]],
 ) -> None:
-    report_digest = deterministic_digest({"evidence": evidence, "results": results})
+    report_digest = deterministic_digest(
+        {
+            "capability_snapshot_id": capability_snapshot_id,
+            "compatibility_matrix_id": compatibility_matrix_id,
+            "suite_version": suite_version,
+            "contract_version": contract_version,
+            "selected_profile": selected_profile,
+            "status": status,
+            "started_at": started_at.isoformat(),
+            "completed_at": completed_at.isoformat() if completed_at else None,
+            "evidence": evidence,
+            "results": results,
+        }
+    )
     await db_client.insert_langgraph_validation_report(
         organization_id=organization_id,
         registration_id=registration_id,
@@ -201,17 +230,72 @@ async def validate_langgraph_endpoint(
         return
 
     suite_result = run_suite()
+    manifest = discovery_result.manifest
+    limits = manifest.limits.model_dump(mode="json")
+    operations = manifest.operations.model_dump(mode="json", exclude_none=True)
+    runtime_snapshot = RuntimeEndpointSnapshot(
+        organization_id=organization_id,
+        registration_id=endpoint.endpoint_uuid,
+        endpoint_url=endpoint.endpoint_url,
+        credential_reference=str(getattr(credential, "credential_uuid", credential.id)),
+        contract_version=negotiated.contract_version,
+        invocation_modes=frozenset(
+            InvocationMode(mode) for mode in negotiated.invocation_modes
+        ),
+        operations=operations,
+        request_bytes=limits["request_bytes"],
+        response_bytes=limits["response_bytes"],
+        event_bytes=limits["event_bytes"],
+        tool_argument_bytes=limits["tool_argument_bytes"],
+        stateful_profile=endpoint.selected_profile == "stateful_run",
+        interrupts_selected="interrupts" in negotiated.features,
+        cancellation_declared="cancellation" in negotiated.features,
+        distributed_tracing="distributed_tracing" in negotiated.features,
+        private_network_enabled=feature_configuration.private_network_enabled,
+    )
+    live_evidence = await run_live_endpoint_evidence(
+        gateway=IntegrationGateway(
+            credential_resolver=StaticCredentialResolver(auth_headers)
+        ),
+        snapshot=runtime_snapshot,
+        profile=endpoint.selected_profile,
+    )
+    platform_evidence = await run_platform_evidence()
+    eligibility = LangGraphEligibilityEvidence(
+        text_session_conformance=live_evidence.text_session_conformance,
+        accepted_transition=False,
+        endpoint_state_continuity=live_evidence.endpoint_state_continuity,
+        cancellation_verified=platform_evidence.cancellation_verified,
+        recording_verified=platform_evidence.recording_verified,
+    )
+    profile_runtime_passed = (
+        live_evidence.endpoint_state_continuity
+        if endpoint.selected_profile == "stateful_run"
+        else live_evidence.text_session_conformance
+    )
+    passed = all(
+        (
+            suite_result.passed,
+            profile_runtime_passed,
+            platform_evidence.cancellation_verified,
+            platform_evidence.recording_verified,
+        )
+    )
+    executable_results = [
+        check.to_validation_result()
+        for check in (*live_evidence.checks, *platform_evidence.checks)
+    ]
     await _persist_report(
         organization_id=organization_id,
         registration_id=endpoint.id,
         capability_snapshot_id=snapshot_id,
         compatibility_matrix_id=matrix_row.id,
-        suite_version=suite_result.suite_version,
+        suite_version=f"{suite_result.suite_version}+{ELIGIBILITY_SUITE_VERSION}",
         contract_version=negotiated.contract_version,
         selected_profile=endpoint.selected_profile,
-        status="passed" if suite_result.passed else "failed",
+        status="passed" if passed else "failed",
         started_at=started_at,
         completed_at=datetime.now(UTC),
-        evidence=suite_result.report_evidence(),
-        results=suite_result.persistence_results(),
+        evidence=eligibility.model_dump(mode="json"),
+        results=[*suite_result.persistence_results(), *executable_results],
     )

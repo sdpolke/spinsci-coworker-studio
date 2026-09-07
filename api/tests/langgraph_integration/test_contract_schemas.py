@@ -3,7 +3,13 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from api.schemas.langgraph_integration import SUPPORTED_SCHEMA_VERSIONS, schema_for, v1_0, v1_1
+from api.schemas.langgraph_integration import (
+    SUPPORTED_SCHEMA_VERSIONS,
+    schema_for,
+    v1_0,
+    v1_1,
+    v1_2,
+)
 from api.schemas.langgraph_integration.examples import EXECUTABLE_EXAMPLES
 from api.services.langgraph_integration.contract import MatrixVersion, ProfileRequirements, negotiate_contract_version
 
@@ -15,7 +21,7 @@ def test_all_executable_examples_validate_for_claimed_version():
 
 
 def test_supported_minor_versions_are_explicit():
-    assert SUPPORTED_SCHEMA_VERSIONS == ("1.0", "1.1")
+    assert SUPPORTED_SCHEMA_VERSIONS == ("1.0", "1.1", "1.2")
 
 
 def test_v10_rejects_v11_optional_invocation_field():
@@ -27,6 +33,20 @@ def test_v10_rejects_v11_optional_invocation_field():
 def test_v11_accepts_payload_valid_under_v10_when_version_is_pinned_to_v11():
     payload = EXECUTABLE_EXAMPLES["1.0"]["invocation"] | {"contract_version": "1.1"}
     assert v1_1.InvocationRequest.model_validate(payload).locale is None
+
+
+def test_v12_accepts_typed_endpoint_continuation_state():
+    payload = EXECUTABLE_EXAMPLES["1.2"]["invocation"] | {
+        "state_mode": "endpoint_checkpointed",
+        "state": {
+            "thread_id": "thread-1",
+            "checkpoint_reference": "checkpoint-1",
+        },
+    }
+    state = v1_2.InvocationRequest.model_validate(payload).state
+    assert state is not None
+    assert state.thread_id == "thread-1"
+    assert state.checkpoint_reference == "checkpoint-1"
 
 
 def test_identifier_and_deadline_bounds_are_enforced():

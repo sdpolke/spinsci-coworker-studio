@@ -166,6 +166,10 @@ class RuntimeEventBase(StrictContractModel):
 
 
 class TextDeltaData(StrictContractModel):
+    # Stream deltas carry authoritative boundary whitespace. Trimming each
+    # independently validated chunk corrupts words when consumers concatenate.
+    model_config = ConfigDict(str_strip_whitespace=False)
+
     text: str = Field(min_length=1, max_length=MAX_EVENT_BYTES)
 
 
@@ -185,6 +189,10 @@ class ToolCallStartEvent(RuntimeEventBase):
 
 
 class ToolCallDeltaData(StrictContractModel):
+    # Tool argument fragments are opaque stream content and must remain byte-for-byte
+    # equivalent after validation so JSON string whitespace is not changed.
+    model_config = ConfigDict(str_strip_whitespace=False)
+
     tool_call_id: Identifier
     fragment: str = Field(min_length=1, max_length=MAX_TOOL_ARGUMENT_BYTES)
 
