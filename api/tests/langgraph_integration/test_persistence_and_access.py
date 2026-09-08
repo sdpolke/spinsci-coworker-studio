@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
@@ -18,6 +19,10 @@ from api.db.models import (
     WorkflowDefinitionModel,
     WorkflowModel,
     WorkflowRunModel,
+)
+from api.db.workflow_client import (
+    ImmutableWorkflowDefinitionError,
+    WorkflowDefinitionConfigurationConflictError,
 )
 from api.services.langgraph_integration.access_control import (
     LangGraphPermission,
@@ -443,3 +448,99 @@ async def test_feature_disablement_preserves_history_and_diagnostics_while_all_n
     assert diagnostics is not None
     assert diagnostics[0].id == run.id
     assert [item.invocation_uuid for item in diagnostics[3]] == [invocation.invocation_uuid]
+
+
+@pytest.mark.asyncio
+async def test_conditional_draft_binding_update_is_tenant_scoped_immutable_and_conflict_safe(
+    async_session, db_session, langgraph_rows
+):
+    org_a, org_b, user, _ = langgraph_rows
+    workflow = WorkflowModel(
+        name="conditional topology workflow",
+        organization_id=org_a.id,
+        user_id=user.id,
+        workflow_definition={},
+    )
+    async_session.add(workflow)
+    await async_session.flush()
+    original_configurations = {
+        "langgraph_endpoint": {
+            "capability_snapshot_uuid": "snapshot-old",
+            "topology_snapshot": {
+                "endpoint_binding_revision": "snapshot-old",
+            },
+        },
+        "unrelated": {"preserve": True},
+    }
+    draft = WorkflowDefinitionModel(
+        workflow_id=workflow.id,
+        workflow_json={},
+        status="draft",
+        workflow_configurations=deepcopy(original_configurations),
+        template_context_variables={},
+    )
+    published = WorkflowDefinitionModel(
+        workflow_id=workflow.id,
+        workflow_json={},
+        status="published",
+        workflow_configurations=deepcopy(original_configurations),
+        template_context_variables={},
+    )
+    async_session.add_all([draft, published])
+    await async_session.commit()
+
+    desired_configurations = deepcopy(original_configurations)
+    desired_binding = desired_configurations["langgraph_endpoint"]
+    desired_binding["capability_snapshot_uuid"] = "snapshot-current"
+    desired_binding["topology_snapshot"] = {
+        "endpoint_binding_revision": "snapshot-current",
+        "digest": "d" * 64,
+        "topology": {"schema_version": "1.2"},
+    }
+
+    with pytest.raises(ValueError, match="not found"):
+        await db_session.update_draft_workflow_definition_configurations_conditionally(
+            organization_id=org_b.id,
+            workflow_id=workflow.id,
+            definition_id=draft.id,
+            expected_binding_revision="snapshot-old",
+            expected_workflow_configurations=original_configurations,
+            workflow_configurations=desired_configurations,
+        )
+    with pytest.raises(ImmutableWorkflowDefinitionError):
+        await db_session.update_draft_workflow_definition_configurations_conditionally(
+            organization_id=org_a.id,
+            workflow_id=workflow.id,
+            definition_id=published.id,
+            expected_binding_revision="snapshot-old",
+            expected_workflow_configurations=original_configurations,
+            workflow_configurations=desired_configurations,
+        )
+    with pytest.raises(WorkflowDefinitionConfigurationConflictError):
+        await db_session.update_draft_workflow_definition_configurations_conditionally(
+            organization_id=org_a.id,
+            workflow_id=workflow.id,
+            definition_id=draft.id,
+            expected_binding_revision="snapshot-old",
+            expected_workflow_configurations={
+                **original_configurations,
+                "concurrent": True,
+            },
+            workflow_configurations=desired_configurations,
+        )
+
+    await db_session.update_draft_workflow_definition_configurations_conditionally(
+        organization_id=org_a.id,
+        workflow_id=workflow.id,
+        definition_id=draft.id,
+        expected_binding_revision="snapshot-old",
+        expected_workflow_configurations=original_configurations,
+        workflow_configurations=desired_configurations,
+    )
+    stored = await db_session.get_workflow_definition(
+        organization_id=org_a.id,
+        workflow_id=workflow.id,
+        definition_id=draft.id,
+    )
+    assert stored.workflow_configurations == desired_configurations
+    assert stored.workflow_configurations["unrelated"] == {"preserve": True}

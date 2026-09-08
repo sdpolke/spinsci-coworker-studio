@@ -5,6 +5,11 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from api.schemas.langgraph_topology import (
+    DraftBindingState,
+    DraftBindingStatus,
+    TopologyReasonCode,
+)
 from api.schemas.workflow_configurations import (
     LangGraphEligibilityEvidence,
     LangGraphEndpointBinding,
@@ -219,6 +224,263 @@ def validate_binding_against_evidence(
     if not binding.data_sharing_policy:
         errors.append("data-sharing policy is required")
     return tuple(dict.fromkeys(errors))
+
+
+class LangGraphBindingCompatibilityError(LangGraphWorkflowBindingError):
+    """Current endpoint evidence cannot safely replace a draft binding."""
+
+    reason_code = TopologyReasonCode.BINDING_INCOMPATIBLE
+
+
+def _binding_status(
+    binding: LangGraphEndpointBinding,
+    *,
+    state: DraftBindingState,
+    reason: TopologyReasonCode,
+    report: Any | None = None,
+    snapshot: Any | None = None,
+) -> DraftBindingStatus:
+    return DraftBindingStatus(
+        state=state,
+        reason=reason,
+        bound_validation_report_uuid=binding.validation_report_uuid,
+        bound_capability_snapshot_uuid=binding.capability_snapshot_uuid,
+        current_validation_report_uuid=(
+            getattr(report, "report_uuid", None) if report is not None else None
+        ),
+        current_capability_snapshot_uuid=(
+            getattr(snapshot, "snapshot_uuid", None) if snapshot is not None else None
+        ),
+    )
+
+
+def _manifest_supports_topology(snapshot: Any) -> bool:
+    manifest = getattr(snapshot, "manifest", None)
+    if not isinstance(manifest, Mapping):
+        return False
+    operations = manifest.get("operations")
+    return (
+        isinstance(operations, Mapping)
+        and isinstance(operations.get("topology"), str)
+        and bool(operations["topology"].strip())
+    )
+
+
+async def classify_langgraph_draft_binding(
+    *,
+    organization_id: int,
+    definition: Any,
+    db_client: Any,
+) -> DraftBindingStatus:
+    """Classify one binding without mutating workflow or endpoint state."""
+    try:
+        binding = parse_langgraph_binding(definition.workflow_configurations)
+    except LangGraphWorkflowBindingError:
+        binding = None
+    if binding is None:
+        return DraftBindingStatus(
+            state=DraftBindingState.ENDPOINT_NOT_CONFIGURED,
+            reason=TopologyReasonCode.ENDPOINT_NOT_CONFIGURED,
+        )
+    if definition.status != "draft":
+        return _binding_status(
+            binding,
+            state=DraftBindingState.IMMUTABLE_SNAPSHOT_ONLY,
+            reason=TopologyReasonCode.IMMUTABLE_SNAPSHOT_ONLY,
+        )
+
+    current = await db_client.get_current_langgraph_activation_evidence(
+        organization_id=organization_id,
+        endpoint_uuid=binding.registration_uuid,
+    )
+    if current is None:
+        return _binding_status(
+            binding,
+            state=DraftBindingState.ENDPOINT_UNAVAILABLE,
+            reason=TopologyReasonCode.ENDPOINT_UNAVAILABLE,
+        )
+    endpoint, report, snapshot = current
+    if report is None or snapshot is None:
+        return _binding_status(
+            binding,
+            state=DraftBindingState.ENDPOINT_REVALIDATION_REQUIRED,
+            reason=TopologyReasonCode.ENDPOINT_REVALIDATION_REQUIRED,
+            report=report,
+            snapshot=snapshot,
+        )
+    report_covers_snapshot = (
+        getattr(endpoint, "current_validation_report_id", None)
+        == getattr(report, "id", None)
+        and getattr(endpoint, "current_capability_snapshot_id", None)
+        == getattr(snapshot, "id", None)
+        and getattr(report, "capability_snapshot_id", None)
+        == getattr(snapshot, "id", None)
+    )
+    if not report_covers_snapshot:
+        return _binding_status(
+            binding,
+            state=DraftBindingState.ENDPOINT_REVALIDATION_REQUIRED,
+            reason=TopologyReasonCode.ENDPOINT_REVALIDATION_REQUIRED,
+            report=report,
+            snapshot=snapshot,
+        )
+    if report.status not in PASSING_REPORT_STATUSES:
+        state = (
+            DraftBindingState.ENDPOINT_VALIDATION_FAILED
+            if report.status == "failed"
+            else DraftBindingState.ENDPOINT_REVALIDATION_REQUIRED
+        )
+        reason = (
+            TopologyReasonCode.ENDPOINT_VALIDATION_FAILED
+            if state == DraftBindingState.ENDPOINT_VALIDATION_FAILED
+            else TopologyReasonCode.ENDPOINT_REVALIDATION_REQUIRED
+        )
+        return _binding_status(
+            binding,
+            state=state,
+            reason=reason,
+            report=report,
+            snapshot=snapshot,
+        )
+
+    # Genuine current non-support takes precedence over stale bound evidence.
+    if not _manifest_supports_topology(snapshot):
+        return _binding_status(
+            binding,
+            state=DraftBindingState.TOPOLOGY_UNSUPPORTED,
+            reason=TopologyReasonCode.TOPOLOGY_UNSUPPORTED,
+            report=report,
+            snapshot=snapshot,
+        )
+
+    evidence_matches = all(
+        (
+            binding.validation_report_uuid == report.report_uuid,
+            binding.validation_report_digest == report.report_digest,
+            binding.capability_snapshot_uuid == snapshot.snapshot_uuid,
+            binding.capability_snapshot_digest == snapshot.manifest_digest,
+        )
+    )
+    return _binding_status(
+        binding,
+        state=(
+            DraftBindingState.BINDING_CURRENT
+            if evidence_matches
+            else DraftBindingState.BINDING_STALE
+        ),
+        reason=(
+            TopologyReasonCode.BINDING_CURRENT
+            if evidence_matches
+            else TopologyReasonCode.BINDING_STALE
+        ),
+        report=report,
+        snapshot=snapshot,
+    )
+
+
+def _manifest_mapping(manifest: Mapping[str, Any], key: str) -> dict[str, Any]:
+    value = manifest.get(key, {})
+    if not isinstance(value, Mapping):
+        raise LangGraphBindingCompatibilityError(
+            f"current capability snapshot has invalid {key} data; revalidate the endpoint"
+        )
+    return {str(name): item for name, item in value.items() if item is not None}
+
+
+def build_candidate_langgraph_binding(
+    binding: LangGraphEndpointBinding,
+    *,
+    endpoint: Any,
+    report: Any,
+    snapshot: Any,
+) -> LangGraphEndpointBinding:
+    """Build a detached candidate using only one current passing evidence set."""
+    if endpoint.endpoint_uuid != binding.registration_uuid:
+        raise LangGraphBindingCompatibilityError(
+            "endpoint registration does not match the draft binding"
+        )
+    if endpoint.lifecycle_status != "active":
+        raise LangGraphBindingCompatibilityError(
+            "activate the endpoint before updating the draft binding"
+        )
+    if (
+        endpoint.current_validation_report_id != report.id
+        or endpoint.current_capability_snapshot_id != snapshot.id
+        or getattr(report, "capability_snapshot_id", None) != snapshot.id
+    ):
+        raise LangGraphBindingCompatibilityError(
+            "current validation report and capability snapshot do not form one evidence set; revalidate the endpoint"
+        )
+    if report.status not in PASSING_REPORT_STATUSES:
+        raise LangGraphBindingCompatibilityError(
+            "current endpoint validation is not passing; revalidate the endpoint"
+        )
+    if (
+        endpoint.selected_profile != binding.compatibility_profile
+        or report.selected_profile != binding.compatibility_profile
+    ):
+        raise LangGraphBindingCompatibilityError(
+            "compatibility profile changed; explicitly reconfigure the workflow endpoint"
+        )
+    endpoint_capabilities = set(endpoint.selected_capabilities or ())
+    bound_capabilities = set(binding.selected_capabilities)
+    if endpoint_capabilities != bound_capabilities:
+        raise LangGraphBindingCompatibilityError(
+            "selected capabilities changed; explicitly reconfigure the workflow endpoint"
+        )
+    if "topology" in {
+        _normalized_name(capability)
+        for capability in endpoint_capabilities | bound_capabilities
+    }:
+        raise LangGraphBindingCompatibilityError(
+            "topology is a manifest operation and cannot be a selected capability"
+        )
+
+    manifest = snapshot.manifest
+    if not isinstance(manifest, Mapping):
+        raise LangGraphBindingCompatibilityError(
+            "current capability snapshot is invalid; revalidate the endpoint"
+        )
+    report_evidence = report.evidence or {}
+    if not isinstance(report_evidence, Mapping):
+        raise LangGraphBindingCompatibilityError(
+            "current validation evidence is invalid; revalidate the endpoint"
+        )
+    evidence = {
+        field_name: report_evidence.get(field_name, False)
+        for field_name in LangGraphEligibilityEvidence.model_fields
+    }
+    candidate_data = binding.model_dump(mode="python")
+    candidate_data.update(
+        validation_report_uuid=report.report_uuid,
+        validation_report_digest=report.report_digest,
+        capability_snapshot_uuid=snapshot.snapshot_uuid,
+        capability_snapshot_digest=snapshot.manifest_digest,
+        capability_snapshot=dict(manifest),
+        contract_version=report.contract_version,
+        operations=_manifest_mapping(manifest, "operations"),
+        limits=_manifest_mapping(manifest, "limits"),
+        ownership=_manifest_mapping(manifest, "ownership"),
+        evidence=evidence,
+        topology_snapshot=None,
+    )
+    try:
+        candidate = LangGraphEndpointBinding.model_validate(candidate_data)
+    except ValidationError as exc:
+        raise LangGraphBindingCompatibilityError(
+            "current endpoint evidence cannot form a valid binding; revalidate or reconfigure the endpoint"
+        ) from exc
+    errors = validate_binding_against_evidence(
+        candidate,
+        endpoint=endpoint,
+        report=report,
+        snapshot=snapshot,
+    )
+    if errors:
+        raise LangGraphBindingCompatibilityError(
+            "current endpoint evidence is incompatible: " + "; ".join(errors)
+        )
+    return candidate
 
 
 async def validate_langgraph_workflow_binding(

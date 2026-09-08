@@ -115,10 +115,10 @@ class OrganizationAIModelConfigurationV2(BaseModel):
     @classmethod
     def normalize_legacy_mode_aliases(cls, data):
         if isinstance(data, dict):
-            if data.get("mode") == "dograh":
+            if data.get("mode") == "SpinSci":
                 data["mode"] = "spinsci"
-            if isinstance(data.get("dograh"), dict) and data.get("spinsci") is None:
-                data["spinsci"] = data.pop("dograh")
+            if isinstance(data.get("SpinSci"), dict) and data.get("spinsci") is None:
+                data["spinsci"] = data.pop("SpinSci")
             normalize_legacy_provider_aliases(data)
         return data
 

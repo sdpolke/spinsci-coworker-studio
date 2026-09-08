@@ -53,6 +53,14 @@ def test_inventory_is_complete_and_retains_all_supported_versions():
         "chat",
         "stateful_run",
     }
+    operations_by_schema = {
+        operation["schema"]: operation for operation in contracts["1.2"]["operations"]
+    }
+    assert operations_by_schema["topology_request"] == {"schema": "topology_request"}
+    assert operations_by_schema["topology"] == {"schema": "topology"}
+    assert operations_by_schema["topology_unsupported"] == {
+        "schema": "topology_unsupported"
+    }
     assert {method["id"] for method in reference["authentication"]} == {
         "credential_reference"
     }

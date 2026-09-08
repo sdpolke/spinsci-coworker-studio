@@ -1,6 +1,6 @@
-# Dograh Helm chart
+# SpinSci Helm chart
 
-Deploys Dograh on Kubernetes with decomposed backend workloads (web,
+Deploys SpinSci on Kubernetes with decomposed backend workloads (web,
 ARQ workers, telephony singleton, campaign singleton), Next.js UI, and
 coturn for WebRTC media relay. Implements the architecture defined in
 `HELM_DEPLOYMENT_PLAN.md` at the repo root.
@@ -13,12 +13,12 @@ exercised against a live cluster.
 ## Quick start
 
 ```bash
-cd deploy/helm/dograh
+cd deploy/helm/SpinSci
 
 # Install with defaults (all internal deps, Gateway API exposure).
 # The bundled Postgres/Redis/MinIO are in-chart manifests on official upstream
 # images — no `helm dependency` / subchart pull step needed.
-helm install dograh . \
+helm install SpinSci . \
   --set secrets.ossJwtSecret="$(openssl rand -hex 32)" \
   --set secrets.turnSecret="$(openssl rand -hex 32)" \
   --set exposure.gatewayApi.gatewayClassName=istio
@@ -31,12 +31,12 @@ and `examples/values-aws.yaml` for topology-specific overrides.
 
 | Workload                     | Replicas    | Strategy        | Notes |
 |------------------------------|-------------|-----------------|-------|
-| `dograh-web`                 | 2 (HPA opt) | RollingUpdate   | Long-lived WS, graceful drain |
-| `dograh-arq-worker`          | 1 (HPA opt) | RollingUpdate   | Stateless |
-| `dograh-ari-manager`         | **1 fixed** | **Recreate**    | Telephony singleton |
-| `dograh-campaign-orchestrator` | **1 fixed** | **Recreate**  | Campaign singleton (in-memory locks) |
-| `dograh-ui`                  | 2 (HPA opt) | RollingUpdate   | Next.js SSR |
-| `dograh-coturn`              | 1           | Recreate        | LoadBalancer Service, port-pinned |
+| `SpinSci-web`                 | 2 (HPA opt) | RollingUpdate   | Long-lived WS, graceful drain |
+| `SpinSci-arq-worker`          | 1 (HPA opt) | RollingUpdate   | Stateless |
+| `SpinSci-ari-manager`         | **1 fixed** | **Recreate**    | Telephony singleton |
+| `SpinSci-campaign-orchestrator` | **1 fixed** | **Recreate**  | Campaign singleton (in-memory locks) |
+| `SpinSci-ui`                  | 2 (HPA opt) | RollingUpdate   | Next.js SSR |
+| `SpinSci-coturn`              | 1           | Recreate        | LoadBalancer Service, port-pinned |
 
 HTTP traffic: Gateway API (default) or Ingress (fallback).
 TURN traffic: dedicated L4 Service of type `LoadBalancer`.
@@ -110,7 +110,7 @@ volume. The remaining `/tmp` uses (`audio_file_cache.py`,
 ## Validation
 
 ```bash
-cd deploy/helm/dograh
+cd deploy/helm/SpinSci
 
 helm lint .
 helm template test-release . > /tmp/render-default.yaml
@@ -133,7 +133,7 @@ Spot-check expectations:
 ## Layout
 
 ```
-deploy/helm/dograh/
+deploy/helm/SpinSci/
 ├── Chart.yaml
 ├── values.yaml             # heavily commented
 ├── values.schema.json      # enforces mode enums

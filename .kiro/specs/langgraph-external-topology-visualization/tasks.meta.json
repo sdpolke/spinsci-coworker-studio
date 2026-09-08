@@ -1,0 +1,188 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Define and implement the versioned endpoint topology contract": [
+      {
+        "executionId": "a2e71341-e751-478b-9d04-4dbd6383ecd9",
+        "chatSessionId": "sess_2ac1af87-f148-4313-9e38-e81df7153532",
+        "timestamp": 1788795547875
+      },
+      {
+        "executionId": "a2e71341-e751-478b-9d04-4dbd6383ecd9",
+        "chatSessionId": "sess_2ac1af87-f148-4313-9e38-e81df7153532",
+        "timestamp": 1788795791545
+      }
+    ],
+    "2. Add SpinSci's secure topology proxy and pinned snapshot support": [
+      {
+        "executionId": "9cc90b8b-0b37-493b-bca8-4526fa2fe6ae",
+        "chatSessionId": "sess_4533cdf9-c262-4540-8458-0882e0cb523f",
+        "timestamp": 1788795823089
+      },
+      {
+        "executionId": "f163d7fd-6dfb-4cf9-88b2-639c0495470b",
+        "chatSessionId": "sess_4533cdf9-c262-4540-8458-0882e0cb523f",
+        "timestamp": 1788796183771
+      }
+    ],
+    "3. Build the isolated read-only endpoint topology view": [
+      {
+        "executionId": "84c7cc12-2a9e-4746-aec8-cfae12d9e4ce",
+        "chatSessionId": "sess_a0be94de-4197-491a-8eb3-f4e33aedb47c",
+        "timestamp": 1788796206396
+      },
+      {
+        "executionId": "84c7cc12-2a9e-4746-aec8-cfae12d9e4ce",
+        "chatSessionId": "sess_a0be94de-4197-491a-8eb3-f4e33aedb47c",
+        "timestamp": 1788796461617
+      }
+    ],
+    "4. Verify compatibility and deliver the API client update": [
+      {
+        "executionId": "0315a39b-23d6-4bf8-8691-4cf8e8b71110",
+        "chatSessionId": "sess_894825aa-a4c4-4daf-90db-b33892b80208",
+        "timestamp": 1788796476608
+      },
+      {
+        "executionId": "0315a39b-23d6-4bf8-8691-4cf8e8b71110",
+        "chatSessionId": "sess_894825aa-a4c4-4daf-90db-b33892b80208",
+        "timestamp": 1788796866698
+      }
+    ],
+    "5. Add binding status and safe candidate-rebind foundations": [
+      {
+        "executionId": "337cd529-8c83-4d5f-b39e-9ce331ffaa72",
+        "chatSessionId": "sess_56191195-1a0a-4b6d-8b1c-81778cf28bca",
+        "timestamp": 1788834792821
+      },
+      {
+        "executionId": "337cd529-8c83-4d5f-b39e-9ce331ffaa72",
+        "chatSessionId": "sess_56191195-1a0a-4b6d-8b1c-81778cf28bca",
+        "timestamp": 1788836184124
+      }
+    ],
+    "5.1 Extend topology API schemas with draft binding status, action availability, lifecycle stages, and stable reason codes": [
+      {
+        "executionId": "337cd529-8c83-4d5f-b39e-9ce331ffaa72",
+        "chatSessionId": "sess_56191195-1a0a-4b6d-8b1c-81778cf28bca",
+        "timestamp": 1788836208252
+      },
+      {
+        "executionId": "337cd529-8c83-4d5f-b39e-9ce331ffaa72",
+        "chatSessionId": "sess_56191195-1a0a-4b6d-8b1c-81778cf28bca",
+        "timestamp": 1788836213190
+      }
+    ],
+    "5.3 Add a tenant-scoped conditional workflow-definition configuration update": [
+      {
+        "executionId": "337cd529-8c83-4d5f-b39e-9ce331ffaa72",
+        "chatSessionId": "sess_56191195-1a0a-4b6d-8b1c-81778cf28bca",
+        "timestamp": 1788836217632
+      },
+      {
+        "executionId": "337cd529-8c83-4d5f-b39e-9ce331ffaa72",
+        "chatSessionId": "sess_56191195-1a0a-4b6d-8b1c-81778cf28bca",
+        "timestamp": 1788836221801
+      }
+    ],
+    "5.2 Implement read-only binding classification and an allowlisted candidate binding builder": [
+      {
+        "executionId": "337cd529-8c83-4d5f-b39e-9ce331ffaa72",
+        "chatSessionId": "sess_56191195-1a0a-4b6d-8b1c-81778cf28bca",
+        "timestamp": 1788836228073
+      },
+      {
+        "executionId": "337cd529-8c83-4d5f-b39e-9ce331ffaa72",
+        "chatSessionId": "sess_56191195-1a0a-4b6d-8b1c-81778cf28bca",
+        "timestamp": 1788836232041
+      }
+    ],
+    "6. Implement the explicit draft binding update and topology lifecycle": [
+      {
+        "executionId": "09239294-9398-47a3-b9f9-473652a06504",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788836398080
+      },
+      {
+        "executionId": "09239294-9398-47a3-b9f9-473652a06504",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788836859938
+      }
+    ],
+    "6.1 Implement atomic stale-binding recovery and current-binding refresh in the topology service": [
+      {
+        "executionId": "09239294-9398-47a3-b9f9-473652a06504",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788836856238
+      }
+    ],
+    "6.2 Add the explicit update-binding route and enrich the existing GET/refresh routes": [
+      {
+        "executionId": "09239294-9398-47a3-b9f9-473652a06504",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788836859898
+      }
+    ],
+    "7.1 Regenerate the frontend API client for the final topology status and update-binding contract": [
+      {
+        "executionId": "823f6a5f-9213-498e-81fa-dcc991ee175d",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788840965314
+      }
+    ],
+    "7.2 Wire endpoint revalidation, explicit binding update, and current refresh into workflow configuration": [
+      {
+        "executionId": "823f6a5f-9213-498e-81fa-dcc991ee175d",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788840969882
+      }
+    ],
+    "7.3 Extend the topology viewer with distinct snapshot and lifecycle states": [
+      {
+        "executionId": "823f6a5f-9213-498e-81fa-dcc991ee175d",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788840974450
+      }
+    ],
+    "7. Add the draft-only topology recovery UI": [
+      {
+        "executionId": "823f6a5f-9213-498e-81fa-dcc991ee175d",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788840974479
+      }
+    ],
+    "7.4 Add focused UI tests for stale recovery, current refresh, errors, and immutable versions": [
+      {
+        "executionId": "823f6a5f-9213-498e-81fa-dcc991ee175d",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788840981822
+      }
+    ],
+    "9. Add the Mintlify LangGraph topology user guide after behavior stabilizes": [
+      {
+        "executionId": "25df7b20-0d8d-4f09-b450-91b3f5afe7a4",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788841010870
+      },
+      {
+        "executionId": "25df7b20-0d8d-4f09-b450-91b3f5afe7a4",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788841601486
+      }
+    ],
+    "9.1 Create `docs/integrations/langgraph-topology.mdx` with validated end-to-end instructions": [
+      {
+        "executionId": "25df7b20-0d8d-4f09-b450-91b3f5afe7a4",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788841598276
+      }
+    ],
+    "9.2 Add the guide to Mintlify navigation and validate the documentation build": [
+      {
+        "executionId": "25df7b20-0d8d-4f09-b450-91b3f5afe7a4",
+        "chatSessionId": "sess_0bb8e3b4-dffb-42e0-9988-cbaee1d4bf7e",
+        "timestamp": 1788841601457
+      }
+    ]
+  }
+}

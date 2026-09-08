@@ -1,4 +1,4 @@
-"""Executable probes for Dograh-owned cancellation and recording boundaries."""
+"""Executable probes for SpinSci-owned cancellation and recording boundaries."""
 
 from __future__ import annotations
 

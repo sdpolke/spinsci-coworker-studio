@@ -1,0 +1,83 @@
+---
+title: "LangGraph topology"
+description: "Validate, pin, view, and troubleshoot an external LangGraph endpoint topology."
+---
+
+## Overview
+
+Use this guide to inspect the static topology of a LangGraph endpoint from a SpinSci workflow. The topology is an endpoint-owned, read-only graph. It does not modify your SpinSci workflow canvas, workflow definition, or runtime-node visualization.
+
+Topology support is advertised by the endpoint's discovery manifest at `operations.topology`. It is a manifest operation, not a selected capability.
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- Permission to validate and activate **LangGraph Endpoints**, and permission to update the workflow draft.
+- An endpoint URL, its configured credential, and network access from SpinSci to the endpoint.
+- A deployed endpoint that supports the LangGraph contract and returns an authenticated discovery manifest.
+- A workflow with an endpoint binding, or a published or historical workflow version from which you can create a draft.
+
+For contract details, see the [LangGraph contract reference](../developer/langgraph-contract-reference).
+
+## Start or restart the endpoint
+
+Deploy or start your endpoint using its normal runtime command. If you added topology support or changed the graph, restart or redeploy the endpoint so that the running version exposes the updated discovery manifest and topology operation.
+
+Do not refresh a workflow draft until the endpoint has finished starting and accepts authenticated requests.
+
+## Verify discovery advertises topology
+
+Set the endpoint base URL and an endpoint credential in your terminal. Use a non-production test credential when you validate a new deployment.
+
+```bash
+export LANGGRAPH_ENDPOINT_URL="https://langgraph.example.com"
+export LANGGRAPH_API_KEY="REPLACE_WITH_ENDPOINT_API_KEY"
+```
+
+Retrieve the authenticated discovery manifest and confirm that it includes a non-empty `operations.topology` path:
+
+```bash
+curl --fail --silent --show-error \
+  --header "Authorization: Bearer ${LANGGRAPH_API_KEY}" \
+  "${LANGGRAPH_ENDPOINT_URL%/}/.well-known/mural-langgraph" \
+  | jq '.operations.topology'
+```
+
+The command must print the endpoint's topology path, such as `"/v1/topology"`. If it prints `null` or an empty value, update or restart the endpoint before continuing. Do not add `topology` to selected capabilities; SpinSci reads it only from the manifest operation.
+
+<Note>
+If your endpoint uses a different authentication scheme, use the equivalent header for the credential configured in SpinSci. Never paste a real credential into a workflow, source file, or support request.
+</Note>
+
+## Validate and activate the endpoint
+
+1. In SpinSci, open **LangGraph Endpoints** and select the endpoint.
+2. Run validation. SpinSci performs authenticated discovery and stores a new validation report and capability snapshot.
+3. Resolve any validation errors, then validate again.
+4. Activate the endpoint if its lifecycle status is not already active.
+
+Validation does not automatically change any workflow binding. It only establishes the current endpoint evidence that a draft can explicitly adopt.
+
+## Update a workflow draft and pin topology
+
+1. Open the workflow you want to inspect.
+2. If you opened a published or historical version, create a **Current Draft** first. Published and historical versions are immutable and retain only their version-local pinned topology.
+3. Open the endpoint configuration and then the topology view.
+4. If the draft says it uses older endpoint evidence, choose **Update endpoint binding and refresh topology**. This explicitly rebinds only the Current Draft to the current passing validation evidence, retrieves the collapsed topology, and pins the resulting snapshot.
+5. If the binding is current, choose **Refresh topology** to retrieve and replace only the draft's pinned topology snapshot.
+6. After the action succeeds, inspect the graph in the separate read-only topology view. You can pan and zoom, but you cannot edit endpoint nodes or edges from SpinSci.
+
+A successful update fetches the collapsed view and pins it with the draft's endpoint-binding revision. Publishing or copying the draft retains that version-local binding and snapshot without making another endpoint request.
+
+## Troubleshooting
+
+| Status or symptom | What to do |
+| --- | --- |
+| `snapshot_unavailable` | No topology is pinned for this draft. Open a Current Draft and use the available update or refresh action. Create a draft before acting on a published or historical version. |
+| `topology_unsupported` | The current discovery manifest does not advertise `operations.topology`. Verify the authenticated discovery response, then update or restart the endpoint. |
+| Authentication failure | Verify the endpoint credential saved in **LangGraph Endpoints** and its authentication scheme. Do not expose credential values in logs or screenshots. |
+| Network failure | Confirm the endpoint is available at its configured URL and that SpinSci's endpoint network and private-network policies permit the connection. |
+| Schema failure | Confirm the endpoint returns a valid contract-versioned discovery manifest and versioned topology response with `graph_id`, `revision`, `view`, nodes, and edges. Review the redacted validation diagnostic, correct the endpoint, then validate and refresh again. |
+
+If validation is required or failed, return to **LangGraph Endpoints**, resolve the report, validate, activate when needed, and then use **Update endpoint binding and refresh topology** from the Current Draft. A failed retrieval leaves the existing binding and pinned snapshot unchanged.

@@ -1,5 +1,5 @@
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Optional
 
 from loguru import logger
 from sqlalchemy import func, update
@@ -8,6 +8,14 @@ from sqlalchemy.orm import load_only, selectinload
 
 from api.db.base_client import BaseDBClient
 from api.db.models import WorkflowDefinitionModel, WorkflowModel, WorkflowRunModel
+
+
+class WorkflowDefinitionConfigurationConflictError(RuntimeError):
+    """The selected draft changed after the caller loaded it."""
+
+
+class ImmutableWorkflowDefinitionError(ValueError):
+    """A published or archived definition cannot be changed."""
 
 
 class WorkflowClient(BaseDBClient):
@@ -349,6 +357,129 @@ class WorkflowClient(BaseDBClient):
                 raise
             await session.refresh(target)
             return target
+
+    async def get_workflow_definition(
+        self,
+        *,
+        organization_id: int,
+        workflow_id: int,
+        definition_id: int,
+    ) -> WorkflowDefinitionModel | None:
+        """Load one version only if its parent workflow belongs to the organization."""
+        async with self.async_session() as session:
+            return await session.scalar(
+                select(WorkflowDefinitionModel)
+                .join(WorkflowModel, WorkflowDefinitionModel.workflow_id == WorkflowModel.id)
+                .where(
+                    WorkflowDefinitionModel.id == definition_id,
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowModel.organization_id == organization_id,
+                )
+            )
+
+    async def update_workflow_definition_configurations(
+        self,
+        *,
+        organization_id: int,
+        workflow_id: int,
+        definition_id: int,
+        workflow_configurations: dict,
+    ) -> None:
+        """Persist a version-local configuration snapshot under tenant ownership."""
+        async with self.async_session() as session:
+            result = await session.execute(
+                update(WorkflowDefinitionModel)
+                .where(
+                    WorkflowDefinitionModel.id == definition_id,
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowDefinitionModel.workflow_id.in_(
+                        select(WorkflowModel.id).where(WorkflowModel.organization_id == organization_id)
+                    ),
+                )
+                .values(workflow_configurations=workflow_configurations)
+            )
+            if result.rowcount != 1:
+                await session.rollback()
+                raise ValueError("workflow version not found in organization")
+            await session.commit()
+
+    async def update_draft_workflow_definition_configurations_conditionally(
+        self,
+        *,
+        organization_id: int,
+        workflow_id: int,
+        definition_id: int,
+        expected_binding_revision: str,
+        expected_workflow_configurations: Mapping[str, object],
+        workflow_configurations: dict,
+    ) -> None:
+        """Atomically replace one unchanged tenant-owned draft configuration.
+
+        The row lock and full-snapshot comparison prevent an endpoint binding update
+        from overwriting an unrelated concurrent draft save. The desired payload must
+        contain a binding and topology snapshot from the same capability revision.
+        """
+        async with self.async_session() as session:
+            definition = await session.scalar(
+                select(WorkflowDefinitionModel)
+                .join(
+                    WorkflowModel,
+                    WorkflowDefinitionModel.workflow_id == WorkflowModel.id,
+                )
+                .where(
+                    WorkflowDefinitionModel.id == definition_id,
+                    WorkflowDefinitionModel.workflow_id == workflow_id,
+                    WorkflowModel.organization_id == organization_id,
+                )
+                .with_for_update()
+            )
+            if definition is None:
+                raise ValueError("workflow version not found in organization")
+            if definition.status != "draft":
+                raise ImmutableWorkflowDefinitionError(
+                    "only the current draft workflow definition can be updated"
+                )
+
+            current_configurations = definition.workflow_configurations or {}
+            current_binding = current_configurations.get("langgraph_endpoint")
+            current_revision = (
+                current_binding.get("capability_snapshot_uuid")
+                if isinstance(current_binding, Mapping)
+                else None
+            )
+            if (
+                current_revision != expected_binding_revision
+                or current_configurations != dict(expected_workflow_configurations)
+            ):
+                raise WorkflowDefinitionConfigurationConflictError(
+                    "draft changed concurrently; reload it and retry"
+                )
+
+            desired_binding = workflow_configurations.get("langgraph_endpoint")
+            desired_snapshot = (
+                desired_binding.get("topology_snapshot")
+                if isinstance(desired_binding, Mapping)
+                else None
+            )
+            if not isinstance(desired_binding, Mapping) or not isinstance(
+                desired_snapshot, Mapping
+            ):
+                raise TypeError(
+                    "the conditional draft update requires a binding and topology snapshot"
+                )
+            if desired_snapshot.get("endpoint_binding_revision") != desired_binding.get(
+                "capability_snapshot_uuid"
+            ):
+                raise ValueError(
+                    "topology snapshot revision must match the binding capability snapshot"
+                )
+
+            definition.workflow_configurations = workflow_configurations
+            try:
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     async def get_draft_version(
         self,
@@ -737,7 +868,7 @@ class WorkflowClient(BaseDBClient):
 
     async def get_workflow_name(
         self, workflow_id: int, user_id: int = None, organization_id: int = None
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get just the workflow name by ID"""
         async with self.async_session() as session:
             query = select(WorkflowModel.name).where(WorkflowModel.id == workflow_id)

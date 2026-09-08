@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi.encoders import jsonable_encoder
+from loguru import logger
 from pipecat.bus.serializers.json import JSONMessageSerializer
 from pipecat.frames.frames import (
     BotStoppedSpeakingFrame,
@@ -502,6 +503,50 @@ async def _execute_langgraph_pending_turn(
             or {}
         ),
     )
+    if endpoint_checkpointed and not state.history:
+        # Endpoint-checkpointed endpoints own the prompt, so the opening turn has
+        # no caller or tool input to send and the contract forbids an empty
+        # message list. Mirror LangGraphReasoningProcessor and skip the
+        # invocation until there is input, leaving the turn without assistant text.
+        logger.debug(
+            "Skipping endpoint-checkpointed LangGraph text chat invocation until "
+            "caller or tool input is available"
+        )
+        return TextChatTurnExecutionResult(
+            assistant_text=None,
+            assistant_created_at=datetime.now(UTC).isoformat(),
+            events=jsonable_encoder(
+                [
+                    {
+                        "type": "langgraph_preflight",
+                        "created_at": datetime.now(UTC).isoformat(),
+                        "payload": {
+                            "invocation_id": None,
+                            "skipped": "awaiting_caller_input",
+                            "source_node_id": node.id,
+                            "target_node_id": None,
+                            "requested_transition": None,
+                            "observed_node_change": False,
+                        },
+                    }
+                ]
+            ),
+            usage={},
+            checkpoint=jsonable_encoder(
+                {
+                    **base_checkpoint,
+                    "anchor_turn_id": pending_turn.get("id"),
+                    "current_node_id": node.id,
+                }
+            ),
+            gathered_context=jsonable_encoder(
+                base_checkpoint.get("gathered_context") or {}
+            ),
+            initial_context=jsonable_encoder(initial_context),
+            state=WorkflowRunState.RUNNING.value,
+            is_completed=False,
+        )
+
     limits = binding.limits
     feature = await get_langgraph_feature_configuration(workflow.organization_id)
     snapshot = RuntimeEndpointSnapshot(

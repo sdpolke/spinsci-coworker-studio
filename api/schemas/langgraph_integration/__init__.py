@@ -44,6 +44,9 @@ _SCHEMA_REGISTRY: dict[str, dict[str, type[BaseModel]]] = {
         "cancellation_response": v1_2.CancellationResponse,
         "resume": v1_2.ResumeRequest,
         "health": v1_2.HealthResponse,
+        "topology_request": v1_2.TopologyRequest,
+        "topology": v1_2.EndpointTopology,
+        "topology_unsupported": v1_2.TopologyUnsupportedResponse,
     },
 }
 

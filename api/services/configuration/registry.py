@@ -100,11 +100,11 @@ class ServiceProviders(str, Enum):
     LMNT = "lmnt"
 
 
-LEGACY_PROVIDER_ALIASES = {"dograh": "spinsci"}
+LEGACY_PROVIDER_ALIASES = {"SpinSci": "spinsci"}
 
 
 def normalize_legacy_provider_aliases(data: object) -> None:
-    """Rewrite stored provider strings (e.g. dograh -> spinsci) before validation."""
+    """Rewrite stored provider strings (e.g. SpinSci -> spinsci) before validation."""
     if isinstance(data, dict):
         provider = data.get("provider")
         if isinstance(provider, str) and provider in LEGACY_PROVIDER_ALIASES:

@@ -2,7 +2,7 @@ import json
 import re
 import uuid
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -15,6 +15,7 @@ from api.db.models import UserModel
 from api.db.workflow_template_client import WorkflowTemplateClient
 from api.enums import CallType, PostHogEvent, StorageBackend, WorkflowStatus
 from api.schemas.ai_model_configuration import OrganizationAIModelConfigurationV2
+from api.schemas.langgraph_topology import ExternalTopologyResponse
 from api.schemas.workflow import WorkflowRunResponseSchema
 from api.schemas.workflow_configurations import WorkflowConfigurationDefaults
 from api.sdk_expose import sdk_expose
@@ -38,12 +39,26 @@ from api.services.configuration.resolve import (
     enrich_overrides_with_api_keys,
     resolve_effective_config,
 )
-from api.services.workflow.generation.harness import (
-    WorkflowGenerationError,
-    generate_workflow_one_shot,
-    workflow_response_payload,
+from api.services.langgraph_integration.access_control import (
+    LangGraphAuthorizationError,
+    LangGraphPermission,
+    LangGraphRole,
+    is_langgraph_authorized,
 )
-from api.services.workflow.generation.models import GenerationBrief
+from api.services.langgraph_integration.configuration import (
+    get_langgraph_feature_configuration,
+)
+from api.services.langgraph_integration.endpoint_registration import (
+    FeatureDisabledError,
+    require_permission,
+)
+from api.services.langgraph_integration.topology import (
+    TopologyDefinitionNotFoundError,
+    TopologyResult,
+    refresh_draft_topology,
+    topology_for_definition,
+    update_draft_binding_and_topology,
+)
 from api.services.posthog_client import capture_event
 from api.services.reports import generate_workflow_report_csv
 from api.services.storage import storage_fs
@@ -55,7 +70,12 @@ from api.services.workflow.configuration_policy import (
 from api.services.workflow.dto import ReactFlowDTO, sanitize_workflow_definition
 from api.services.workflow.duplicate import duplicate_workflow
 from api.services.workflow.errors import ItemKind, WorkflowError
-from api.services.langgraph_integration.endpoint_registration import FeatureDisabledError
+from api.services.workflow.generation.harness import (
+    WorkflowGenerationError,
+    generate_workflow_one_shot,
+    workflow_response_payload,
+)
+from api.services.workflow.generation.models import GenerationBrief
 from api.services.workflow.langgraph_binding import (
     LangGraphWorkflowBindingError,
     validate_langgraph_workflow_binding,
@@ -96,7 +116,7 @@ class ValidateWorkflowResponse(BaseModel):
 
 
 def _trigger_conflict_http_exception(
-    workflow_definition: Optional[dict], conflicting_paths: list[str]
+    workflow_definition: dict | None, conflicting_paths: list[str]
 ) -> HTTPException:
     """Build a 409 with the same detail shape as validate's 422 so the editor
     can highlight the offending trigger node(s) using the same code path."""
@@ -140,10 +160,10 @@ def _trigger_path_validation_http_exception(
 
 
 async def _validate_workflow_definition(
-    workflow_definition: Optional[dict],
+    workflow_definition: dict | None,
     organization_id: int,
-    exclude_workflow_id: Optional[int] = None,
-    workflow_configurations: Optional[dict] = None,
+    exclude_workflow_id: int | None = None,
+    workflow_configurations: dict | None = None,
 ) -> list[WorkflowError]:
     """Run DTO, graph, tool-name, and trigger checks on a workflow definition.
 
@@ -156,7 +176,7 @@ async def _validate_workflow_definition(
         return errors
 
     # ----------- DTO Validation ------------
-    dto: Optional[ReactFlowDTO] = None
+    dto: ReactFlowDTO | None = None
     try:
         dto = ReactFlowDTO.model_validate(workflow_definition)
     except ValidationError as exc:
@@ -240,7 +260,7 @@ def _validation_errors_http_exception(
 
 
 def _node_instance_validation_errors(
-    workflow_definition: Optional[dict],
+    workflow_definition: dict | None,
 ) -> list[WorkflowError]:
     """Validate spec-driven max_instances without requiring a complete draft."""
     if not workflow_definition:
@@ -261,7 +281,7 @@ def _node_instance_validation_errors(
 
 
 def _transition_tool_name_validation_errors(
-    workflow_definition: Optional[dict],
+    workflow_definition: dict | None,
 ) -> list[WorkflowError]:
     """Validate transition names without requiring a complete draft DTO."""
     if not workflow_definition:
@@ -372,6 +392,32 @@ class WorkflowVersionResponse(BaseModel):
     workflow_json: dict
     workflow_configurations: dict | None = None
     template_context_variables: dict | None = None
+
+
+def _external_topology_response(result: TopologyResult) -> ExternalTopologyResponse:
+    return ExternalTopologyResponse(
+        status=result.status,
+        reason=result.reason,
+        topology=(result.topology.model_dump(mode="json") if result.topology else None),
+        digest=result.digest,
+        endpoint_binding_revision=result.endpoint_binding_revision,
+        binding_status=result.binding_status,
+        actions=result.actions,
+        stages=result.stages,
+    )
+
+
+def _workflow_langgraph_role(user: UserModel) -> LangGraphRole:
+    """Resolve the same integration role used by endpoint lifecycle routes."""
+    value = getattr(user, "langgraph_role", LangGraphRole.ORGANIZATION_ADMIN.value)
+    try:
+        return LangGraphRole(value)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Invalid LangGraph role") from exc
+
+
+def _can_langgraph(role: LangGraphRole, permission: LangGraphPermission) -> bool:
+    return is_langgraph_authorized(role=role, permission=permission)
 
 
 class UpdateWorkflowStatusRequest(BaseModel):
@@ -614,7 +660,7 @@ async def get_workflow_count(
     )
 
 
-def _validate_status_filter(status: Optional[str]) -> List[str]:
+def _validate_status_filter(status: str | None) -> list[str]:
     """Parse and validate a workflow ``status`` query filter.
 
     Accepts a single value or a comma-separated list. Returns the list of
@@ -648,11 +694,11 @@ def _validate_status_filter(status: Optional[str]) -> List[str]:
 )
 async def get_workflows(
     user: UserModel = Depends(get_user),
-    status: Optional[str] = Query(
+    status: str | None = Query(
         None,
         description="Filter by status - can be single value (active/archived) or comma-separated (active,archived)",
     ),
-) -> List[WorkflowListResponse]:
+) -> list[WorkflowListResponse]:
     """Get all workflows for the authenticated user's organization.
 
     Returns a lightweight response with only essential fields for listing.
@@ -746,6 +792,94 @@ async def get_workflow(
         "version_status": active_def.status if active_def else None,
         "workflow_uuid": workflow.workflow_uuid,
     }
+
+
+@router.get(
+    "/{workflow_id}/versions/{definition_id}/langgraph-topology",
+    response_model=ExternalTopologyResponse,
+)
+async def get_external_langgraph_topology(
+    workflow_id: int,
+    definition_id: int,
+    user: UserModel = Depends(get_user),
+) -> ExternalTopologyResponse:
+    """Return pinned topology plus side-effect-free draft binding classification."""
+    organization_id = user.selected_organization_id
+    definition = await db_client.get_workflow_definition(
+        organization_id=organization_id,
+        workflow_id=workflow_id,
+        definition_id=definition_id,
+    )
+    if definition is None:
+        raise HTTPException(status_code=404, detail="Workflow version not found")
+    role = _workflow_langgraph_role(user)
+    result = await topology_for_definition(
+        organization_id=organization_id,
+        definition=definition,
+        db_client=db_client,
+        can_revalidate=_can_langgraph(role, LangGraphPermission.VALIDATE),
+        can_update_binding=_can_langgraph(role, LangGraphPermission.UPDATE),
+        can_refresh_topology=True,
+    )
+    return _external_topology_response(result)
+
+
+@router.post(
+    "/{workflow_id}/versions/{definition_id}/langgraph-topology/refresh",
+    response_model=ExternalTopologyResponse,
+)
+async def refresh_external_langgraph_topology(
+    workflow_id: int,
+    definition_id: int,
+    user: UserModel = Depends(get_user),
+) -> ExternalTopologyResponse:
+    """Refresh topology only for a current, supported draft binding."""
+    organization_id = user.selected_organization_id
+    role = _workflow_langgraph_role(user)
+    feature = await get_langgraph_feature_configuration(organization_id)
+    try:
+        result = await refresh_draft_topology(
+            organization_id=organization_id,
+            workflow_id=workflow_id,
+            definition_id=definition_id,
+            db_client=db_client,
+            private_network_enabled=feature.private_network_enabled,
+            can_revalidate=_can_langgraph(role, LangGraphPermission.VALIDATE),
+        )
+    except TopologyDefinitionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Workflow version not found") from exc
+    return _external_topology_response(result)
+
+
+@router.post(
+    "/{workflow_id}/versions/{definition_id}/langgraph-topology/update-binding",
+    response_model=ExternalTopologyResponse,
+)
+async def update_external_langgraph_topology_binding(
+    workflow_id: int,
+    definition_id: int,
+    user: UserModel = Depends(get_user),
+) -> ExternalTopologyResponse:
+    """Explicitly adopt current endpoint evidence and atomically pin draft topology."""
+    organization_id = user.selected_organization_id
+    role = _workflow_langgraph_role(user)
+    try:
+        require_permission(role, LangGraphPermission.UPDATE)
+    except LangGraphAuthorizationError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    feature = await get_langgraph_feature_configuration(organization_id)
+    try:
+        result = await update_draft_binding_and_topology(
+            organization_id=organization_id,
+            workflow_id=workflow_id,
+            definition_id=definition_id,
+            db_client=db_client,
+            private_network_enabled=feature.private_network_enabled,
+            can_revalidate=_can_langgraph(role, LangGraphPermission.VALIDATE),
+        )
+    except TopologyDefinitionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Workflow version not found") from exc
+    return _external_topology_response(result)
 
 
 @router.get("/{workflow_id}/versions")
@@ -879,11 +1013,11 @@ async def create_workflow_draft(
 @router.get("/summary")
 async def get_workflows_summary(
     user: UserModel = Depends(get_user),
-    status: Optional[str] = Query(
+    status: str | None = Query(
         None,
         description="Filter by status (e.g. 'active' or 'archived'). Omit to return all.",
     ),
-) -> List[WorkflowSummaryResponse]:
+) -> list[WorkflowSummaryResponse]:
     """Get minimal workflow information (id and name only) for all workflows"""
     statuses = _validate_status_filter(status)
     if statuses:
@@ -1425,12 +1559,12 @@ async def get_workflow_run(
 
 
 class WorkflowRunsResponse(BaseModel):
-    runs: List[WorkflowRunResponseSchema]
+    runs: list[WorkflowRunResponseSchema]
     total_count: int
     page: int
     limit: int
     total_pages: int
-    applied_filters: Optional[List[dict]] = None
+    applied_filters: list[dict] | None = None
 
 
 @router.get("/{workflow_id}/runs")
@@ -1438,11 +1572,11 @@ async def get_workflow_runs(
     workflow_id: int,
     page: int = Query(1, ge=1, description="Page number (starts from 1)"),
     limit: int = Query(50, ge=1, le=100, description="Number of items per page"),
-    filters: Optional[str] = Query(None, description="JSON-encoded filter criteria"),
-    sort_by: Optional[str] = Query(
+    filters: str | None = Query(None, description="JSON-encoded filter criteria"),
+    sort_by: str | None = Query(
         None, description="Field to sort by (e.g., 'duration', 'created_at')"
     ),
-    sort_order: Optional[str] = Query(
+    sort_order: str | None = Query(
         "desc", description="Sort order ('asc' or 'desc')"
     ),
     user: UserModel = Depends(get_user),
@@ -1504,10 +1638,10 @@ async def get_workflow_runs(
 async def download_workflow_report(
     workflow_id: int,
     user: UserModel = Depends(get_user),
-    start_date: Optional[datetime] = Query(
+    start_date: datetime | None = Query(
         None, description="Filter runs created on or after this datetime (ISO 8601)"
     ),
-    end_date: Optional[datetime] = Query(
+    end_date: datetime | None = Query(
         None, description="Filter runs created on or before this datetime (ISO 8601)"
     ),
 ) -> StreamingResponse:
@@ -1532,7 +1666,7 @@ async def download_workflow_report(
 
 
 @router.get("/templates")
-async def get_workflow_templates() -> List[WorkflowTemplateResponse]:
+async def get_workflow_templates() -> list[WorkflowTemplateResponse]:
     """
     Get all available workflow templates.
 

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This feature migrates the Dograh voice AI platform from its single-host Docker Compose deployment (`docker-compose.yaml`, driven by `setup_remote.sh` / `remote_up.sh`) to a Kubernetes deployment with KEDA-driven horizontal autoscaling of the API workload.
+This feature migrates the SpinSci voice AI platform from its single-host Docker Compose deployment (`docker-compose.yaml`, driven by `setup_remote.sh` / `remote_up.sh`) to a Kubernetes deployment with KEDA-driven horizontal autoscaling of the API workload.
 
 The business driver is capacity and cost. The target volume is 5000 calls per day concentrated in an 8-to-9-hour business-hours window, with an average handle time of 3 minutes. That yields roughly 29 average concurrent calls and roughly 60 peak-hour concurrent calls. The deployment must provision for 90 concurrent calls with the ability to scale to 120, against a current per-organization default ceiling of 10 (`DEFAULT_ORG_CONCURRENCY_LIMIT` in `api/constants.py`). Because traffic is idle overnight and dense during the business window, replica count must track load rather than sit permanently at peak size.
 

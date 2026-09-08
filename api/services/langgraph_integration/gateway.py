@@ -10,7 +10,7 @@ from collections import defaultdict
 from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 import httpx
 from opentelemetry import trace
@@ -565,7 +565,48 @@ class IntegrationGateway:
         self.credential_resolver = credential_resolver
         self.transport = transport or HttpxRuntimeTransport()
         self.metrics = metrics or GatewayMetrics()
-        self._tracer = trace.get_tracer("dograh.langgraph.gateway")
+        self._tracer = trace.get_tracer("SpinSci.langgraph.gateway")
+
+    async def fetch_topology(
+        self,
+        snapshot: RuntimeEndpointSnapshot,
+        *,
+        view: Any,
+        trace_context: GatewayTraceContext,
+    ) -> BaseModel | None:
+        """Retrieve a bounded, validated topology through the normal gateway path."""
+        if snapshot.contract_version != "1.2" or "topology" not in snapshot.operations:
+            return None
+        response = await self._exchange(
+            snapshot,
+            "GET",
+            "topology",
+            None,
+            trace_context=trace_context,
+            query={"view": str(view)},
+        )
+        try:
+            body = await _read_bounded(response, snapshot.response_bytes)
+            if response.status_code == 404:
+                return None
+            self._raise_http_error(response.status_code)
+            try:
+                unsupported = schema_for(snapshot.contract_version, "topology_unsupported").model_validate_json(body)
+            except Exception:
+                unsupported = None
+            if unsupported is not None:
+                return None
+            try:
+                topology = schema_for(snapshot.contract_version, "topology").model_validate_json(body)
+            except Exception as exc:
+                raise ProtocolViolation(
+                    "invalid_topology", "endpoint topology does not match the pinned contract"
+                ) from exc
+            if topology.view != view:
+                raise ProtocolViolation("topology_view_mismatch", "endpoint returned a different topology view")
+            return topology
+        finally:
+            await response.aclose()
 
     async def invoke_sync(
         self,
@@ -773,6 +814,7 @@ class IntegrationGateway:
         *,
         trace_context: GatewayTraceContext,
         operation_identifiers: Mapping[str, str] | None = None,
+        query: Mapping[str, str] | None = None,
         accept: str = "application/json",
     ) -> RuntimeResponse:
         if trace_context.organization_id != snapshot.organization_id:
@@ -793,6 +835,8 @@ class IntegrationGateway:
             "traceparent": trace_context.traceparent,
         }
         current = snapshot.operation_url(operation, **dict(operation_identifiers or {}))
+        if query:
+            current = f"{current}?{urlencode(dict(query))}"
         allow_private = snapshot.private_network_enabled
 
         def approve_connection(address: str) -> None:

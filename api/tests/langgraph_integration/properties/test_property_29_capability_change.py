@@ -41,6 +41,13 @@ def capability_manifests(draw):
             "event_bytes": draw(st.integers(1, 100_000)),
             "tool_argument_bytes": draw(st.integers(1, 500_000)),
         },
+        "data_regions": draw(
+            st.sets(st.sampled_from(["us-east-1", "eu-west-1"]), min_size=1)
+        ),
+        "operations": {
+            "invoke": "/v1/invocations",
+            "health": "/v1/health",
+        },
     }
 
 
@@ -53,10 +60,12 @@ def test_property_29_ordering_only_changes_do_not_change_digest(manifest):
         "compatibility_profiles",
         "invocation_modes",
         "state_modes",
+        "data_regions",
     ):
         reordered[field] = sorted(manifest[field], reverse=True)
     reordered["features"] = dict(reversed(list(manifest["features"].items())))
     reordered["limits"] = dict(reversed(list(manifest["limits"].items())))
+    reordered["operations"] = dict(reversed(list(manifest["operations"].items())))
 
     assert capability_digest(manifest) == capability_digest(reordered)
     assert not capabilities_changed(manifest, reordered)
@@ -71,8 +80,10 @@ def test_property_29_ordering_only_changes_do_not_change_digest(manifest):
             "compatibility_profiles",
             "invocation_modes",
             "state_modes",
+            "data_regions",
             "features",
             "limits",
+            "operations",
         ]
     ),
 )
@@ -83,10 +94,13 @@ def test_property_29_every_semantic_capability_change_changes_digest(manifest, f
         "compatibility_profiles",
         "invocation_modes",
         "state_modes",
+        "data_regions",
     }:
         changed[field] = set(changed[field]) | {f"changed-{field}"}
     elif field == "features":
         changed[field]["new_feature"] = True
+    elif field == "operations":
+        changed[field]["topology"] = "/v1/topology"
     else:
         changed[field]["new_limit"] = 1
 

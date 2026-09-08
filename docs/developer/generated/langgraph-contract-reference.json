@@ -4563,6 +4563,15 @@
           "method": "GET",
           "operation": "health",
           "schema": "health"
+        },
+        {
+          "schema": "topology_request"
+        },
+        {
+          "schema": "topology"
+        },
+        {
+          "schema": "topology_unsupported"
         }
       ],
       "schemas": {
@@ -5134,6 +5143,20 @@
                   ],
                   "default": null,
                   "title": "Status"
+                },
+                "topology": {
+                  "anyOf": [
+                    {
+                      "maxLength": 512,
+                      "pattern": "^/",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Topology"
                 }
               },
               "required": [
@@ -6835,6 +6858,245 @@
             "result"
           ],
           "title": "SynchronousResponse",
+          "type": "object"
+        },
+        "topology": {
+          "$defs": {
+            "TopologyEdge": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "anyOf": [
+                    {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Id"
+                },
+                "label": {
+                  "anyOf": [
+                    {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Label"
+                },
+                "metadata": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Metadata"
+                },
+                "source": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "title": "Source",
+                  "type": "string"
+                },
+                "target": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "title": "Target",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "source",
+                "target"
+              ],
+              "title": "TopologyEdge",
+              "type": "object"
+            },
+            "TopologyNode": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "title": "Id",
+                  "type": "string"
+                },
+                "label": {
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "title": "Label",
+                  "type": "string"
+                },
+                "metadata": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Metadata"
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "maxLength": 255,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "title": "Type"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "title": "TopologyNode",
+              "type": "object"
+            },
+            "TopologyView": {
+              "enum": [
+                "collapsed",
+                "expanded"
+              ],
+              "title": "TopologyView",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "properties": {
+            "edges": {
+              "items": {
+                "$ref": "#/$defs/TopologyEdge"
+              },
+              "maxItems": 50000,
+              "title": "Edges",
+              "type": "array"
+            },
+            "graph_id": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Graph Id",
+              "type": "string"
+            },
+            "nodes": {
+              "items": {
+                "$ref": "#/$defs/TopologyNode"
+              },
+              "maxItems": 10000,
+              "minItems": 1,
+              "title": "Nodes",
+              "type": "array"
+            },
+            "revision": {
+              "maxLength": 255,
+              "minLength": 1,
+              "title": "Revision",
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.2",
+              "default": "1.2",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "view": {
+              "$ref": "#/$defs/TopologyView"
+            }
+          },
+          "required": [
+            "graph_id",
+            "revision",
+            "view",
+            "nodes"
+          ],
+          "title": "EndpointTopology",
+          "type": "object"
+        },
+        "topology_request": {
+          "$defs": {
+            "TopologyView": {
+              "enum": [
+                "collapsed",
+                "expanded"
+              ],
+              "title": "TopologyView",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "properties": {
+            "operation": {
+              "const": "topology",
+              "default": "topology",
+              "title": "Operation",
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.2",
+              "default": "1.2",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "view": {
+              "$ref": "#/$defs/TopologyView",
+              "default": "collapsed"
+            }
+          },
+          "title": "TopologyRequest",
+          "type": "object"
+        },
+        "topology_unsupported": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "const": "topology_unsupported",
+              "default": "topology_unsupported",
+              "title": "Code",
+              "type": "string"
+            },
+            "operation": {
+              "const": "topology",
+              "default": "topology",
+              "title": "Operation",
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "1.2",
+              "default": "1.2",
+              "title": "Schema Version",
+              "type": "string"
+            },
+            "status": {
+              "const": "unsupported",
+              "default": "unsupported",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          "title": "TopologyUnsupportedResponse",
           "type": "object"
         }
       }

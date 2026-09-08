@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field, RootModel
+from pydantic import ConfigDict, Field, RootModel, model_validator
 
 from . import v1_0, v1_1
 from .common import Identifier, StrictContractModel
@@ -10,8 +11,70 @@ from .common import Identifier, StrictContractModel
 V1_2 = "1.2"
 
 
+class DiscoveryOperations(v1_0.DiscoveryOperations):
+    topology: str | None = Field(default=None, max_length=512, pattern=r"^/")
+
+
 class CapabilityManifest(v1_1.CapabilityManifest):
     schema_version: Literal["1.2"] = "1.2"
+    operations: DiscoveryOperations
+
+
+class TopologyView(StrEnum):
+    COLLAPSED = "collapsed"
+    EXPANDED = "expanded"
+
+
+class TopologyRequest(StrictContractModel):
+    schema_version: Literal["1.2"] = "1.2"
+    operation: Literal["topology"] = "topology"
+    view: TopologyView = TopologyView.COLLAPSED
+
+
+class TopologyNode(StrictContractModel):
+    id: Identifier
+    label: str = Field(min_length=1, max_length=255)
+    type: str | None = Field(default=None, min_length=1, max_length=255)
+    metadata: dict[str, object] | None = None
+
+
+class TopologyEdge(StrictContractModel):
+    id: Identifier | None = None
+    source: Identifier
+    target: Identifier
+    label: str | None = Field(default=None, min_length=1, max_length=255)
+    metadata: dict[str, object] | None = None
+
+
+class EndpointTopology(StrictContractModel):
+    schema_version: Literal["1.2"] = "1.2"
+    graph_id: Identifier
+    revision: Identifier
+    view: TopologyView
+    nodes: list[TopologyNode] = Field(min_length=1, max_length=10_000)
+    edges: list[TopologyEdge] = Field(default_factory=list, max_length=50_000)
+
+    @model_validator(mode="after")
+    def edges_reference_unique_nodes(self) -> "EndpointTopology":
+        node_ids = [node.id for node in self.nodes]
+        if len(node_ids) != len(set(node_ids)):
+            raise ValueError("topology node IDs must be unique")
+        unknown_nodes = {
+            node_id
+            for edge in self.edges
+            for node_id in (edge.source, edge.target)
+            if node_id not in set(node_ids)
+        }
+        if unknown_nodes:
+            raise ValueError("topology edges must reference declared nodes")
+        return self
+
+
+class TopologyUnsupportedResponse(StrictContractModel):
+    schema_version: Literal["1.2"] = "1.2"
+    operation: Literal["topology"] = "topology"
+    status: Literal["unsupported"] = "unsupported"
+    code: Literal["topology_unsupported"] = "topology_unsupported"
 
 
 class InvocationContinuation(StrictContractModel):

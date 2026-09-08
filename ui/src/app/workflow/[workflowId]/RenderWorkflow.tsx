@@ -161,6 +161,11 @@ function RenderWorkflow({
                 path: { workflow_id: workflowId },
                 query: { limit: VERSIONS_PAGE_SIZE, offset: 0 },
             });
+            if (response.error) {
+                // Leave versionsFetched unset so a later open retries instead of
+                // silently stranding activeVersionId at null forever.
+                return;
+            }
             const data = response.data as WorkflowVersion[] | undefined;
             if (data) {
                 setVersions(data);
@@ -201,6 +206,14 @@ function RenderWorkflow({
     const handleOpenVersionPanel = useCallback(() => {
         setIsVersionPanelOpen(true);
         fetchVersions();
+    }, [fetchVersions]);
+
+    // The configurations dialog needs activeVersionId to address a workflow version
+    // (the LangGraph topology routes are version-scoped). Without this, activeVersionId
+    // stays null until the user touches versioning and version-scoped calls are skipped.
+    const handleOpenConfigurations = useCallback(() => {
+        setIsConfigurationsDialogOpen(true);
+        void fetchVersions();
     }, [fetchVersions]);
 
     const handleSelectVersion = useCallback((version: WorkflowVersion) => {
@@ -591,7 +604,7 @@ function RenderWorkflow({
                                                         <Button
                                                             variant="outline"
                                                             size="icon"
-                                                            onClick={() => setIsConfigurationsDialogOpen(true)}
+                                                            onClick={handleOpenConfigurations}
                                                             className="bg-white shadow-sm hover:shadow-md"
                                                             aria-label="Reasoning endpoint configuration"
                                                         >
@@ -739,6 +752,8 @@ function RenderWorkflow({
                     onSave={saveWorkflowConfigurations}
                     onCreateDraft={handleBackToDraft}
                     immutable={currentVersionStatus === 'published'}
+                    workflowId={workflowId}
+                    definitionId={activeVersionId}
                     transitionLabels={edges.map((edge) => String(edge.data?.label ?? ''))}
                 />
 

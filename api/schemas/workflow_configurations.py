@@ -78,6 +78,16 @@ class LangGraphEligibilityEvidence(BaseModel):
         )
 
 
+class LangGraphTopologySnapshot(BaseModel):
+    """Immutable external topology retained with one workflow-version binding."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    endpoint_binding_revision: str = Field(min_length=1, max_length=64)
+    digest: str = Field(min_length=64, max_length=64, pattern=r"^[0-9a-f]{64}$")
+    topology: dict[str, Any]
+
+
 class LangGraphEndpointBinding(BaseModel):
     """Complete workflow-version-pinned endpoint behavior snapshot."""
 
@@ -112,6 +122,7 @@ class LangGraphEndpointBinding(BaseModel):
     operations: dict[str, str]
     limits: dict[str, int]
     ownership: dict[str, str] = Field(default_factory=dict)
+    topology_snapshot: LangGraphTopologySnapshot | None = None
 
 
 class WorkflowConfigurationDefaults(BaseModel):

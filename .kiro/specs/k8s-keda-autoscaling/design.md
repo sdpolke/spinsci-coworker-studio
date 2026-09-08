@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design takes the Dograh/SpinSci voice platform from its single-host Docker Compose deployment to a Kubernetes deployment whose API tier is horizontally autoscaled by KEDA against the fleet-wide active-call count, sized to carry 90 concurrent calls with headroom to 120.
+This design takes the SpinSci/SpinSci voice platform from its single-host Docker Compose deployment to a Kubernetes deployment whose API tier is horizontally autoscaled by KEDA against the fleet-wide active-call count, sized to carry 90 concurrent calls with headroom to 120.
 
 ### Starting position: this is a hardening, not a greenfield build
 
@@ -294,7 +294,7 @@ R4.5 requires the pod to report itself not-ready within 5s of preStop start. Kub
 - `scripts/drain_web.sh` `touch`es the sentinel as its first action.
 
 Why a file and not an in-process flag or an admin endpoint:
-- The preStop hook runs as a **separate process** in the same container, so it cannot mutate the server's memory. A file is the natural shared channel, and `/tmp` is writable by the `dograh` user and shared by every uvicorn worker in the pod — so the flag flips for all workers at once even if `FASTAPI_WORKERS>1`.
+- The preStop hook runs as a **separate process** in the same container, so it cannot mutate the server's memory. A file is the natural shared channel, and `/tmp` is writable by the `SpinSci` user and shared by every uvicorn worker in the pod — so the flag flips for all workers at once even if `FASTAPI_WORKERS>1`.
 - A local admin `POST /internal/drain` would work but adds an authenticated mutating endpoint whose only caller is a sibling process, and with multiple workers it would have to be called once per port.
 - The file is confined to the container's own filesystem, so it cannot leak across pods.
 

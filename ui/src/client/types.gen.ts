@@ -786,6 +786,11 @@ export type BatchRecordingUploadResponseSchema = {
 };
 
 /**
+ * BindingUpdateStage
+ */
+export type BindingUpdateStage = 'not_required' | 'pending' | 'updated' | 'failed';
+
+/**
  * Body_transcribe_audio_api_v1_workflow_recordings_transcribe_post
  */
 export type BodyTranscribeAudioApiV1WorkflowRecordingsTranscribePost = {
@@ -2310,6 +2315,37 @@ export type DocumentUploadResponseSchema = {
 };
 
 /**
+ * DraftBindingState
+ */
+export type DraftBindingState = 'endpoint_not_configured' | 'immutable_snapshot_only' | 'endpoint_unavailable' | 'endpoint_revalidation_required' | 'endpoint_validation_failed' | 'topology_unsupported' | 'binding_stale' | 'binding_current';
+
+/**
+ * DraftBindingStatus
+ *
+ * Read-only comparison of a version binding with current endpoint evidence.
+ */
+export type DraftBindingStatus = {
+    state: DraftBindingState;
+    reason?: TopologyReasonCode | null;
+    /**
+     * Bound Validation Report Uuid
+     */
+    bound_validation_report_uuid?: string | null;
+    /**
+     * Bound Capability Snapshot Uuid
+     */
+    bound_capability_snapshot_uuid?: string | null;
+    /**
+     * Current Validation Report Uuid
+     */
+    current_validation_report_uuid?: string | null;
+    /**
+     * Current Capability Snapshot Uuid
+     */
+    current_capability_snapshot_uuid?: string | null;
+};
+
+/**
  * DuplicateTemplateRequest
  */
 export type DuplicateTemplateRequest = {
@@ -2783,6 +2819,36 @@ export type ExternalPbxFieldMapping = {
      * Destination Field
      */
     destination_field: string;
+};
+
+/**
+ * ExternalTopologyResponse
+ *
+ * Backward-compatible topology payload with additive draft lifecycle metadata.
+ */
+export type ExternalTopologyResponse = {
+    /**
+     * Status
+     */
+    status: 'available' | 'unavailable';
+    reason?: TopologyReasonCode | null;
+    /**
+     * Topology
+     */
+    topology?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Digest
+     */
+    digest?: string | null;
+    /**
+     * Endpoint Binding Revision
+     */
+    endpoint_binding_revision?: string | null;
+    binding_status?: DraftBindingStatus | null;
+    actions?: TopologyActionAvailability | null;
+    stages?: TopologyLifecycleStages | null;
 };
 
 /**
@@ -3885,6 +3951,7 @@ export type LangGraphEndpointBinding = {
     ownership?: {
         [key: string]: string;
     };
+    topology_snapshot?: LangGraphTopologySnapshot | null;
 };
 
 /**
@@ -3941,6 +4008,28 @@ export type LangGraphFeatureUpdateRequest = {
      * Private Network Risk Acknowledged
      */
     private_network_risk_acknowledged?: boolean;
+};
+
+/**
+ * LangGraphTopologySnapshot
+ *
+ * Immutable external topology retained with one workflow-version binding.
+ */
+export type LangGraphTopologySnapshot = {
+    /**
+     * Endpoint Binding Revision
+     */
+    endpoint_binding_revision: string;
+    /**
+     * Digest
+     */
+    digest: string;
+    /**
+     * Topology
+     */
+    topology: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -7101,6 +7190,51 @@ export type ToolTestResponse = {
 };
 
 /**
+ * TopologyActionAvailability
+ *
+ * Server-derived presentation hints; mutation routes still authorize independently.
+ */
+export type TopologyActionAvailability = {
+    /**
+     * Can Revalidate
+     */
+    can_revalidate?: boolean;
+    /**
+     * Can Update Binding
+     */
+    can_update_binding?: boolean;
+    /**
+     * Can Refresh Topology
+     */
+    can_refresh_topology?: boolean;
+    /**
+     * Immutable
+     */
+    immutable?: boolean;
+};
+
+/**
+ * TopologyLifecycleStages
+ */
+export type TopologyLifecycleStages = {
+    validation?: ValidationStage;
+    binding_update?: BindingUpdateStage;
+    topology_refresh?: TopologyRefreshStage;
+};
+
+/**
+ * TopologyReasonCode
+ *
+ * Stable, non-secret reason codes returned by topology APIs.
+ */
+export type TopologyReasonCode = 'snapshot_unavailable' | 'snapshot_invalid' | 'snapshot_binding_mismatch' | 'snapshot_digest_mismatch' | 'snapshot_required_for_immutable_version' | 'endpoint_not_configured' | 'immutable_snapshot_only' | 'endpoint_unavailable' | 'endpoint_revalidation_required' | 'endpoint_validation_failed' | 'topology_unsupported' | 'binding_stale' | 'binding_current' | 'binding_incompatible' | 'topology_unavailable' | 'topology_auth_failed' | 'topology_network_failed' | 'topology_schema_invalid' | 'draft_changed';
+
+/**
+ * TopologyRefreshStage
+ */
+export type TopologyRefreshStage = 'not_started' | 'pending' | 'pinned' | 'failed';
+
+/**
  * TransferCallConfig
  *
  * Configuration for Transfer Call tools.
@@ -7716,6 +7850,11 @@ export type ValidationResultResponse = {
         [key: string]: unknown;
     } | null;
 };
+
+/**
+ * ValidationStage
+ */
+export type ValidationStage = 'not_required' | 'required' | 'pending' | 'passed' | 'failed';
 
 /**
  * VicidialAgentAPIConfiguration
@@ -9701,6 +9840,150 @@ export type GetWorkflowApiV1WorkflowFetchWorkflowIdGetResponses = {
 };
 
 export type GetWorkflowApiV1WorkflowFetchWorkflowIdGetResponse = GetWorkflowApiV1WorkflowFetchWorkflowIdGetResponses[keyof GetWorkflowApiV1WorkflowFetchWorkflowIdGetResponses];
+
+export type GetExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Definition Id
+         */
+        definition_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/versions/{definition_id}/langgraph-topology';
+};
+
+export type GetExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyGetError = GetExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyGetErrors[keyof GetExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyGetErrors];
+
+export type GetExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExternalTopologyResponse;
+};
+
+export type GetExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyGetResponse = GetExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyGetResponses[keyof GetExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyGetResponses];
+
+export type RefreshExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyRefreshPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Definition Id
+         */
+        definition_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/versions/{definition_id}/langgraph-topology/refresh';
+};
+
+export type RefreshExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyRefreshPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RefreshExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyRefreshPostError = RefreshExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyRefreshPostErrors[keyof RefreshExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyRefreshPostErrors];
+
+export type RefreshExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyRefreshPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExternalTopologyResponse;
+};
+
+export type RefreshExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyRefreshPostResponse = RefreshExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyRefreshPostResponses[keyof RefreshExternalLanggraphTopologyApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyRefreshPostResponses];
+
+export type UpdateExternalLanggraphTopologyBindingApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyUpdateBindingPostData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: number;
+        /**
+         * Definition Id
+         */
+        definition_id: number;
+    };
+    query?: never;
+    url: '/api/v1/workflow/{workflow_id}/versions/{definition_id}/langgraph-topology/update-binding';
+};
+
+export type UpdateExternalLanggraphTopologyBindingApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyUpdateBindingPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateExternalLanggraphTopologyBindingApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyUpdateBindingPostError = UpdateExternalLanggraphTopologyBindingApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyUpdateBindingPostErrors[keyof UpdateExternalLanggraphTopologyBindingApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyUpdateBindingPostErrors];
+
+export type UpdateExternalLanggraphTopologyBindingApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyUpdateBindingPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExternalTopologyResponse;
+};
+
+export type UpdateExternalLanggraphTopologyBindingApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyUpdateBindingPostResponse = UpdateExternalLanggraphTopologyBindingApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyUpdateBindingPostResponses[keyof UpdateExternalLanggraphTopologyBindingApiV1WorkflowWorkflowIdVersionsDefinitionIdLanggraphTopologyUpdateBindingPostResponses];
 
 export type GetWorkflowVersionsApiV1WorkflowWorkflowIdVersionsGetData = {
     body?: never;

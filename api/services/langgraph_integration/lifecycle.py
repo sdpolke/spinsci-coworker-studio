@@ -145,7 +145,15 @@ def evaluate_live_voice_eligibility(
 
 
 def normalized_capability_payload(manifest: Mapping[str, Any]) -> dict[str, Any]:
-    """Return only semantic capabilities with unordered declarations normalized."""
+    """Return only semantic capabilities with unordered declarations normalized.
+
+    ``operations`` and ``data_regions`` are part of the semantic surface: the
+    presence of an operation (for example ``topology``) is what makes the
+    corresponding behavior available, and the advertised regions constrain where
+    a binding may run. Omitting either from the digest would make a re-discovered
+    manifest compare equal to a stale snapshot, so the stale snapshot would be
+    reused and the new operation could never be adopted.
+    """
     return {
         "contract_versions": sorted(set(manifest.get("contract_versions", ()))),
         "compatibility_profiles": sorted(
@@ -153,8 +161,10 @@ def normalized_capability_payload(manifest: Mapping[str, Any]) -> dict[str, Any]
         ),
         "invocation_modes": sorted(set(manifest.get("invocation_modes", ()))),
         "state_modes": sorted(set(manifest.get("state_modes", ()))),
+        "data_regions": sorted(set(manifest.get("data_regions", ()))),
         "features": manifest.get("features", {}),
         "limits": manifest.get("limits", {}),
+        "operations": manifest.get("operations", {}),
     }
 
 

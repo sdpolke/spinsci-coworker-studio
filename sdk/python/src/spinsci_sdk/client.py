@@ -46,11 +46,11 @@ class SpinSciClient(_GeneratedClient):
         timeout: float = 30.0,
     ):
         resolved_url = base_url or os.environ.get("SPINSCI_API_URL") or os.environ.get(
-            "DOGRAH_API_URL", "http://localhost:8000"
+            "SpinSci_API_URL", "http://localhost:8000"
         )
         self.base_url = resolved_url.rstrip("/")
         self.api_key = api_key or os.environ.get("SPINSCI_API_KEY") or os.environ.get(
-            "DOGRAH_API_KEY"
+            "SpinSci_API_KEY"
         )
 
         headers = {"Accept": "application/json"}

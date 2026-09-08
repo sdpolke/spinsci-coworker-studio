@@ -68,13 +68,13 @@ export class SpinSciClient extends _GeneratedClient implements SpecProvider {
         const rawBase =
             opts.baseUrl ??
             getRuntimeEnv("SPINSCI_API_URL") ??
-            getRuntimeEnv("DOGRAH_API_URL") ??
+            getRuntimeEnv("SpinSci_API_URL") ??
             "http://localhost:8000";
         this.baseUrl = rawBase.replace(/\/+$/, "");
         this.apiKey =
             opts.apiKey ??
             getRuntimeEnv("SPINSCI_API_KEY") ??
-            getRuntimeEnv("DOGRAH_API_KEY");
+            getRuntimeEnv("SpinSci_API_KEY");
         this.fetchImpl = opts.fetch ?? (globalThis.fetch as unknown as SpinSciFetch);
         this.timeoutMs = opts.timeoutMs ?? 30_000;
         this.headers = { Accept: "application/json" };

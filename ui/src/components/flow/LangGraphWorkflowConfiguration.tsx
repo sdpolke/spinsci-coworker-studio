@@ -5,6 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { listLanggraphEndpointsApiV1LanggraphEndpointsGet, listLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGet } from '@/client/sdk.gen';
 import type { EndpointResponse, ValidationReportResponse } from '@/client/types.gen';
+import { ExternalTopologyLaunchButton } from '@/components/langgraph/ExternalLangGraphTopologyView';
+import type { ExternalTopologyResponse } from '@/components/langgraph/topology';
+import type { RecoveryProgress } from '@/components/langgraph/topologyRecovery';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +30,7 @@ export function transitionNameCollisions(labels: string[]) {
   return [...collisions];
 }
 
-export function LangGraphWorkflowConfiguration({ value, onChange, onCreateDraft, realtime = false, immutable = false, transitionLabels = [] }: { value?: LangGraphEndpointBinding | null; onChange: (value: LangGraphEndpointBinding | null) => void; onCreateDraft?: () => Promise<void>; realtime?: boolean; immutable?: boolean; transitionLabels?: string[] }) {
+export function LangGraphWorkflowConfiguration({ value, onChange, onCreateDraft, realtime = false, immutable = false, transitionLabels = [], topologyLoader, topologyRefresh, topologyUpdateBinding, topologyRecoverBinding, topologyMutationBlockedReason }: { value?: LangGraphEndpointBinding | null; onChange: (value: LangGraphEndpointBinding | null) => void; onCreateDraft?: () => Promise<void>; realtime?: boolean; immutable?: boolean; transitionLabels?: string[]; topologyLoader?: () => Promise<ExternalTopologyResponse>; topologyRefresh?: (signal?: AbortSignal) => Promise<ExternalTopologyResponse>; topologyUpdateBinding?: (signal?: AbortSignal) => Promise<ExternalTopologyResponse>; topologyRecoverBinding?: (signal: AbortSignal, onProgress: (progress: RecoveryProgress) => void) => Promise<ExternalTopologyResponse>; topologyMutationBlockedReason?: string }) {
   const { user, loading: authLoading } = useAuth();
   const { langGraphEnabled } = useOrgConfig();
   const [endpoints, setEndpoints] = useState<EndpointResponse[]>([]);
@@ -113,7 +116,7 @@ export function LangGraphWorkflowConfiguration({ value, onChange, onCreateDraft,
   const report = value ? reports[value.registration_uuid] : undefined;
   const hasEndpointInternalTools = value ? manifestArray(value.capability_snapshot, 'capabilities').includes('endpoint_internal_tools') || value.selected_capabilities.includes('endpoint_internal_tools') : false;
   return <section className="space-y-4 border-t pt-5" aria-label="Reasoning endpoint">
-    <div><div className="flex items-center gap-2"><h3 className="text-sm font-semibold">Reasoning endpoint</h3><Badge variant="secondary">Experimental</Badge></div><p className="text-xs text-muted-foreground">Attach a validated endpoint at workflow scope. Stateful Run endpoints own their internal LangGraph orchestration; Dograh continues to own voice, media, and call controls.</p></div>
+    <div><div className="flex items-center gap-2"><h3 className="text-sm font-semibold">Reasoning endpoint</h3><Badge variant="secondary">Experimental</Badge></div><p className="text-xs text-muted-foreground">Attach a validated endpoint at workflow scope. Stateful Run endpoints own their internal LangGraph orchestration; SpinSci continues to own voice, media, and call controls.</p></div>
     {error && <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">{error}</div>}
     {immutable && <div className="flex items-center justify-between gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3"><p className="text-xs text-amber-700 dark:text-amber-300">Published versions are immutable. Create a draft to attach or change the endpoint.</p>{onCreateDraft && <Button type="button" size="sm" variant="outline" disabled={creatingDraft} onClick={() => void createDraft()}>{creatingDraft ? 'Creating draft...' : 'Edit as draft'}</Button>}</div>}
     {realtime && <div role="alert" className="flex gap-2 rounded-md border border-destructive/40 p-3 text-xs text-destructive"><AlertTriangle className="h-4 w-4" />LangGraph chat endpoints are unavailable for realtime speech-to-speech workflows.</div>}
@@ -125,6 +128,13 @@ export function LangGraphWorkflowConfiguration({ value, onChange, onCreateDraft,
       <div className="flex items-center justify-between"><div><Label htmlFor="share-locale">Share locale</Label><p className="text-xs text-muted-foreground">Only allowlisted fields are transmitted after redaction.</p></div><Switch id="share-locale" disabled={immutable} checked={(value.data_sharing_policy.context_fields as string[] | undefined)?.includes('locale') ?? false} onCheckedChange={(checked) => onChange({ ...value, data_sharing_policy: { ...value.data_sharing_policy, context_fields: checked ? ['locale'] : [] } })} /></div>
       <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">Tool-call turns can create caller silence until tool completion and a subsequent text event. Slow first events execute the pinned caller-facing action.</div>
       {hasEndpointInternalTools && <div className="rounded-md border p-3 text-xs">Endpoint-internal tools are endpoint-owned and outside Mural&apos;s authorization guarantee.</div>}
+      {topologyLoader && <ExternalTopologyLaunchButton
+        loadTopology={topologyLoader}
+        refreshTopology={immutable ? undefined : topologyRefresh}
+        updateBinding={immutable ? undefined : topologyUpdateBinding}
+        recoverBinding={immutable ? undefined : topologyRecoverBinding}
+        mutationBlockedReason={immutable ? undefined : topologyMutationBlockedReason}
+      />}
       {report && <p className="text-xs text-muted-foreground">Pinned report: {report.report_uuid}</p>}
     </div>}
     {value?.compatibility_profile === 'chat' && collisions.length > 0 && <div role="alert" className="rounded-md border border-destructive/40 p-3 text-xs text-destructive">Transition names collide after normalization: {collisions.join(', ')}. Rename the affected edges before publication.</div>}

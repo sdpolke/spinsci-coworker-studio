@@ -1,16 +1,16 @@
 ---
 title: "Exotel Integration"
-description: "Configure Exotel for voice communication in Dograh AI"
+description: "Configure Exotel for voice communication in SpinSci AI"
 ---
 
 ## Overview
 
-Exotel is an India-first cloud telephony platform. Dograh's Exotel integration streams call audio over Exotel's **AgentStream** WebSocket protocol — 16-bit linear PCM, mono, 8 kHz.
+Exotel is an India-first cloud telephony platform. SpinSci's Exotel integration streams call audio over Exotel's **AgentStream** WebSocket protocol — 16-bit linear PCM, mono, 8 kHz.
 
 The two directions use different Exotel features:
 
-- **Outbound** uses the [Connect Voice AI API](https://docs.exotel.com/exotel-agentstream/connect-voice-ai-api). Dograh hands Exotel the media WebSocket URL on the dial request itself, so no App Bazaar flow is involved.
-- **Inbound** uses a **Voicebot applet** in an App Bazaar flow. Exotel fetches a URL you configure on the applet, and Dograh answers with the per-call WebSocket URL.
+- **Outbound** uses the [Connect Voice AI API](https://docs.exotel.com/exotel-agentstream/connect-voice-ai-api). SpinSci hands Exotel the media WebSocket URL on the dial request itself, so no App Bazaar flow is involved.
+- **Inbound** uses a **Voicebot applet** in an App Bazaar flow. Exotel fetches a URL you configure on the applet, and SpinSci answers with the per-call WebSocket URL.
 
 <Note>
   Both the Voicebot applet and the Connect Voice AI API may need to be enabled
@@ -25,7 +25,7 @@ The two directions use different Exotel features:
 - **API Key** and **API Token** from **API Settings → API Credentials**
 - Your **Account SID** (e.g. `mycompany1a`)
 - At least one **ExoPhone** (virtual number)
-- Dograh AI instance publicly reachable over HTTPS and WSS
+- SpinSci AI instance publicly reachable over HTTPS and WSS
 
 ## Configuration
 
@@ -36,7 +36,7 @@ The two directions use different Exotel features:
 3. Copy the **API Key**, **API Token**, and **Account SID**
 4. Note which data centre your account lives in — Mumbai (`api.in.exotel.com`) or Singapore (`api.exotel.com`)
 
-### Step 2: Configure in Dograh AI
+### Step 2: Configure in SpinSci AI
 
 1. Navigate to **/telephony-configurations** and click **Add configuration**
 2. Select **Exotel** as your provider
@@ -45,13 +45,13 @@ The two directions use different Exotel features:
    - API Token
    - Account SID
    - Data Centre — pick the host matching your account
-   - Inbound Callback Token — *optional*. Leave blank and Dograh generates one on save.
+   - Inbound Callback Token — *optional*. Leave blank and SpinSci generates one on save.
 4. Click **Save Configuration**
 5. Open the new configuration and add at least one **phone number** — your ExoPhone, in [E.164](https://en.wikipedia.org/wiki/E.164) format (`+` then country code then number, no spaces or dashes, e.g. `+918043071383`)
 
 <Note>
   Exotel's dial API inverts the usual parameter naming: the number Exotel dials
-  is sent as `From`, and the ExoPhone shown to the callee is `CallerId`. Dograh
+  is sent as `From`, and the ExoPhone shown to the callee is `CallerId`. SpinSci
   handles this for you — the phone numbers you add to the configuration are
   used as the caller ID.
 </Note>
@@ -63,26 +63,26 @@ The two directions use different Exotel features:
 
 ## Inbound Calling Setup
 
-Exotel routes inbound calls through App Bazaar flows, and there is no public API to set an applet's URL. **This step is manual** — Dograh shows you the exact URL to paste when you assign an inbound workflow.
+Exotel routes inbound calls through App Bazaar flows, and there is no public API to set an applet's URL. **This step is manual** — SpinSci shows you the exact URL to paste when you assign an inbound workflow.
 
 ### Step 1: Assign an Inbound Workflow to the ExoPhone
 
 1. Go to **/telephony-configurations** and open your Exotel configuration
 2. In the **Phone numbers** section, edit the ExoPhone that should receive calls
 3. Set its **Inbound workflow** to the agent that should answer, and save
-4. Dograh shows a notice containing your Voicebot applet URL — copy it. It looks like:
+4. SpinSci shows a notice containing your Voicebot applet URL — copy it. It looks like:
 
 ```
-https://api.dograh.com/api/v1/telephony/exotel/voicebot?account_sid=<ACCOUNT_SID>&token=<INBOUND_TOKEN>
+https://api.SpinSci.com/api/v1/telephony/exotel/voicebot?account_sid=<ACCOUNT_SID>&token=<INBOUND_TOKEN>
 ```
 
-You can also rebuild it yourself from the **Account SID** and **Inbound Callback Token** shown on the configuration. On self-hosted Dograh, replace `api.dograh.com` with your backend domain.
+You can also rebuild it yourself from the **Account SID** and **Inbound Callback Token** shown on the configuration. On self-hosted SpinSci, replace `api.SpinSci.com` with your backend domain.
 
 ### Step 2: Build the App Bazaar Flow
 
 1. In the Exotel Dashboard go to **App Bazaar** and create a new **Custom App**
 2. Add a **Voicebot** applet
-3. Set the applet **URL** to the URL from Step 1 — as an `https://` URL, not `wss://`. Exotel fetches it per call and Dograh replies with the `wss://` endpoint for that specific call.
+3. Set the applet **URL** to the URL from Step 1 — as an `https://` URL, not `wss://`. Exotel fetches it per call and SpinSci replies with the `wss://` endpoint for that specific call.
 4. Leave **Custom parameters** empty — the `account_sid` and `token` values are already on the URL
 5. Save the app
 
@@ -96,24 +96,24 @@ You can also rebuild it yourself from the **Account SID** and **Inbound Callback
 ### Test Inbound Calling
 
 1. Call your ExoPhone from another phone
-2. Verify your Dograh voice agent answers
-3. Check call logs in both the Dograh dashboard and the Exotel Dashboard
+2. Verify your SpinSci voice agent answers
+3. Check call logs in both the SpinSci dashboard and the Exotel Dashboard
 
 ## Security
 
-Exotel does not sign App Bazaar callbacks, so Dograh authenticates them with the **Inbound Callback Token** carried on the applet URL. The same token is appended to the outbound status-callback URL. Two consequences:
+Exotel does not sign App Bazaar callbacks, so SpinSci authenticates them with the **Inbound Callback Token** carried on the applet URL. The same token is appended to the outbound status-callback URL. Two consequences:
 
 - Treat the Voicebot applet URL as a secret. Anyone holding it can start inbound runs against your organization.
 - Additionally whitelist Exotel's outbound IP ranges at your edge or load balancer where you can. Ask Exotel support for the current ranges.
 
-If you clear the Inbound Callback Token, inbound requests are accepted without verification and Dograh logs a warning on every call.
+If you clear the Inbound Callback Token, inbound requests are accepted without verification and SpinSci logs a warning on every call.
 
 ## Limitations
 
 - **Call transfer is not supported.** The AgentStream leg exposes no conference or bridge primitive, so there is no way to hand the caller to a human without dropping them. Transfer tools won't be offered on Exotel runs.
-- **Per-call cost is not reported.** Exotel bills in the account currency (INR for Mumbai) with no exchange rate on the call-details response, so Dograh records duration but leaves cost at zero.
-- **Phone-number ownership isn't pre-validated.** Exotel's ExoPhone inventory API is still `v2_beta`, so Dograh accepts the numbers you enter and lets a wrong caller ID fail at dial time instead.
-- **Inbound routing is console-side.** Dograh cannot push the Voicebot applet URL for you; assigning an inbound workflow surfaces the URL as a notice rather than syncing it.
+- **Per-call cost is not reported.** Exotel bills in the account currency (INR for Mumbai) with no exchange rate on the call-details response, so SpinSci records duration but leaves cost at zero.
+- **Phone-number ownership isn't pre-validated.** Exotel's ExoPhone inventory API is still `v2_beta`, so SpinSci accepts the numbers you enter and lets a wrong caller ID fail at dial time instead.
+- **Inbound routing is console-side.** SpinSci cannot push the Voicebot applet URL for you; assigning an inbound workflow surfaces the URL as a notice rather than syncing it.
 
 ## Troubleshooting
 
@@ -132,18 +132,18 @@ If you clear the Inbound Callback Token, inbound requests are accepted without v
       sure nothing rewrites frames.
     - Confirm your edge allows WebSocket upgrades on the `wss://` endpoint
     - Check the run logs for an Exotel `start` event; if it never arrives, the
-      applet or dial request never reached Dograh's socket
+      applet or dial request never reached SpinSci's socket
   </Accordion>
 
   <Accordion title="Inbound calls aren't answered">
-    - Verify the Voicebot applet URL is the `https://` Dograh URL, including
+    - Verify the Voicebot applet URL is the `https://` SpinSci URL, including
       both `account_sid` and `token` parameters
     - Confirm the ExoPhone is bound to the App Bazaar flow containing that
       applet
-    - Confirm the same number exists in your Dograh Exotel configuration and
+    - Confirm the same number exists in your SpinSci Exotel configuration and
       has an **Inbound workflow** assigned
-    - Check that the number in Dograh is stored in E.164 form — Exotel sends
-      local formats like `08043071383`, which Dograh normalizes to
+    - Check that the number in SpinSci is stored in E.164 form — Exotel sends
+      local formats like `08043071383`, which SpinSci normalizes to
       `+918043071383`
   </Accordion>
 
@@ -163,6 +163,6 @@ If you clear the Inbound Callback Token, inbound requests are accepted without v
 
 ## Best Practices
 
-- Use a dedicated App Bazaar flow for Dograh so the Voicebot applet URL isn't shared with other systems
+- Use a dedicated App Bazaar flow for SpinSci so the Voicebot applet URL isn't shared with other systems
 - Test with a single call before running campaigns
 - Rotate the Inbound Callback Token by editing the configuration, then update the applet URL in App Bazaar
