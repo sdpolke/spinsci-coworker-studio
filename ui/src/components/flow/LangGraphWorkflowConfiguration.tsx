@@ -1,11 +1,11 @@
 'use client';
 
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Network } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { listLanggraphEndpointsApiV1LanggraphEndpointsGet, listLanggraphValidationReportsApiV1LanggraphEndpointsEndpointUuidValidationReportsGet } from '@/client/sdk.gen';
 import type { EndpointResponse, ValidationReportResponse } from '@/client/types.gen';
-import { ExternalTopologyLaunchButton } from '@/components/langgraph/ExternalLangGraphTopologyView';
+import { EmbeddedLangGraphTopologyPanel, ExternalTopologyLaunchButton } from '@/components/langgraph/ExternalLangGraphTopologyView';
 import type { ExternalTopologyResponse } from '@/components/langgraph/topology';
 import type { RecoveryProgress } from '@/components/langgraph/topologyRecovery';
 import { Badge } from '@/components/ui/badge';
@@ -128,13 +128,25 @@ export function LangGraphWorkflowConfiguration({ value, onChange, onCreateDraft,
       <div className="flex items-center justify-between"><div><Label htmlFor="share-locale">Share locale</Label><p className="text-xs text-muted-foreground">Only allowlisted fields are transmitted after redaction.</p></div><Switch id="share-locale" disabled={immutable} checked={(value.data_sharing_policy.context_fields as string[] | undefined)?.includes('locale') ?? false} onCheckedChange={(checked) => onChange({ ...value, data_sharing_policy: { ...value.data_sharing_policy, context_fields: checked ? ['locale'] : [] } })} /></div>
       <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">Tool-call turns can create caller silence until tool completion and a subsequent text event. Slow first events execute the pinned caller-facing action.</div>
       {hasEndpointInternalTools && <div className="rounded-md border p-3 text-xs">Endpoint-internal tools are endpoint-owned and outside Mural&apos;s authorization guarantee.</div>}
-      {topologyLoader && <ExternalTopologyLaunchButton
-        loadTopology={topologyLoader}
-        refreshTopology={immutable ? undefined : topologyRefresh}
-        updateBinding={immutable ? undefined : topologyUpdateBinding}
-        recoverBinding={immutable ? undefined : topologyRecoverBinding}
-        mutationBlockedReason={immutable ? undefined : topologyMutationBlockedReason}
-      />}
+      {topologyLoader && <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="flex items-center gap-1.5"><Network className="h-4 w-4" />Workflow graph</Label>
+          <ExternalTopologyLaunchButton
+            loadTopology={topologyLoader}
+            refreshTopology={immutable ? undefined : topologyRefresh}
+            updateBinding={immutable ? undefined : topologyUpdateBinding}
+            recoverBinding={immutable ? undefined : topologyRecoverBinding}
+            mutationBlockedReason={immutable ? undefined : topologyMutationBlockedReason}
+          >Open fullscreen</ExternalTopologyLaunchButton>
+        </div>
+        <EmbeddedLangGraphTopologyPanel
+          loadTopology={topologyLoader}
+          refreshTopology={immutable ? undefined : topologyRefresh}
+          updateBinding={immutable ? undefined : topologyUpdateBinding}
+          recoverBinding={immutable ? undefined : topologyRecoverBinding}
+          mutationBlockedReason={immutable ? undefined : topologyMutationBlockedReason}
+        />
+      </div>}
       {report && <p className="text-xs text-muted-foreground">Pinned report: {report.report_uuid}</p>}
     </div>}
     {value?.compatibility_profile === 'chat' && collisions.length > 0 && <div role="alert" className="rounded-md border border-destructive/40 p-3 text-xs text-destructive">Transition names collide after normalization: {collisions.join(', ')}. Rename the affected edges before publication.</div>}

@@ -1,5 +1,5 @@
 import dagre from '@dagrejs/dagre';
-import type { Edge, Node } from '@xyflow/react';
+import { type Edge, MarkerType, type Node } from '@xyflow/react';
 
 import type {
   DraftBindingStatus,
@@ -68,15 +68,61 @@ export function adaptExternalTopologyResponse(response: GeneratedExternalTopolog
   return { ...response, status: 'unavailable', reason: 'topology_schema_invalid', topology: null };
 }
 
+/**
+ * Visual category for a topology node. Drives per-kind coloring/iconography.
+ * The remote runtime does not send this directly; we infer it from the node's
+ * id/label/type (see {@link classifyNodeKind}).
+ */
+export type TopologyNodeKind = 'start' | 'end' | 'agent' | 'tool' | 'condition';
+
 export type ExternalTopologyNodeData = {
   endpointNodeId: string;
   label: string;
   nodeType?: string | null;
+  kind: TopologyNodeKind;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type ExternalTopologyEdgeData = {
   label?: string | null;
+  /** A conditional branch (LangGraph `add_conditional_edges`), rendered dashed. */
+  conditional?: boolean;
 };
+
+const START_NODE_IDS = new Set(['__start__', 'start', '_start_']);
+const END_NODE_IDS = new Set(['__end__', 'end', '_end_']);
+
+/**
+ * Infer a node's visual kind from its id/label/type. The remote LangGraph
+ * runtime only guarantees id/label/type, so this mirrors the classifier the
+ * standalone visualizer POC used: explicit start/end sentinels first, then
+ * keyword heuristics, defaulting to `agent`.
+ */
+export function classifyNodeKind(node: EndpointTopologyNode): TopologyNodeKind {
+  const id = node.id.toLowerCase();
+  if (START_NODE_IDS.has(id)) return 'start';
+  if (END_NODE_IDS.has(id)) return 'end';
+  const haystack = `${id} ${(node.label ?? '').toLowerCase()} ${(node.type ?? '').toLowerCase()}`;
+  if (/\b(tool|tools|action)\b/.test(haystack)) return 'tool';
+  if (/\b(rout|condition|branch|decide|should_)/.test(haystack)) return 'condition';
+  return 'agent';
+}
+
+/**
+ * A remote edge is conditional when the runtime flags it in metadata, or when
+ * it carries a branch label. This is best-effort: the v1.2 topology contract
+ * has no first-class conditional-edge field, so branch semantics ride on
+ * `metadata.conditional` / `metadata.branch` or a human-readable `label`.
+ */
+export function isConditionalEdge(edge: EndpointTopologyEdge): boolean {
+  const metadata = edge.metadata;
+  if (isRecord(metadata)) {
+    if (metadata.conditional === true) return true;
+    if (typeof metadata.branch === 'string' && metadata.branch.length > 0) return true;
+    if (typeof metadata.type === 'string' && metadata.type.toLowerCase().includes('conditional')) return true;
+  }
+  return false;
+}
 
 export type ExternalTopologyNode = Node<ExternalTopologyNodeData, typeof EXTERNAL_TOPOLOGY_NODE_TYPE>;
 export type ExternalTopologyEdge = Edge<ExternalTopologyEdgeData, typeof EXTERNAL_TOPOLOGY_EDGE_TYPE>;
@@ -93,7 +139,13 @@ export function mapEndpointTopology(topology: EndpointTopology): {
     id: namespaceEndpointNodeId(topology.graph_id, node.id),
     type: EXTERNAL_TOPOLOGY_NODE_TYPE,
     position: { x: 0, y: 0 },
-    data: { endpointNodeId: node.id, label: node.label, nodeType: node.type },
+    data: {
+      endpointNodeId: node.id,
+      label: node.label,
+      nodeType: node.type,
+      kind: classifyNodeKind(node),
+      metadata: node.metadata,
+    },
     draggable: false,
     selectable: false,
     connectable: false,
@@ -106,7 +158,8 @@ export function mapEndpointTopology(topology: EndpointTopology): {
       source: namespaceEndpointNodeId(topology.graph_id, edge.source),
       target: namespaceEndpointNodeId(topology.graph_id, edge.target),
       type: EXTERNAL_TOPOLOGY_EDGE_TYPE,
-      data: { label: edge.label },
+      data: { label: edge.label, conditional: isConditionalEdge(edge) },
+      markerEnd: { type: MarkerType.ArrowClosed, color: isConditionalEdge(edge) ? '#94a3b8' : '#7c3aed' },
       selectable: false,
       reconnectable: false,
       deletable: false,

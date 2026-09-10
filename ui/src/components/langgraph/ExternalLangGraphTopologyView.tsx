@@ -1,8 +1,8 @@
 'use client';
 
 import { Background, BackgroundVariant, BaseEdge, EdgeLabelRenderer, type EdgeProps, getBezierPath, Handle, type NodeProps, Position, ReactFlow } from '@xyflow/react';
-import { LoaderCircle, Network } from 'lucide-react';
-import { type ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
+import { Bot, CircleDot, GitBranch, LoaderCircle, Network, Square, Wrench } from 'lucide-react';
+import { type ComponentProps, type ComponentType, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,23 +15,39 @@ import {
   type ExternalTopologyResponse,
   layoutGraph,
   mapEndpointTopology,
+  type TopologyNodeKind,
 } from './topology';
 import type { RecoveryProgress } from './topologyRecovery';
 
+// Per-kind presentation. Colors use Tailwind palette classes with dark variants so
+// the graph reads at a glance (start/end/agent/tool/condition) and themes correctly.
+const KIND_STYLES: Record<TopologyNodeKind, { container: string; handle: string; icon: ComponentType<{ className?: string }>; label: string }> = {
+  start: { container: 'border-emerald-400 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950', handle: '!bg-emerald-500', icon: CircleDot, label: 'Start' },
+  end: { container: 'border-rose-400 bg-rose-50 dark:border-rose-700 dark:bg-rose-950', handle: '!bg-rose-500', icon: Square, label: 'End' },
+  agent: { container: 'border-blue-400 bg-blue-50 dark:border-blue-700 dark:bg-blue-950', handle: '!bg-blue-500', icon: Bot, label: 'Agent' },
+  tool: { container: 'border-amber-400 bg-amber-50 dark:border-amber-700 dark:bg-amber-950', handle: '!bg-amber-500', icon: Wrench, label: 'Tool' },
+  condition: { container: 'border-violet-400 bg-violet-50 dark:border-violet-700 dark:bg-violet-950', handle: '!bg-violet-500', icon: GitBranch, label: 'Condition' },
+};
+
 function ExternalTopologyNodeComponent({ data }: NodeProps<ExternalTopologyNode>) {
-  return <div className="min-w-[180px] rounded-lg border border-violet-300 bg-violet-50 px-4 py-3 shadow-sm dark:border-violet-800 dark:bg-violet-950">
-    <Handle type="target" position={Position.Top} isConnectable={false} className="!bg-violet-500" />
-    <div className="text-sm font-semibold text-violet-950 dark:text-violet-100">{data.label}</div>
-    <div className="mt-1 text-xs text-violet-700 dark:text-violet-300">Endpoint node · {data.endpointNodeId}</div>
-    {data.nodeType && <div className="mt-1 text-xs text-muted-foreground">{data.nodeType}</div>}
-    <Handle type="source" position={Position.Bottom} isConnectable={false} className="!bg-violet-500" />
+  const style = KIND_STYLES[data.kind] ?? KIND_STYLES.agent;
+  const Icon = style.icon;
+  return <div className={`min-w-[180px] rounded-lg border px-4 py-3 shadow-sm ${style.container}`}>
+    <Handle type="target" position={Position.Top} isConnectable={false} className={style.handle} />
+    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"><Icon className="h-3 w-3" />{style.label}</div>
+    <div className="mt-1 text-sm font-semibold text-foreground">{data.label}</div>
+    <div className="mt-1 text-xs text-muted-foreground">Endpoint node · {data.endpointNodeId}</div>
+    {data.nodeType && <div className="mt-0.5 text-xs text-muted-foreground">{data.nodeType}</div>}
+    <Handle type="source" position={Position.Bottom} isConnectable={false} className={style.handle} />
   </div>;
 }
 
 function ExternalTopologyEdgeComponent(props: EdgeProps<ExternalTopologyEdge>) {
   const [path, labelX, labelY] = getBezierPath(props);
-  return <><BaseEdge id={props.id} path={path} style={{ stroke: '#7c3aed', strokeWidth: 2 }} />
-    {props.data?.label && <EdgeLabelRenderer><span className="nodrag nopan absolute rounded bg-violet-100 px-1.5 py-0.5 text-xs text-violet-900" style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}>{props.data.label}</span></EdgeLabelRenderer>}
+  const conditional = props.data?.conditional === true;
+  const stroke = conditional ? '#94a3b8' : '#7c3aed';
+  return <><BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} style={{ stroke, strokeWidth: 2, strokeDasharray: conditional ? '6 4' : undefined }} />
+    {props.data?.label && <EdgeLabelRenderer><span className={`nodrag nopan absolute rounded px-1.5 py-0.5 text-xs ${conditional ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' : 'bg-violet-100 text-violet-900 dark:bg-violet-900 dark:text-violet-100'}`} style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)` }}>{props.data.label}</span></EdgeLabelRenderer>}
   </>;
 }
 
@@ -78,23 +94,33 @@ function LifecycleStages({ response, progress, failureStage }: { response: Exter
 
 type TopologyAction = (signal?: AbortSignal) => Promise<ExternalTopologyResponse>;
 
-export function ExternalLangGraphTopologyView({
-  open,
-  onOpenChange,
-  loadTopology,
-  refreshTopology,
-  updateBinding,
-  recoverBinding,
-  mutationBlockedReason,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+type TopologyPanelProps = {
+  /** When true the panel loads/renders; when false it resets. Drives both the dialog and embedded usage. */
+  active: boolean;
   loadTopology: () => Promise<ExternalTopologyResponse>;
   refreshTopology?: TopologyAction;
   updateBinding?: TopologyAction;
   recoverBinding?: (signal: AbortSignal, onProgress: (progress: RecoveryProgress) => void) => Promise<ExternalTopologyResponse>;
   mutationBlockedReason?: string;
-}) {
+  /** Extra classes for the graph container (e.g. a fixed height when embedded). */
+  className?: string;
+};
+
+/**
+ * The read-only LangGraph topology graph plus its lifecycle/actions UI, with no
+ * surrounding chrome. Reused by both the dialog ({@link ExternalLangGraphTopologyView})
+ * and the embedded editor panel ({@link EmbeddedLangGraphTopologyPanel}).
+ */
+export function ExternalLangGraphTopologyPanel({
+  active,
+  loadTopology,
+  refreshTopology,
+  updateBinding,
+  recoverBinding,
+  mutationBlockedReason,
+  className,
+}: TopologyPanelProps) {
+  const open = active;
   const [response, setResponse] = useState<ExternalTopologyResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -191,10 +217,7 @@ export function ExternalLangGraphTopologyView({
   const message = statusMessage(response);
   const empty = response?.topology?.nodes.length === 0;
 
-  // sm:max-w-6xl, not max-w-6xl: DialogContent's own sm:max-w-lg would otherwise win at
-  // every breakpoint above 640px and squeeze the graph into a narrow column.
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="flex h-[80vh] w-full sm:max-w-6xl flex-col p-6">
-    <DialogHeader><DialogTitle className="flex items-center gap-2"><Network className="h-5 w-5" />External LangGraph topology</DialogTitle><DialogDescription>Endpoint-owned topology is read-only.</DialogDescription></DialogHeader>
+  return <>
     {(message || actionError || mutationBlockedReason) && <div role={actionError ? 'alert' : 'status'} className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm"><p>{actionError ?? mutationBlockedReason ?? message}</p>{response?.topology && (actionError || message) && <p className="mt-1 text-xs text-muted-foreground">The previously pinned topology remains displayed below.</p>}</div>}
     {response && <LifecycleStages response={response} progress={progress} failureStage={failureStage} />}
     {!immutable && response?.actions && <div className="flex flex-wrap gap-2">
@@ -202,7 +225,7 @@ export function ExternalLangGraphTopologyView({
       {response.actions.can_update_binding && updateBinding && <Button type="button" size="sm" disabled={Boolean(progress) || Boolean(mutationBlockedReason)} onClick={() => void runAction(updateBinding)}>{progress ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}Update endpoint binding and refresh topology</Button>}
       {response.actions.can_refresh_topology && refreshTopology && <Button type="button" size="sm" variant="outline" disabled={Boolean(progress) || Boolean(mutationBlockedReason)} onClick={() => void runAction(refreshTopology, false, 'topology_refresh_pending')}>{progress ? <LoaderCircle className="mr-2 h-4 w-4 animate-spin" /> : null}Refresh topology</Button>}
     </div>}
-    <div className="min-h-0 flex-1">
+    <div className={`min-h-0 flex-1 ${className ?? ''}`}>
       {(loading || progress) && !response?.topology ? <div className="flex h-full min-h-56 items-center justify-center gap-2 text-sm text-muted-foreground" role="status"><LoaderCircle className="h-5 w-5 animate-spin" />Loading endpoint topology…</div>
         : response?.topology && !empty ? <ReactFlow
           nodes={elements?.nodes ?? []} edges={elements?.edges ?? []} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
@@ -212,12 +235,36 @@ export function ExternalLangGraphTopologyView({
         ><Background variant={BackgroundVariant.Dots} gap={16} size={1} /></ReactFlow>
           : <div className="flex h-full min-h-56 items-center justify-center rounded-md border border-dashed p-6 text-sm text-muted-foreground" role="status">{empty ? 'The endpoint topology has no nodes to display.' : (message ?? actionError ?? 'No endpoint topology is available.')}</div>}
     </div>
+  </>;
+}
+
+export function ExternalLangGraphTopologyView({
+  open,
+  onOpenChange,
+  ...panelProps
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+} & Omit<TopologyPanelProps, 'active'>) {
+  // sm:max-w-6xl, not max-w-6xl: DialogContent's own sm:max-w-lg would otherwise win at
+  // every breakpoint above 640px and squeeze the graph into a narrow column.
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="flex h-[80vh] w-full sm:max-w-6xl flex-col p-6">
+    <DialogHeader><DialogTitle className="flex items-center gap-2"><Network className="h-5 w-5" />External LangGraph topology</DialogTitle><DialogDescription>Endpoint-owned topology is read-only.</DialogDescription></DialogHeader>
+    <ExternalLangGraphTopologyPanel active={open} {...panelProps} />
   </DialogContent></Dialog>;
 }
 
-export function ExternalTopologyLaunchButton(props: Omit<ComponentProps<typeof ExternalLangGraphTopologyView>, 'open' | 'onOpenChange'>) {
+/**
+ * Embeds the topology graph inline (e.g. inside the workflow editor) instead of
+ * behind a modal. Loads as soon as it mounts.
+ */
+export function EmbeddedLangGraphTopologyPanel(props: Omit<TopologyPanelProps, 'active'>) {
+  return <div className="flex flex-col gap-3"><ExternalLangGraphTopologyPanel active {...props} className="h-[480px] rounded-md border" /></div>;
+}
+
+export function ExternalTopologyLaunchButton({ children, ...props }: Omit<ComponentProps<typeof ExternalLangGraphTopologyView>, 'open' | 'onOpenChange'> & { children?: ReactNode }) {
   const [open, setOpen] = useState(false);
-  return <><Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>View endpoint topology</Button><ExternalLangGraphTopologyView {...props} open={open} onOpenChange={setOpen} /></>;
+  return <><Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>{children ?? 'View endpoint topology'}</Button><ExternalLangGraphTopologyView {...props} open={open} onOpenChange={setOpen} /></>;
 }
 
 export { ExternalTopologyEdgeComponent, ExternalTopologyNodeComponent };
