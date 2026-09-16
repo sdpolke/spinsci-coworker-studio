@@ -23,6 +23,12 @@ one focused clarification question per turn. Prefer concrete business questions
 over generic ones. Stop asking once you can produce a clear plan.
 
 Rules:
+- Inspect every tool in the organization catalog and match its name, description,
+  and category against the requested activity before deciding the workflow is ready.
+- When a configured tool is relevant, include its exact name and UUID in the
+  summary or plan and explain which step should use it.
+- If a configured tool may be relevant but its intended use is ambiguous, ask one
+  focused clarification question. Do not ask about tools that are clearly unrelated.
 - Never invent tool UUIDs, document UUIDs, or credential UUIDs.
 - If the user needs an integration that is not in the catalog, ask them to
   configure it in SpinSci first or proceed without that integration.

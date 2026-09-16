@@ -15,8 +15,8 @@ from api.services.workflow.generation.models import (
     CatalogSnapshot,
     CompilerResponse,
     GenerationBrief,
+    GenerationMessage,
 )
-from api.services.workflow.generation.models import GenerationMessage
 
 MAX_REPAIR_ATTEMPTS = 3
 
@@ -29,8 +29,25 @@ Rules:
 - Use `new Workflow({ name: "..." })` with a descriptive snake_case or plain name.
 - Prefer wf.addTyped(startCall/endCall/agentNode/...) over wf.add.
 - Include explicit wf.edge(...) calls with label and condition for every branch.
+- Design a spoken conversation, not a written script or business-process
+  description. Each conversational node must handle one focused exchange.
+- Write prompts that make the agent respond with one or two short sentences at a
+  time, use plain language and contractions, acknowledge the user's answer
+  naturally, and ask only one question at a time. Avoid lists, long explanations,
+  repeated context, and essay-like responses.
+- Make each turn move the conversation forward with a brief question, confirmation,
+  or clear next step. Do not have the agent recite the workflow or its instructions.
+- Re-check every tool in the final organization catalog against each node's task.
+  Attach exact `tool_uuids` when a listed tool is useful; do not attach irrelevant
+  tools. The final catalog is authoritative even if the approved plan differs.
+- For every attached tool, state in that node's prompt exactly when to invoke it,
+  what information must be collected first, and how to recover conversationally if
+  the call fails. Keep any spoken pre-call notice brief and never speak a tool call.
 - Only reference tool_uuids, document_uuids, and credential UUIDs from the catalog.
 - Never invent UUIDs.
+- Set `allow_interrupt: true` explicitly on every startCall and agentNode so callers
+  can speak naturally. Use false only when the approved requirements identify a
+  specific mandatory disclosure that must not be interrupted.
 - Keep the first version simple: startCall, a few agent nodes, endCall.
 - Respond with JSON only: {"typescript":"..."}"""
 

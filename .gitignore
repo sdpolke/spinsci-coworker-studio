@@ -33,3 +33,5 @@ pipecat.zip
 # Local-only example projects (not part of the app)
 reactflow example/
 pipecat-langgraph-example/
+/miscdocs
+*.zip
