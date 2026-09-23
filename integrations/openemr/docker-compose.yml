@@ -1,0 +1,61 @@
+# Local OpenEMR instance used as the EHR behind the OpenEMR MCP server.
+#
+# Start:  docker compose -f integrations/openemr/docker-compose.yml up -d
+# UI:     https://localhost:9390/  (self-signed cert -> accept the warning)
+# Login:  admin / SpinSciDev123
+#
+# First boot runs the OpenEMR installer and takes several minutes. Follow it
+# with: docker compose -f integrations/openemr/docker-compose.yml logs -f openemr
+#
+# NOTE: dev-only credentials. Do not reuse this compose file in a deployed
+# environment.
+
+services:
+  openemr-db:
+    image: mariadb:11.4
+    container_name: openemr-db
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+    environment:
+      MARIADB_ROOT_PASSWORD: openemr_root_pw
+    volumes:
+      - openemr-dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  openemr:
+    image: openemr/openemr:latest
+    container_name: openemr
+    depends_on:
+      openemr-db:
+        condition: service_healthy
+    ports:
+      - "8390:80"
+      - "9390:443"
+    environment:
+      MYSQL_HOST: openemr-db
+      MYSQL_ROOT_USER: root
+      MYSQL_ROOT_PASS: openemr_root_pw
+      MYSQL_USER: openemr
+      MYSQL_PASS: openemr_pw
+      OE_USER: admin
+      OE_PASS: SpinSciDev123
+      # Pre-enable the REST/FHIR API and set the OAuth2 site address so we
+      # don't have to click through Administration -> Globals -> Connectors.
+      OPENEMR_SETTING_rest_api: "1"
+      OPENEMR_SETTING_rest_fhir_api: "1"
+      OPENEMR_SETTING_rest_portal_api: "1"
+      OPENEMR_SETTING_site_addr_oath: "https://localhost:9390"
+      OPENEMR_SETTING_oauth_password_grant: "3"
+    volumes:
+      - openemr-sites:/var/www/localhost/htdocs/openemr/sites
+      - openemr-logs:/var/log
+
+volumes:
+  openemr-dbdata:
+  openemr-sites:
+  openemr-logs:

@@ -1,0 +1,818 @@
+{
+  "name": "Nutrition Scheduling Agent (OpenEMR)",
+  "workflow_definition": {
+    "nodes": [
+      {
+        "id": "start",
+        "type": "startCall",
+        "position": {
+          "x": 900.0,
+          "y": 40.0
+        },
+        "data": {
+          "name": "Nutrition call intake",
+          "prompt": "# Nutrition call intake\n\nThe configured greeting has already asked for the patient's phone number. This is a phone-first identity step. Do not ask who the appointment is for, the patient's name, the caller's reason, the patient's age, or whether the patient is adult or pediatric.\n\nAsk exactly one question: 'Could you please provide the patient's phone number?' Wait for the complete number. Read the ten digits back in three groups and ask whether they are correct. If the caller says no, collect the phone number again. If the caller says yes, call the begin_phone_lookup transition immediately. This transition only moves to the lookup step; it does not verify or fetch a chart. Do not ask for a name before or after the phone confirmation.\n\n## Clinic rules\n- Load the active call context.\n\n## Next\nWhen this step is done, call begin_phone_lookup to continue.",
+          "add_global_prompt": true,
+          "is_start": true,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": null,
+          "document_uuids": null,
+          "mcp_tool_filters": null,
+          "greeting": "Thank you for calling the nutrition clinic. This is the scheduling assistant. To find the correct patient chart, please provide the patient's phone number.",
+          "greeting_type": "text",
+          "greeting_recording_id": null,
+          "delayed_start": false,
+          "delayed_start_duration": null,
+          "pre_call_fetch_enabled": false,
+          "pre_call_fetch_url": null,
+          "pre_call_fetch_credential_uuid": null
+        }
+      },
+      {
+        "id": "identify_patient",
+        "type": "agentNode",
+        "position": {
+          "x": 900.0,
+          "y": 240.0
+        },
+        "data": {
+          "name": "Verify patient chart",
+          "prompt": "# Verify patient chart\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__identify_patient_by_phone` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__identify_patient_by_phone`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Phone verification behavior (critical)\nThis tool accepts only the patient's phone number. Never ask for or use a full name as a substitute. For invalid_input or no_match, read the returned retry message and wait for a new phone number. For one unique match, read the returned spoken_summary exactly once, treat the returned patient_id, age, and is_pediatric as authoritative, and immediately call route_by_returned_patient_age. Do not ask 'is that you?', do not ask for age, and do not ask adult or pediatric. For multiple matches, ask only which listed patient to use, then continue after the caller selects one.\n\n## Clinic rules\n- Identify the caller and confirm the correct patient chart before continuing.\n\n## Next\nWhen this step is done, call route_by_returned_patient_age to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "identify_patient_by_phone"
+            ]
+          }
+        }
+      },
+      {
+        "id": "age_check",
+        "type": "agentNode",
+        "position": {
+          "x": 900.0,
+          "y": 440.0
+        },
+        "data": {
+          "name": "Route by returned patient age",
+          "prompt": "# Route by returned patient age\n\nInternal router only. Never speak to the caller, never ask a question, and never wait for caller input. Inspect the immediately preceding identify_patient_by_phone result. If its patients[0].is_pediatric is true, call route_to_alexa_bacino now. Otherwise call begin_condition_screening now. Call exactly one transition and do not generate a conversational reply.\n\n## Clinic rules\n- Route every pediatric patient to Alexa Bacino.\n\n## Next\nChoose exactly one of these transitions once you know which applies:\n- route_to_alexa_bacino\n- begin_condition_screening",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": false,
+          "extraction_enabled": false,
+          "tool_uuids": null,
+          "document_uuids": null,
+          "mcp_tool_filters": null
+        }
+      },
+      {
+        "id": "route_pediatric",
+        "type": "agentNode",
+        "position": {
+          "x": 480.0,
+          "y": 640.0
+        },
+        "data": {
+          "name": "Route to Alexa Bacino",
+          "prompt": "# Route to Alexa Bacino\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__route_pediatric_patient` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__route_pediatric_patient`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Route the pediatric patient to Alexa Bacino.\n\n## Next\nWhen this step is done, call complete_pediatric_routing to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "route_pediatric_patient"
+            ]
+          }
+        }
+      },
+      {
+        "id": "pediatric_end",
+        "type": "endCall",
+        "position": {
+          "x": 480.0,
+          "y": 840.0
+        },
+        "data": {
+          "name": "Pediatric patient routed",
+          "prompt": "# Pediatric patient routed\n\nClose the call warmly in one short sentence. Thank the caller and say goodbye. Do not repeat the appointment details or add anything else.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": true,
+          "extraction_enabled": false
+        }
+      },
+      {
+        "id": "condition_check",
+        "type": "agentNode",
+        "position": {
+          "x": 1040.0,
+          "y": 640.0
+        },
+        "data": {
+          "name": "Check nutrition condition",
+          "prompt": "# Check nutrition condition\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__check_nutrition_eligibility` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__check_nutrition_eligibility`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Approve Diabetes, Pre-diabetes, GDM, Weight Management, Gastroenterology, Bariatric, Hyperlipidemia, Celiac, Gluten Intolerance, Obesity, and General Nutrition.\n\n## Next\nChoose exactly one of these transitions once you know which applies:\n- route_to_refer_out\n- route_to_gdm_screening",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "check_nutrition_eligibility"
+            ]
+          }
+        }
+      },
+      {
+        "id": "refer_out",
+        "type": "agentNode",
+        "position": {
+          "x": 1420.0,
+          "y": 840.0
+        },
+        "data": {
+          "name": "Refer out",
+          "prompt": "# Refer out\n\nTell the caller the following in one or two short sentences, then stop and wait for their reply.\n\n## Clinic rules\n- Do not schedule Eating Disorders, Adult Tube Feedings, or Nephrology. Explain that the patient must be referred to the appropriate service.\n\n## Next\nWhen this step is done, call complete_refer_out to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": false,
+          "extraction_enabled": false,
+          "tool_uuids": null,
+          "document_uuids": null,
+          "mcp_tool_filters": null
+        }
+      },
+      {
+        "id": "refer_out_end",
+        "type": "endCall",
+        "position": {
+          "x": 1420.0,
+          "y": 1040.0
+        },
+        "data": {
+          "name": "Referred to another service",
+          "prompt": "# Referred to another service\n\nClose the call warmly in one short sentence. Thank the caller and say goodbye. Do not repeat the appointment details or add anything else.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": true,
+          "extraction_enabled": false
+        }
+      },
+      {
+        "id": "gdm_check",
+        "type": "agentNode",
+        "position": {
+          "x": 900.0,
+          "y": 840.0
+        },
+        "data": {
+          "name": "Route by returned GDM status",
+          "prompt": "# Route by returned GDM status\n\nInternal router only. Never speak or ask whether the caller has gestational diabetes. Inspect the immediately preceding check_nutrition_eligibility result. If is_gestational_diabetes is true, call begin_gdm_referral_check; otherwise call begin_slot_search. Call exactly one transition now and do not wait for caller input.\n\n## Next\nChoose exactly one of these transitions once you know which applies:\n- begin_gdm_referral_check\n- begin_slot_search",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": false,
+          "extraction_enabled": false,
+          "tool_uuids": null,
+          "document_uuids": null,
+          "mcp_tool_filters": null
+        }
+      },
+      {
+        "id": "gdm_referral",
+        "type": "agentNode",
+        "position": {
+          "x": 640.0,
+          "y": 1040.0
+        },
+        "data": {
+          "name": "Verify GDM referral source",
+          "prompt": "# Verify GDM referral source\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__check_gdm_referral` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__check_gdm_referral`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Verify that the referral came from a Summit Health provider.\n\n## Next\nChoose exactly one of these transitions once you know which applies:\n- route_to_outside_referral\n- begin_slot_search",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "check_gdm_referral"
+            ]
+          }
+        }
+      },
+      {
+        "id": "outside_referral",
+        "type": "agentNode",
+        "position": {
+          "x": 260.0,
+          "y": 1240.0
+        },
+        "data": {
+          "name": "Return to OBGYN",
+          "prompt": "# Return to OBGYN\n\nTell the caller the following in one or two short sentences, then stop and wait for their reply.\n\n## Clinic rules\n- The referral is from an outside provider. Ask the patient to contact their OBGYN for an external referral.\n\n## Next\nWhen this step is done, call complete_external_referral to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": false,
+          "extraction_enabled": false,
+          "tool_uuids": null,
+          "document_uuids": null,
+          "mcp_tool_filters": null
+        }
+      },
+      {
+        "id": "outside_referral_end",
+        "type": "endCall",
+        "position": {
+          "x": 260.0,
+          "y": 1440.0
+        },
+        "data": {
+          "name": "External referral required",
+          "prompt": "# External referral required\n\nClose the call warmly in one short sentence. Thank the caller and say goodbye. Do not repeat the appointment details or add anything else.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": true,
+          "extraction_enabled": false
+        }
+      },
+      {
+        "id": "find_slots",
+        "type": "agentNode",
+        "position": {
+          "x": 900.0,
+          "y": 1240.0
+        },
+        "data": {
+          "name": "Find valid nutrition slots",
+          "prompt": "# Find valid nutrition slots\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__find_available_slots` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__find_available_slots`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Slot search inputs (critical)\nPass the patient_id returned by identify_patient_by_phone. Do not omit it. Use Nutrition Follow Up unless the caller explicitly requests a new-patient or telehealth visit. Do not invent a provider; let the tool filter providers using the patient chart.\n\n## Clinic rules\n- Find available slots. GDM must be scheduled within 72 hours.\n\n## Next\nWhen this step is done, call begin_slot_policy_check to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "find_available_slots"
+            ]
+          }
+        }
+      },
+      {
+        "id": "slot_policy",
+        "type": "agentNode",
+        "position": {
+          "x": 900.0,
+          "y": 1440.0
+        },
+        "data": {
+          "name": "Validate scheduling policy",
+          "prompt": "# Validate scheduling policy\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__validate_slot_policy` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__validate_slot_policy`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Selected slot (critical)\nPass the exact slot_id from the slot the caller selected. Do not send only visit_type and do not change Nutrition Follow Up to Nutrition New Patient. If the caller has not selected a listed slot, ask one short question and wait.\n\n## Clinic rules\n- Allow virtual visits only in Athena Telehealth slots. Never change a preset slot to Virtual, OV, or NEWP.\n\n## Next\nWhen this step is done, call route_to_72_hour_check to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "validate_slot_policy"
+            ]
+          }
+        }
+      },
+      {
+        "id": "gdm_capacity",
+        "type": "agentNode",
+        "position": {
+          "x": 900.0,
+          "y": 1640.0
+        },
+        "data": {
+          "name": "Route by 72-hour slot capacity",
+          "prompt": "# Route by 72-hour slot capacity\n\nInternal router only. Never speak or ask about slot capacity. Inspect the existing patient condition and the immediately preceding find_available_slots result. If the patient is GDM and any_within_gdm_window is false, call route_to_gdm_escalation. Otherwise call begin_coverage_check. Call exactly one transition now and do not wait for caller input.\n\n## Next\nChoose exactly one of these transitions once you know which applies:\n- route_to_gdm_escalation\n- begin_coverage_check",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": false,
+          "extraction_enabled": false,
+          "tool_uuids": null,
+          "document_uuids": null,
+          "mcp_tool_filters": null
+        }
+      },
+      {
+        "id": "gdm_escalate",
+        "type": "agentNode",
+        "position": {
+          "x": 500.0,
+          "y": 1840.0
+        },
+        "data": {
+          "name": "Escalate GDM scheduling",
+          "prompt": "# Escalate GDM scheduling\n\nThis call cannot be completed by scheduling alone. Call the tool named exactly `mcp__openemr_nutrition__escalate_gdm_scheduling` for this step. Then give the caller the phone number and option exactly as the tool returned them.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__escalate_gdm_scheduling`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- No GDM slot is available within 72 hours. Call 908-516-9850 and select option 2.\n\n## Next\nWhen this step is done, call complete_gdm_escalation to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "escalate_gdm_scheduling"
+            ]
+          }
+        }
+      },
+      {
+        "id": "gdm_escalated_end",
+        "type": "endCall",
+        "position": {
+          "x": 500.0,
+          "y": 2040.0
+        },
+        "data": {
+          "name": "GDM scheduling escalated",
+          "prompt": "# GDM scheduling escalated\n\nClose the call warmly in one short sentence. Thank the caller and say goodbye. Do not repeat the appointment details or add anything else.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": true,
+          "extraction_enabled": false
+        }
+      },
+      {
+        "id": "coverage_check",
+        "type": "agentNode",
+        "position": {
+          "x": 1080.0,
+          "y": 1840.0
+        },
+        "data": {
+          "name": "Check nutrition coverage",
+          "prompt": "# Check nutrition coverage\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__check_nutrition_coverage` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__check_nutrition_coverage`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Check active coverage evidence.\n\n## Next\nWhen this step is done, call begin_fee_notice to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "check_nutrition_coverage"
+            ]
+          }
+        }
+      },
+      {
+        "id": "fee_notice",
+        "type": "agentNode",
+        "position": {
+          "x": 1080.0,
+          "y": 2040.0
+        },
+        "data": {
+          "name": "Explain possible fee",
+          "prompt": "# Explain possible fee\n\nTell the caller the following in one or two short sentences, then stop and wait for their reply.\n\n## Clinic rules\n- State that there is a $200 charge if the diagnosis is not covered by insurance.\n\n## Next\nWhen this step is done, call begin_booking to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": false,
+          "extraction_enabled": false,
+          "tool_uuids": null,
+          "document_uuids": null,
+          "mcp_tool_filters": null
+        }
+      },
+      {
+        "id": "book",
+        "type": "agentNode",
+        "position": {
+          "x": 1080.0,
+          "y": 2240.0
+        },
+        "data": {
+          "name": "Book appointment",
+          "prompt": "# Book appointment\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__book_nutrition_appointment` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__book_nutrition_appointment`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Reserve the selected slot without changing its type.\n\n## Next\nWhen this step is done, call begin_patient_instructions to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": true,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "book_nutrition_appointment"
+            ]
+          }
+        }
+      },
+      {
+        "id": "instructions",
+        "type": "agentNode",
+        "position": {
+          "x": 1080.0,
+          "y": 2440.0
+        },
+        "data": {
+          "name": "Give patient instructions",
+          "prompt": "# Give patient instructions\n\nTell the caller the following in one or two short sentences, then stop and wait for their reply.\n\n## Clinic rules\n- Tell new patients to bring their most recent laboratory results. Tell patients who test at home to bring their blood sugar logbook.\n\n## Tools\nCall the tool named exactly `mcp__openemr_nutrition__get_patient_instructions` for this step.\n\n## Next\nWhen this step is done, call begin_appointment_confirmation to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": false,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "get_patient_instructions"
+            ]
+          }
+        }
+      },
+      {
+        "id": "confirm",
+        "type": "agentNode",
+        "position": {
+          "x": 1080.0,
+          "y": 2640.0
+        },
+        "data": {
+          "name": "Confirm appointment details",
+          "prompt": "# Confirm appointment details\n\nTell the caller the following in one or two short sentences, then stop and wait for their reply.\n\n## Clinic rules\n- Review the appointment date, time, visit type, and patient instructions before ending the call.\n\n## Tools\nCall the tool named exactly `mcp__openemr_nutrition__get_patient_appointments` for this step.\n\n## Next\nWhen this step is done, call complete_appointment to continue.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": false,
+          "allow_interrupt": false,
+          "extraction_enabled": false,
+          "tool_uuids": [
+            "ee356429-4c1d-487c-a411-41281294afbc"
+          ],
+          "document_uuids": null,
+          "mcp_tool_filters": {
+            "ee356429-4c1d-487c-a411-41281294afbc": [
+              "get_patient_appointments"
+            ]
+          }
+        }
+      },
+      {
+        "id": "booked_end",
+        "type": "endCall",
+        "position": {
+          "x": 1080.0,
+          "y": 2840.0
+        },
+        "data": {
+          "name": "Appointment confirmed",
+          "prompt": "# Appointment confirmed\n\nClose the call warmly in one short sentence. Thank the caller and say goodbye. Do not repeat the appointment details or add anything else.",
+          "add_global_prompt": true,
+          "is_start": false,
+          "is_end": true,
+          "extraction_enabled": false
+        }
+      },
+      {
+        "id": "nutrition_global",
+        "type": "globalNode",
+        "position": {
+          "x": 1940.0,
+          "y": 40.0
+        },
+        "data": {
+          "name": "Nutrition Clinic Persona",
+          "prompt": "You are a scheduling assistant for a nutrition clinic, speaking with a caller on the phone.\n\nVOICE OUTPUT RULES:\n- Return plain spoken text only. Never use Markdown, bullets, headings, asterisks, brackets, stage directions, or JSON.\n- Keep every turn short and conversational. Ask at most one question, then stop and wait for the caller.\n- Never read a tool's raw output, field names, status values, ids, or slot_id strings aloud. When a tool returns spoken_summary, speak that wording.\n- Speak dates naturally: say \"Thursday, October ninth\", never \"2026-10-09\".\n- Speak times naturally: say \"nine thirty A M\", never \"09:30:00\".\n- Read phone numbers back in short digit groups.\n\nCLINICAL SAFETY:\n- Never invent a patient, diagnosis, referral, appointment time, provider, or coverage detail. Only say what a tool returned.\n- Never promise a booking until book_nutrition_appointment has confirmed it.\n- You are scheduling only. Do not give medical, dietary, or dosing advice; if asked, say a dietitian will cover that at the visit.\n\n- Never ask for the caller's name, the patient's full name, age, or adult/pediatric status before the phone lookup. The phone number is the identity input for this workflow.\n- After the phone lookup returns a unique patient, treat its returned name, age, and is_pediatric fields as authoritative. Do not ask the caller to confirm facts the tool already returned.\n- Internal routing nodes are silent. They must call one offered transition immediately and must not wait for, respond to, or ask the caller anything.\n\nTURN RULES:\n- Use at most one tool per turn. After a tool returns, either speak the result or make the single next workflow transition.\n- Do not re-ask for information the caller already gave or a tool already returned.\n- Workflow handoffs are silent. Never say \"one moment\", \"let me transfer you\", or narrate internal steps.\n\n- Workflow transitions only move between workflow nodes; a transition result such as `{\"status\":\"done\"}` never means that an EHR lookup, eligibility check, availability search, or booking happened.\n- After a transition into an API-request node, call that node's offered MCP tool before claiming any data was fetched.\n- Do not claim that a chart, diagnosis, appointment, slot, or coverage was found unless the corresponding MCP tool returned it.\n\nTOOL CALLING:\n- Only ever call a tool whose name appears in the tools available to you this turn. Use the name exactly as given, including any `mcp__` prefix.\n- Never invent, guess, shorten, or rename a tool. If the tool you expect is not offered, do not call anything; continue the conversation instead.\n- The node prompt tells you the exact tool name to use at each step. Match it character for character.",
+          "is_start": false,
+          "is_end": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "start__identify_patient__0",
+        "source": "start",
+        "target": "identify_patient",
+        "data": {
+          "label": "begin_phone_lookup",
+          "condition": "The Nutrition call intake step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "identify_patient__age_check__1",
+        "source": "identify_patient",
+        "target": "age_check",
+        "data": {
+          "label": "route_by_returned_patient_age",
+          "condition": "The Verify patient chart step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "age_check__route_pediatric__2",
+        "source": "age_check",
+        "target": "route_pediatric",
+        "data": {
+          "label": "route_to_alexa_bacino",
+          "condition": "identify_patient_by_phone reported is_pediatric true for the selected patient, meaning the patient is under 18.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "age_check__condition_check__3",
+        "source": "age_check",
+        "target": "condition_check",
+        "data": {
+          "label": "begin_condition_screening",
+          "condition": "None of the other conditions leaving Adult or pediatric patient? apply, so this is the default path.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "route_pediatric__pediatric_end__4",
+        "source": "route_pediatric",
+        "target": "pediatric_end",
+        "data": {
+          "label": "complete_pediatric_routing",
+          "condition": "The Route to Alexa Bacino step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "condition_check__refer_out__5",
+        "source": "condition_check",
+        "target": "refer_out",
+        "data": {
+          "label": "route_to_refer_out",
+          "condition": "check_nutrition_eligibility returned status refer_out, meaning the condition is an eating disorder, adult tube feeding, or nephrology.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "condition_check__gdm_check__6",
+        "source": "condition_check",
+        "target": "gdm_check",
+        "data": {
+          "label": "route_to_gdm_screening",
+          "condition": "check_nutrition_eligibility returned status approved.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "refer_out__refer_out_end__7",
+        "source": "refer_out",
+        "target": "refer_out_end",
+        "data": {
+          "label": "complete_refer_out",
+          "condition": "The Refer out step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "gdm_check__gdm_referral__8",
+        "source": "gdm_check",
+        "target": "gdm_referral",
+        "data": {
+          "label": "begin_gdm_referral_check",
+          "condition": "check_nutrition_eligibility returned is_gestational_diabetes true.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "gdm_check__find_slots__9",
+        "source": "gdm_check",
+        "target": "find_slots",
+        "data": {
+          "label": "begin_slot_search",
+          "condition": "None of the other conditions leaving Gestational diabetes? apply, so this is the default path.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "gdm_referral__outside_referral__10",
+        "source": "gdm_referral",
+        "target": "outside_referral",
+        "data": {
+          "label": "route_to_outside_referral",
+          "condition": "check_gdm_referral returned status external, meaning the referral did not come from a Summit Health provider.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "gdm_referral__find_slots__11",
+        "source": "gdm_referral",
+        "target": "find_slots",
+        "data": {
+          "label": "begin_slot_search",
+          "condition": "check_gdm_referral returned status internal, meaning the referral came from a Summit Health provider.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "outside_referral__outside_referral_end__12",
+        "source": "outside_referral",
+        "target": "outside_referral_end",
+        "data": {
+          "label": "complete_external_referral",
+          "condition": "The Return to OBGYN step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "find_slots__slot_policy__13",
+        "source": "find_slots",
+        "target": "slot_policy",
+        "data": {
+          "label": "begin_slot_policy_check",
+          "condition": "The Find valid nutrition slots step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "slot_policy__gdm_capacity__14",
+        "source": "slot_policy",
+        "target": "gdm_capacity",
+        "data": {
+          "label": "route_to_72_hour_check",
+          "condition": "The Validate scheduling policy step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "gdm_capacity__gdm_escalate__15",
+        "source": "gdm_capacity",
+        "target": "gdm_escalate",
+        "data": {
+          "label": "route_to_gdm_escalation",
+          "condition": "The patient has gestational diabetes and find_available_slots returned any_within_gdm_window false, so nothing is available inside 72 hours.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "gdm_capacity__coverage_check__16",
+        "source": "gdm_capacity",
+        "target": "coverage_check",
+        "data": {
+          "label": "begin_coverage_check",
+          "condition": "None of the other conditions leaving GDM slot within 72 hours? apply, so this is the default path.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "gdm_escalate__gdm_escalated_end__17",
+        "source": "gdm_escalate",
+        "target": "gdm_escalated_end",
+        "data": {
+          "label": "complete_gdm_escalation",
+          "condition": "The Escalate GDM scheduling step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "coverage_check__fee_notice__18",
+        "source": "coverage_check",
+        "target": "fee_notice",
+        "data": {
+          "label": "begin_fee_notice",
+          "condition": "The Check nutrition coverage step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "fee_notice__book__19",
+        "source": "fee_notice",
+        "target": "book",
+        "data": {
+          "label": "begin_booking",
+          "condition": "The Explain possible fee step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "book__instructions__20",
+        "source": "book",
+        "target": "instructions",
+        "data": {
+          "label": "begin_patient_instructions",
+          "condition": "The Book appointment step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "instructions__confirm__21",
+        "source": "instructions",
+        "target": "confirm",
+        "data": {
+          "label": "begin_appointment_confirmation",
+          "condition": "The Give patient instructions step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      },
+      {
+        "id": "confirm__booked_end__22",
+        "source": "confirm",
+        "target": "booked_end",
+        "data": {
+          "label": "complete_appointment",
+          "condition": "The Confirm appointment details step finished successfully.",
+          "transition_speech": null,
+          "transition_speech_type": null,
+          "transition_speech_recording_id": null
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0.0,
+      "y": 0.0,
+      "zoom": 0.5
+    }
+  }
+}

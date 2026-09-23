@@ -39,6 +39,8 @@ if TYPE_CHECKING:
     LLMService = Union[OpenAILLMService, AnthropicLLMService, GoogleLLMService]
 
 import asyncio
+import json
+import re
 
 from loguru import logger
 
@@ -279,6 +281,186 @@ class PipecatEngine:
             context=self._call_context_vars,
         )
 
+    async def _auto_execute_patient_lookup_on_entry(
+        self, node: Node
+    ) -> dict | None:
+        """Run the mandatory phone lookup when entering the lookup node.
+
+        Patient identification is not optional: the caller has already
+        confirmed a phone number before the graph transitions into this node.
+        Leaving the MCP call to the LLM made the model sometimes interpret the
+        transition function (for example ``begin_phone_lookup``) as if the EHR
+        lookup had already happened and invent a patient instead.
+
+        This narrow entry hook uses the node's existing MCP binding, extracts
+        the confirmed phone from conversation history, and returns the real MCP
+        result as part of the transition result. Other workflow tools remain
+        LLM-invoked because they require caller-selected arguments.
+        """
+        filters = getattr(node, "mcp_tool_filters", None) or {}
+        if not filters:
+            return None
+
+        lookup_uuid = next(
+            (
+                tool_uuid
+                for tool_uuid, raw_names in filters.items()
+                if "identify_patient_by_phone" in (raw_names or [])
+            ),
+            None,
+        )
+        if lookup_uuid is None:
+            return None
+
+        session = self._mcp_sessions.get(lookup_uuid)
+        if session is None or not session.available:
+            logger.warning(
+                "Patient lookup MCP session unavailable on node %s (%s)",
+                node.id,
+                lookup_uuid,
+            )
+            return {
+                "status": "error",
+                "error": "patient lookup MCP session unavailable",
+            }
+
+        phone = self._extract_confirmed_phone_from_context()
+        if phone is None:
+            logger.warning(
+                "Could not extract a confirmed phone number before entering node %s",
+                node.id,
+            )
+            return {
+                "status": "invalid_input",
+                "spoken_summary": "Please provide the patient's phone number again.",
+            }
+
+        schemas = session.function_schemas({"identify_patient_by_phone"})
+        if not schemas:
+            logger.warning(
+                "Patient lookup MCP schema missing on node %s (%s)",
+                node.id,
+                lookup_uuid,
+            )
+            return {
+                "status": "error",
+                "error": "patient lookup MCP schema unavailable",
+            }
+
+        function_name = schemas[0].name
+        logger.info(
+            "Automatically executing mandatory patient lookup %s with phone %s",
+            function_name,
+            phone[-4:].rjust(10, "*"),
+        )
+        try:
+            raw_result = await session.call(function_name, {"phone": phone})
+            try:
+                result = json.loads(raw_result)
+            except (TypeError, json.JSONDecodeError):
+                result = raw_result
+            self._record_mcp_result("identify_patient_by_phone", result)
+            return {
+                "status": "completed",
+                "function_name": function_name,
+                "result": result,
+            }
+        except Exception as exc:  # noqa: BLE001 - return a recoverable tool result
+            logger.error("Automatic patient lookup failed: %s", exc)
+            return {"status": "error", "error": str(exc)}
+
+    def _extract_confirmed_phone_from_context(self) -> str | None:
+        """Extract the most recent ten-digit phone from user conversation text."""
+        if self.context is None:
+            return None
+
+        messages = self.context.get_messages()
+        for message in reversed(messages):
+            if message.get("role") != "user":
+                continue
+            content = message.get("content")
+            if not isinstance(content, str):
+                continue
+            digits = "".join(re.findall(r"\d", content))
+            if len(digits) >= 10:
+                return digits[-10:]
+
+            # Voice transcripts often mix numeric chunks with spoken digits,
+            # e.g. "908-555. One zero zero one." Parse both in their original
+            # order instead of choosing one representation or the other.
+            digit_words = {
+                "zero": "0",
+                "oh": "0",
+                "one": "1",
+                "two": "2",
+                "three": "3",
+                "four": "4",
+                "five": "5",
+                "six": "6",
+                "seven": "7",
+                "eight": "8",
+                "nine": "9",
+            }
+            tokens = re.findall(r"\d+|[a-z]+", content.lower())
+            normalized = "".join(
+                token if token.isdigit() else digit_words.get(token, "")
+                for token in tokens
+            )
+            if len(normalized) >= 10:
+                return normalized[-10:]
+        return None
+
+    def _record_mcp_result(self, raw_tool_name: str, result: object) -> None:
+        """Keep structured MCP results available to deterministic routers."""
+        results = self._gathered_context.setdefault("mcp_results", {})
+        results[raw_tool_name] = result
+
+    async def _auto_route_current_node(self) -> None:
+        """Route branch nodes from structured MCP results, not LLM guesses."""
+        node = self._current_node
+        if node is None or node.id not in {"age_check", "gdm_check", "gdm_capacity"}:
+            return
+        if len(node.out_edges) < 2:
+            return
+
+        results = self._gathered_context.get("mcp_results", {})
+        target = None
+        if node.id == "age_check":
+            lookup = results.get("identify_patient_by_phone") or {}
+            patients = lookup.get("patients") if isinstance(lookup, dict) else None
+            if patients:
+                target = node.out_edges[0].target if patients[0].get("is_pediatric") else node.out_edges[1].target
+        elif node.id == "gdm_check":
+            eligibility = results.get("check_nutrition_eligibility") or {}
+            if isinstance(eligibility, dict):
+                target = (
+                    node.out_edges[0].target
+                    if eligibility.get("is_gestational_diabetes")
+                    else node.out_edges[1].target
+                )
+        elif node.id == "gdm_capacity":
+            eligibility = results.get("check_nutrition_eligibility") or {}
+            slots = results.get("find_available_slots") or {}
+            is_gdm = isinstance(eligibility, dict) and eligibility.get(
+                "is_gestational_diabetes", False
+            )
+            no_slot_within_window = isinstance(slots, dict) and not slots.get(
+                "any_within_gdm_window", False
+            )
+            target = (
+                node.out_edges[0].target
+                if is_gdm and no_slot_within_window
+                else node.out_edges[1].target
+            )
+
+        if target is not None:
+            logger.info(
+                "Deterministic nutrition router %s -> %s from structured MCP results",
+                node.id,
+                target,
+            )
+            await self.set_node(target)
+
     async def _create_transition_func(
         self,
         name: str,
@@ -343,6 +525,24 @@ class PipecatEngine:
                 # is done, we have updated context and functions
                 await self.set_node(transition_to_node)
 
+                # The confirmed-phone handoff enters a node whose first action
+                # is mandatory patient identification. Execute that MCP call
+                # before allowing the next LLM completion to speak.
+                automatic_tool_result = await self._auto_execute_patient_lookup_on_entry(
+                    self._current_node
+                )
+                if (
+                    automatic_tool_result is not None
+                    and automatic_tool_result.get("status") == "completed"
+                    and self._current_node.out_edges
+                ):
+                    # Continue into the graph's existing age router after the
+                    # mandatory lookup. The lookup result remains attached to
+                    # the transition result delivered below.
+                    await self.set_node(self._current_node.out_edges[0].target)
+
+                await self._auto_route_current_node()
+
                 async def on_context_updated() -> None:
                     """
                     pipecat framework will run this function after the function call result has been updated in the context.
@@ -361,6 +561,8 @@ class PipecatEngine:
                         )
 
                 result = {"status": "done"}
+                if automatic_tool_result is not None:
+                    result["automatic_tool_result"] = automatic_tool_result
 
                 properties = FunctionCallResultProperties(
                     on_context_updated=on_context_updated,

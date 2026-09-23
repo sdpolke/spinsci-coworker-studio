@@ -7,6 +7,7 @@ during workflow execution.
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 import uuid
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -464,6 +465,14 @@ class CustomToolManager:
                 result = await session.call(
                     function_name, function_call_params.arguments or {}
                 )
+                recorder = getattr(self._engine, "_record_mcp_result", None)
+                if recorder is not None:
+                    raw_name = function_name.rsplit("__", 1)[-1]
+                    try:
+                        structured_result = json.loads(result)
+                    except (TypeError, json.JSONDecodeError):
+                        structured_result = result
+                    recorder(raw_name, structured_result)
                 await function_call_params.result_callback(result)
             except Exception as e:
                 logger.error(f"MCP tool '{function_name}' failed: {e}")
