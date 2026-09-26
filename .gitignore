@@ -35,3 +35,7 @@ reactflow example/
 pipecat-langgraph-example/
 /miscdocs
 *.zip
+
+# Local OpenEMR credentials and generated tool UUID mappings
+integrations/openemr/.env.openemr
+integrations/openemr/.http_tool_uuids.json

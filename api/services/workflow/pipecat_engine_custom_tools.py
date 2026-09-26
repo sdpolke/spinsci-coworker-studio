@@ -440,6 +440,11 @@ class CustomToolManager:
                     gathered_context_vars=self._engine._gathered_context,
                     organization_id=await self.get_organization_id(),
                 )
+                recorder = getattr(self._engine, "_record_mcp_result", None)
+                if recorder is not None and isinstance(result, dict):
+                    response_data = result.get("data", result)
+                    if isinstance(response_data, dict):
+                        recorder(function_name, response_data)
 
                 await function_call_params.result_callback(result)
 

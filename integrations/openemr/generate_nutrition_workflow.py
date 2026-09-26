@@ -380,10 +380,28 @@ def _build_prompt(
         )
         parts.append(branch_instructions)
     elif kind == "conversation":
-        parts.append(
-            "Tell the caller the following in one or two short sentences, then "
-            "stop and wait for their reply."
-        )
+        if spec_node["id"] == "fee_notice":
+            parts.append(
+                "The coverage result has already disclosed the possible fee. "
+                "Do not repeat the dollar amount or explain insurance again. "
+                "Ask one concise question: 'Would you like me to go ahead and "
+                "book that time?' Wait for a clear yes before continuing to "
+                "booking. If the caller declines, end politely without booking."
+            )
+        elif spec_node["id"] == "instructions":
+            parts.append(
+                "Call the instructions tool. If its instructions list is empty, "
+                "say nothing about supplies or what to bring and immediately "
+                "continue to appointment confirmation. If it returns instructions, "
+                "read each instruction once in a concise sentence, then continue "
+                "to appointment confirmation. Do not say 'there is nothing special "
+                "to bring' unless the caller explicitly asks."
+            )
+        else:
+            parts.append(
+                "Tell the caller the following in one or two short sentences, then "
+                "stop and wait for their reply."
+            )
     elif kind == "transfer":
         parts.append(
             f"This call cannot be completed by scheduling alone. "

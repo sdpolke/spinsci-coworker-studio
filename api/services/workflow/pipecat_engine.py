@@ -60,9 +60,11 @@ from api.services.workflow.pipecat_engine_custom_tools import (
 from api.services.workflow.pipecat_engine_variable_extractor import (
     VariableExtractionManager,
 )
-from api.services.workflow.tools.knowledge_base import (
-    retrieve_from_knowledge_base,
+from api.services.workflow.tools.custom_tool import (
+    custom_tool_function_name,
+    execute_http_tool,
 )
+from api.services.workflow.tools.knowledge_base import retrieve_from_knowledge_base
 from api.utils.template_renderer import render_template
 
 
@@ -298,9 +300,6 @@ class PipecatEngine:
         LLM-invoked because they require caller-selected arguments.
         """
         filters = getattr(node, "mcp_tool_filters", None) or {}
-        if not filters:
-            return None
-
         lookup_uuid = next(
             (
                 tool_uuid
@@ -309,20 +308,24 @@ class PipecatEngine:
             ),
             None,
         )
-        if lookup_uuid is None:
+        direct_tool = None
+        if lookup_uuid is None and getattr(node, "tool_uuids", None):
+            organization_id = await self._get_organization_id()
+            if organization_id:
+                tools = await db_client.get_tools_by_uuids(
+                    list(node.tool_uuids), organization_id
+                )
+                direct_tool = next(
+                    (
+                        tool
+                        for tool in tools
+                        if custom_tool_function_name(tool.name)
+                        == "identify_patient_by_phone"
+                    ),
+                    None,
+                )
+        if lookup_uuid is None and direct_tool is None:
             return None
-
-        session = self._mcp_sessions.get(lookup_uuid)
-        if session is None or not session.available:
-            logger.warning(
-                "Patient lookup MCP session unavailable on node %s (%s)",
-                node.id,
-                lookup_uuid,
-            )
-            return {
-                "status": "error",
-                "error": "patient lookup MCP session unavailable",
-            }
 
         phone = self._extract_confirmed_phone_from_context()
         if phone is None:
@@ -335,6 +338,39 @@ class PipecatEngine:
                 "spoken_summary": "Please provide the patient's phone number again.",
             }
 
+        if direct_tool is not None:
+            try:
+                result = await execute_http_tool(
+                    tool=direct_tool,
+                    arguments={"phone": phone},
+                    call_context_vars=self._call_context_vars,
+                    gathered_context_vars=self._gathered_context,
+                    organization_id=organization_id,
+                )
+                data = result.get("data", result) if isinstance(result, dict) else result
+                if isinstance(data, dict) and "status" in data:
+                    self._record_mcp_result("identify_patient_by_phone", data)
+                    return {
+                        "status": "completed",
+                        "function_name": "identify_patient_by_phone",
+                        "result": data,
+                    }
+                return {"status": "error", "error": "direct patient lookup returned no data"}
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Direct patient lookup failed: %s", exc)
+                return {"status": "error", "error": str(exc)}
+
+        session = self._mcp_sessions.get(lookup_uuid)
+        if session is None or not session.available:
+            logger.warning(
+                "Patient lookup MCP session unavailable on node %s (%s)",
+                node.id,
+                lookup_uuid,
+            )
+            return {
+                "status": "error",
+                "error": "patient lookup MCP session unavailable",
+            }
         schemas = session.function_schemas({"identify_patient_by_phone"})
         if not schemas:
             logger.warning(
@@ -531,17 +567,26 @@ class PipecatEngine:
                 automatic_tool_result = await self._auto_execute_patient_lookup_on_entry(
                     self._current_node
                 )
-                if (
-                    automatic_tool_result is not None
+                lookup_result = (
+                    automatic_tool_result.get("result")
+                    if isinstance(automatic_tool_result, dict)
+                    else None
+                )
+                lookup_succeeded = (
+                    isinstance(automatic_tool_result, dict)
                     and automatic_tool_result.get("status") == "completed"
-                    and self._current_node.out_edges
-                ):
-                    # Continue into the graph's existing age router after the
-                    # mandatory lookup. The lookup result remains attached to
-                    # the transition result delivered below.
+                    and isinstance(lookup_result, dict)
+                    and lookup_result.get("status") == "found"
+                    and bool(lookup_result.get("patients"))
+                )
+                if lookup_succeeded and self._current_node.out_edges:
+                    # Continue into the graph's age router only after the EHR
+                    # found a patient. On no_match/invalid_input, remain in
+                    # identify_patient so the next caller phone number is
+                    # handled by the same lookup node instead of being treated
+                    # as age or condition input.
                     await self.set_node(self._current_node.out_edges[0].target)
-
-                await self._auto_route_current_node()
+                    await self._auto_route_current_node()
 
                 async def on_context_updated() -> None:
                     """

@@ -9,7 +9,10 @@ Three pieces:
 | Piece | What it is |
 | --- | --- |
 | `docker-compose.yml` | Local OpenEMR 8.4 + MariaDB |
-| `mcp_server/` | MCP server exposing OpenEMR-backed nutrition tools over streamable HTTP |
+| `mcp_server/` | Optional MCP surface exposing the same OpenEMR operations over streamable HTTP |
+| `api/services/integrations/openemr/` | Authenticated FastAPI gateway used by direct SpinSci HTTP tools |
+| `register_http_tools.py` | Registers ordinary `http_api` tools for the gateway |
+| `attach_http_tools.py` | Rebinds workflow 16 from MCP tools to direct HTTP tools |
 | `generate_nutrition_workflow.py` | Compiles the spec diagram into a SpinSci `workflow_definition` |
 
 Everything here is **dev-only**. Credentials are local placeholders and the
@@ -28,12 +31,18 @@ python integrations/openemr/setup_api_client.py
 # 3. Seed nutrition-clinic demo data (idempotent)
 python integrations/openemr/seed_data.py
 
-# 4. Run the MCP server
+# 4. Run the MCP server only if you want the optional MCP surface
 OPENEMR_MCP_API_KEY=spinsci-openemr-dev-key \
     python integrations/openemr/mcp_server/server.py
 
-# 5. Verify every tool against live OpenEMR (separate shell)
+# 5. Verify the domain operations against live OpenEMR
 python integrations/openemr/test_mcp_tools.py
+
+# 6. Register direct HTTP tools and attach them to workflow 16
+python integrations/openemr/register_http_tools.py \
+    --api-key "$SPINSCI_API_TOKEN"
+python integrations/openemr/attach_http_tools.py \
+    --api-key "$SPINSCI_API_TOKEN"
 ```
 
 OpenEMR UI: <https://localhost:9390/> — `admin` / `SpinSciDev123`.
@@ -53,12 +62,25 @@ python integrations/openemr/generate_nutrition_workflow.py \
     --credential-uuid "$MCP_CREDENTIAL_UUID"
 ```
 
-This registers the MCP server as an `mcp`-category tool, generates the
-workflow, validates it, and creates it. `--credential-uuid` should point at a
-SpinSci credential of type `api_key` with header `X-API-Key` holding the value
-of `OPENEMR_MCP_API_KEY`.
+This registers ordinary `http_api` tools whose URLs point to the authenticated
+FastAPI gateway. The gateway calls OpenEMR using the server-side OAuth-aware
+client, so SpinSci never receives the OpenEMR client secret or an expiring
+OpenEMR token. `register_http_tools.py` writes the direct tool UUID mapping to
+the gitignored `.http_tool_uuids.json`; `attach_http_tools.py` updates and
+publishes workflow 16. The direct tool function names are stable raw names such
+as `identify_patient_by_phone` and `find_available_slots` — there is no MCP
+namespace in the agent's tool list.
 
-Without `--create` the script just writes
+The gateway requires the SpinSci API key in `X-API-Key` and is organization
+scoped through the normal auth dependency. It is intended for this local
+single-OpenEMR development setup; a multi-tenant deployment needs an
+organization-specific OpenEMR credential boundary.
+
+The older `generate_nutrition_workflow.py --create` path registers the optional
+MCP tool and creates a new workflow. Use the direct-tool scripts above for the
+published workflow 16.
+
+Without `--create` the generator just writes
 `docs/json_workflows_samples/generated_nutrition_voice_workflow.json`, and
 `--validate` alone runs the backend's own DTO and graph validators offline.
 
@@ -69,7 +91,7 @@ Node types translate mechanically, so editing the spec regenerates the agent:
 | Spec `data.type` | SpinSci node | Behaviour |
 | --- | --- | --- |
 | `start` | `startCall` | Greeting, then capture patient + intent |
-| `api_request` | `agentNode` | Calls the bound MCP tool, speaks its `spoken_summary` |
+| `api_request` | `agentNode` | Calls the bound direct HTTP or MCP tool, speaks its `spoken_summary` |
 | `branch` | `agentNode` | Silent routing turn, no speech |
 | `conversation` | `agentNode` | Speaks a clinic rule and waits |
 | `transfer` | `agentNode` | Escalates via tool, reads back number and option |
@@ -86,17 +108,11 @@ unique per source, since SpinSci turns labels into LLM function names), and the
 condition comes from `CONDITION_TEXT`, keyed on the diagram's edge expression.
 An unmapped expression is a hard error rather than a silently vague condition.
 
-Prompts reference MCP tools by their **namespaced** runtime name
-(`mcp__openemr_nutrition__identify_patient_by_phone`), not the raw tool name.
-SpinSci namespaces every MCP tool as `mcp__<slug-of-tool-name>__<raw>` before
-offering it to the model, so a prompt that said "call
-`identify_patient_by_phone`" would make the model emit a name that is not in
-the request's tool list, and the LLM provider rejects the call
-("tool ... which was not in request.tools"). The generator computes the
-namespaced form from `--name` (the MCP tool's registered name), so if you
-register the tool under a different name you must regenerate. The per-node
-`mcp_tool_filters` still use the **raw** names — that filter matches on the
-pre-namespace name.
+The generator can produce MCP-namespaced prompts when used with the optional
+MCP tool. Workflow 16 is currently bound to direct HTTP tools, so its prompts
+use stable raw names such as `identify_patient_by_phone`. If you switch back to
+MCP, regenerate with the MCP workflow path so the namespace matches the MCP
+runtime.
 
 `VAPI_Call_GetDetails` and `Call_GetData` are call-platform context rather than
 EHR lookups, so they are intentionally unbound and reported as warnings.

@@ -39,21 +39,17 @@
         },
         "data": {
           "name": "Verify patient chart",
-          "prompt": "# Verify patient chart\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__identify_patient_by_phone` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__identify_patient_by_phone`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Phone verification behavior (critical)\nThis tool accepts only the patient's phone number. Never ask for or use a full name as a substitute. For invalid_input or no_match, read the returned retry message and wait for a new phone number. For one unique match, read the returned spoken_summary exactly once, treat the returned patient_id, age, and is_pediatric as authoritative, and immediately call route_by_returned_patient_age. Do not ask 'is that you?', do not ask for age, and do not ask adult or pediatric. For multiple matches, ask only which listed patient to use, then continue after the caller selects one.\n\n## Clinic rules\n- Identify the caller and confirm the correct patient chart before continuing.\n\n## Next\nWhen this step is done, call route_by_returned_patient_age to continue.",
+          "prompt": "# Verify patient chart\n\nThis step looks up information in the medical record. Call the tool named exactly `identify_patient_by_phone` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `identify_patient_by_phone`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Phone verification behavior (critical)\nThis tool accepts only the patient's phone number. Never ask for or use a full name as a substitute. For invalid_input or no_match, read the returned retry message and wait for a new phone number. For one unique match, read the returned spoken_summary exactly once, treat the returned patient_id, age, and is_pediatric as authoritative, and immediately call route_by_returned_patient_age. Do not ask 'is that you?', do not ask for age, and do not ask adult or pediatric. For multiple matches, ask only which listed patient to use, then continue after the caller selects one.\n\n## Clinic rules\n- Identify the caller and confirm the correct patient chart before continuing.\n\n## Next\nWhen this step is done, call route_by_returned_patient_age to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": true,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "63829e61-727f-4667-845b-5254b9986fcb"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "identify_patient_by_phone"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -85,21 +81,17 @@
         },
         "data": {
           "name": "Route to Alexa Bacino",
-          "prompt": "# Route to Alexa Bacino\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__route_pediatric_patient` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__route_pediatric_patient`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Route the pediatric patient to Alexa Bacino.\n\n## Next\nWhen this step is done, call complete_pediatric_routing to continue.",
+          "prompt": "# Route to Alexa Bacino\n\nThis step looks up information in the medical record. Call the tool named exactly `route_pediatric_patient` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `route_pediatric_patient`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Route the pediatric patient to Alexa Bacino.\n\n## Next\nWhen this step is done, call complete_pediatric_routing to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": true,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "7263a020-8fbc-4461-ab2c-37a474ac802e"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "route_pediatric_patient"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -127,21 +119,17 @@
         },
         "data": {
           "name": "Check nutrition condition",
-          "prompt": "# Check nutrition condition\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__check_nutrition_eligibility` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__check_nutrition_eligibility`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Approve Diabetes, Pre-diabetes, GDM, Weight Management, Gastroenterology, Bariatric, Hyperlipidemia, Celiac, Gluten Intolerance, Obesity, and General Nutrition.\n\n## Next\nChoose exactly one of these transitions once you know which applies:\n- route_to_refer_out\n- route_to_gdm_screening",
+          "prompt": "# Check nutrition condition\n\nThis step looks up information in the medical record. Call the tool named exactly `check_nutrition_eligibility` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `check_nutrition_eligibility`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Approve Diabetes, Pre-diabetes, GDM, Weight Management, Gastroenterology, Bariatric, Hyperlipidemia, Celiac, Gluten Intolerance, Obesity, and General Nutrition.\n\n## Next\nChoose exactly one of these transitions once you know which applies:\n- route_to_refer_out\n- route_to_gdm_screening",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": true,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "e632d55d-6070-448d-9ee0-83233b6235e6"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "check_nutrition_eligibility"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -209,21 +197,17 @@
         },
         "data": {
           "name": "Verify GDM referral source",
-          "prompt": "# Verify GDM referral source\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__check_gdm_referral` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__check_gdm_referral`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Verify that the referral came from a Summit Health provider.\n\n## Next\nChoose exactly one of these transitions once you know which applies:\n- route_to_outside_referral\n- begin_slot_search",
+          "prompt": "# Verify GDM referral source\n\nThis step looks up information in the medical record. Call the tool named exactly `check_gdm_referral` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `check_gdm_referral`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Verify that the referral came from a Summit Health provider.\n\n## Next\nChoose exactly one of these transitions once you know which applies:\n- route_to_outside_referral\n- begin_slot_search",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": true,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "2f9a5784-5eaf-4e24-8590-4c88ee3524a0"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "check_gdm_referral"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -271,21 +255,17 @@
         },
         "data": {
           "name": "Find valid nutrition slots",
-          "prompt": "# Find valid nutrition slots\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__find_available_slots` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__find_available_slots`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Slot search inputs (critical)\nPass the patient_id returned by identify_patient_by_phone. Do not omit it. Use Nutrition Follow Up unless the caller explicitly requests a new-patient or telehealth visit. Do not invent a provider; let the tool filter providers using the patient chart.\n\n## Clinic rules\n- Find available slots. GDM must be scheduled within 72 hours.\n\n## Next\nWhen this step is done, call begin_slot_policy_check to continue.",
+          "prompt": "# Find valid nutrition slots\n\nThis step looks up information in the medical record. Call the tool named exactly `find_available_slots` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `find_available_slots`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Slot search inputs (critical)\nPass the patient_id returned by identify_patient_by_phone. Do not omit it. Use Nutrition Follow Up unless the caller explicitly requests a new-patient or telehealth visit. Do not invent a provider; let the tool filter providers using the patient chart.\n\n## Clinic rules\n- Find available slots. GDM must be scheduled within 72 hours.\n\n## Next\nWhen this step is done, call begin_slot_policy_check to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": true,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "b177a810-588e-4e8b-98c0-f067d1fe49b3"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "find_available_slots"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -297,21 +277,17 @@
         },
         "data": {
           "name": "Validate scheduling policy",
-          "prompt": "# Validate scheduling policy\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__validate_slot_policy` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__validate_slot_policy`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Selected slot (critical)\nPass the exact slot_id from the slot the caller selected. Do not send only visit_type and do not change Nutrition Follow Up to Nutrition New Patient. If the caller has not selected a listed slot, ask one short question and wait.\n\n## Clinic rules\n- Allow virtual visits only in Athena Telehealth slots. Never change a preset slot to Virtual, OV, or NEWP.\n\n## Next\nWhen this step is done, call route_to_72_hour_check to continue.",
+          "prompt": "# Validate scheduling policy\n\nThis step looks up information in the medical record. Call the tool named exactly `validate_slot_policy` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `validate_slot_policy`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Selected slot (critical)\nPass the exact slot_id from the slot the caller selected. Do not send only visit_type and do not change Nutrition Follow Up to Nutrition New Patient. If the caller has not selected a listed slot, ask one short question and wait.\n\n## Clinic rules\n- Allow virtual visits only in Athena Telehealth slots. Never change a preset slot to Virtual, OV, or NEWP.\n\n## Next\nWhen this step is done, call route_to_72_hour_check to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": true,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "6f1d8653-8b3a-4e18-bf20-44b74156094d"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "validate_slot_policy"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -343,21 +319,17 @@
         },
         "data": {
           "name": "Escalate GDM scheduling",
-          "prompt": "# Escalate GDM scheduling\n\nThis call cannot be completed by scheduling alone. Call the tool named exactly `mcp__openemr_nutrition__escalate_gdm_scheduling` for this step. Then give the caller the phone number and option exactly as the tool returned them.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__escalate_gdm_scheduling`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- No GDM slot is available within 72 hours. Call 908-516-9850 and select option 2.\n\n## Next\nWhen this step is done, call complete_gdm_escalation to continue.",
+          "prompt": "# Escalate GDM scheduling\n\nThis call cannot be completed by scheduling alone. Call the tool named exactly `escalate_gdm_scheduling` for this step. Then give the caller the phone number and option exactly as the tool returned them.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `escalate_gdm_scheduling`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- No GDM slot is available within 72 hours. Call 908-516-9850 and select option 2.\n\n## Next\nWhen this step is done, call complete_gdm_escalation to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": true,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "e09fbcae-716b-47e9-8205-b607948b6a27"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "escalate_gdm_scheduling"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -385,21 +357,17 @@
         },
         "data": {
           "name": "Check nutrition coverage",
-          "prompt": "# Check nutrition coverage\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__check_nutrition_coverage` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__check_nutrition_coverage`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Check active coverage evidence.\n\n## Next\nWhen this step is done, call begin_fee_notice to continue.",
+          "prompt": "# Check nutrition coverage\n\nThis step looks up information in the medical record. Call the tool named exactly `check_nutrition_coverage` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `check_nutrition_coverage`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Check active coverage evidence.\n\n## Next\nWhen this step is done, call begin_fee_notice to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": true,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "bb76211b-965a-4993-9b0e-3d9309f953fc"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "check_nutrition_coverage"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -411,7 +379,7 @@
         },
         "data": {
           "name": "Explain possible fee",
-          "prompt": "# Explain possible fee\n\nTell the caller the following in one or two short sentences, then stop and wait for their reply.\n\n## Clinic rules\n- State that there is a $200 charge if the diagnosis is not covered by insurance.\n\n## Next\nWhen this step is done, call begin_booking to continue.",
+          "prompt": "# Explain possible fee\n\nThe coverage result has already disclosed the possible fee. Do not repeat the dollar amount or explain insurance again. Ask one concise question: 'Would you like me to go ahead and book that time?' Wait for a clear yes before continuing to booking. If the caller declines, end politely without booking.\n\n## Clinic rules\n- State that there is a $200 charge if the diagnosis is not covered by insurance.\n\n## Next\nWhen this step is done, call begin_booking to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
@@ -431,21 +399,17 @@
         },
         "data": {
           "name": "Book appointment",
-          "prompt": "# Book appointment\n\nThis step looks up information in the medical record. Call the tool named exactly `mcp__openemr_nutrition__book_nutrition_appointment` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `mcp__openemr_nutrition__book_nutrition_appointment`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Reserve the selected slot without changing its type.\n\n## Next\nWhen this step is done, call begin_patient_instructions to continue.",
+          "prompt": "# Book appointment\n\nThis step looks up information in the medical record. Call the tool named exactly `book_nutrition_appointment` for this step. Do not speak before the tool call. When it returns, read its spoken_summary aloud and say nothing else.\n\n## Tool name (critical)\nThe only tool name you may call at this step is: `book_nutrition_appointment`. Use that exact string. Do not shorten it, rename it, drop the `mcp__` prefix, or invent a different name. If you cannot see that exact tool available, do not guess a name.\n\n## Clinic rules\n- Reserve the selected slot without changing its type.\n\n## Next\nWhen this step is done, call begin_patient_instructions to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": true,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "5e94b1c0-4355-4ae6-ae32-ab261375da8e"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "book_nutrition_appointment"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -457,21 +421,17 @@
         },
         "data": {
           "name": "Give patient instructions",
-          "prompt": "# Give patient instructions\n\nTell the caller the following in one or two short sentences, then stop and wait for their reply.\n\n## Clinic rules\n- Tell new patients to bring their most recent laboratory results. Tell patients who test at home to bring their blood sugar logbook.\n\n## Tools\nCall the tool named exactly `mcp__openemr_nutrition__get_patient_instructions` for this step.\n\n## Next\nWhen this step is done, call begin_appointment_confirmation to continue.",
+          "prompt": "# Give patient instructions\n\nCall the instructions tool. If its instructions list is empty, say nothing about supplies or what to bring and immediately continue to appointment confirmation. If it returns instructions, read each instruction once in a concise sentence, then continue to appointment confirmation. Do not say 'there is nothing special to bring' unless the caller explicitly asks.\n\n## Clinic rules\n- Tell new patients to bring their most recent laboratory results. Tell patients who test at home to bring their blood sugar logbook.\n\n## Tools\nCall the tool named exactly `get_patient_instructions` for this step.\n\n## Next\nWhen this step is done, call begin_appointment_confirmation to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": false,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "531a2a9f-98ed-445f-a1c9-21ac376ef760"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "get_patient_instructions"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
@@ -483,21 +443,17 @@
         },
         "data": {
           "name": "Confirm appointment details",
-          "prompt": "# Confirm appointment details\n\nTell the caller the following in one or two short sentences, then stop and wait for their reply.\n\n## Clinic rules\n- Review the appointment date, time, visit type, and patient instructions before ending the call.\n\n## Tools\nCall the tool named exactly `mcp__openemr_nutrition__get_patient_appointments` for this step.\n\n## Next\nWhen this step is done, call complete_appointment to continue.",
+          "prompt": "# Confirm appointment details\n\nTell the caller the following in one or two short sentences, then stop and wait for their reply.\n\n## Clinic rules\n- Review the appointment date, time, visit type, and patient instructions before ending the call.\n\n## Tools\nCall the tool named exactly `get_patient_appointments` for this step.\n\n## Next\nWhen this step is done, call complete_appointment to continue.",
           "add_global_prompt": true,
           "is_start": false,
           "is_end": false,
           "allow_interrupt": false,
           "extraction_enabled": false,
           "tool_uuids": [
-            "ee356429-4c1d-487c-a411-41281294afbc"
+            "11260843-8e8d-4956-ac7b-6f69edf39016"
           ],
           "document_uuids": null,
-          "mcp_tool_filters": {
-            "ee356429-4c1d-487c-a411-41281294afbc": [
-              "get_patient_appointments"
-            ]
-          }
+          "mcp_tool_filters": null
         }
       },
       {
