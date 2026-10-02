@@ -1,0 +1,176 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Scaffold the CDK project under `infrastructure/`": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492258
+      },
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840508903
+      },
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790841195674
+      }
+    ],
+    "2.1 Create `lib/props.ts` with the `SpinSciEc2StackProps` interface": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492390
+      },
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790841203160
+      },
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790841323617
+      }
+    ],
+    "3.1 Create `lib/network-construct.ts`": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492444
+      },
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790841332031
+      }
+    ],
+    "4.1 Create `lib/storage-construct.ts`": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492489
+      },
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790841333348
+      }
+    ],
+    "5.1 Create `lib/iam-construct.ts` instance role + profile": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492519
+      },
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790841334349
+      }
+    ],
+    "5.2 Add the GitHub OIDC provider and OIDC_Role": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492551
+      }
+    ],
+    "6.1 Create `lib/user-data.ts` as a pure cloud-init text builder": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492626
+      },
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790841335705
+      }
+    ],
+    "7.1 Create `lib/compute-construct.ts`": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492668
+      }
+    ],
+    "8.1 Create `lib/spinsci-ec2-stack.ts`": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492704
+      }
+    ],
+    "8.2 Create `bin/spinsci-ec2.ts` entrypoint with required-input validation": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492737
+      }
+    ],
+    "9. Checkpoint - CDK constructs and stack": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492767
+      }
+    ],
+    "10.1 Create the shared deploy-logic helper (`.github/workflows/lib/deploy_lib.sh` and/or a tiny Node module the workflow and tests both call)": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492816
+      },
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790841336837
+      }
+    ],
+    "11.1 Create the workflow wiring the pure logic to real steps": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492864
+      }
+    ],
+    "12. Checkpoint - Deploy pipeline logic and workflow": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492920
+      }
+    ],
+    "13.1 Write `infrastructure/README.md` runbook": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492953
+      }
+    ],
+    "13.2 Run `cdk synth` as a dry-run validation over the composed stack": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840492987
+      }
+    ],
+    "14. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790840493026
+      }
+    ],
+    "2. Define stack props and typed input contract": [
+      {
+        "executionId": "01ef32da-b22c-4f12-bebc-c189426f941a",
+        "chatSessionId": "sess_c5cb20b9-99f1-4ddf-9ad0-98f8cfadbbd5",
+        "timestamp": 1790841323767
+      }
+    ]
+  }
+}

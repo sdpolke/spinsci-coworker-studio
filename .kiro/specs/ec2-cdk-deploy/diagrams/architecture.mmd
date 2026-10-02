@@ -1,0 +1,64 @@
+flowchart TB
+    subgraph GH["GitHub"]
+        REL["GitHub Release<br/>(published)"]
+        BUILD["Build Pipeline<br/>docker-image.yml<br/>(existing, reused)"]
+        DEPLOY["Deploy Pipeline<br/>(NEW GHA workflow)"]
+    end
+
+    subgraph REG["Container Registries (existing)"]
+        DH["Docker Hub<br/>spinsciai/*"]
+        GHCR["GHCR<br/>ghcr.io/*"]
+    end
+
+    subgraph AWS["AWS Account (region: operator input)"]
+        subgraph IAM["IAM"]
+            OIDC["OIDC Role<br/>trust: SpinSci repo only<br/>perms: ssm send-command + read"]
+            IPROF["Instance Profile<br/>SSM managed-instance"]
+        end
+
+        SSM["AWS Systems Manager<br/>Run Command / Session Manager"]
+
+        subgraph VPC["VPC (new or operator-supplied)"]
+            subgraph SUBNET["Public Subnet"]
+                subgraph EC2["EC2 Instance (single)"]
+                    UD["UserData / cloud-init<br/>setup_remote.sh (first boot)<br/>update_remote.sh (via SSM)"]
+                    subgraph COMPOSE["docker-compose stack (existing, reused)"]
+                        NGINX["nginx :80/:443"]
+                        UI["ui"]
+                        API["api /api/v1/health"]
+                        PG["postgres+pgvector"]
+                        REDIS["redis"]
+                        MINIO["minio"]
+                        COTURN["coturn 3478/5349/49152-49200"]
+                    end
+                end
+                SG["Security Group<br/>in: 80,443,3478,5349,49152-49200<br/>NO port 22"]
+            end
+            EIP["Elastic IP<br/>(static, associated)"]
+            EBS["EBS Data Volume<br/>Docker volumes + .env<br/>RETAIN on replace"]
+        end
+    end
+
+    USERS["End users / browsers /<br/>WebRTC clients"]
+
+    REL --> BUILD
+    BUILD -->|push tagged images| DH
+    BUILD -->|push tagged images| GHCR
+    REL --> DEPLOY
+    DEPLOY -->|1. assume role via OIDC| OIDC
+    DEPLOY -->|2. send-command TARGET_VERSION=tag| SSM
+    SSM -->|run update_remote.sh| UD
+    UD -->|pull images| DH
+    UD -.->|or| GHCR
+    DEPLOY -->|3. poll health| API
+    IPROF -.attached.-> EC2
+    EIP -.associated.-> EC2
+    EBS -.mounted.-> EC2
+    SG -.protects.-> EC2
+    USERS -->|HTTPS + WebRTC| EIP
+    EIP --> NGINX
+    NGINX --> UI
+    NGINX --> API
+    API --> PG
+    API --> REDIS
+    API --> MINIO

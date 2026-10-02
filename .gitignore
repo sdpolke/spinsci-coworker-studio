@@ -4,13 +4,21 @@ __pycache__
 .env.prod
 .env.test
 
+# AWS Secrets Manager app-secret payloads — NEVER commit secret material.
+app-secret*.json
+*.secret.json
+
 # Conductor personal/per-machine overrides (settings.toml IS committed)
 .conductor/settings.local.toml
 
 # logs and run directory on production
 /logs/
 /run/
-infrastructure/
+infrastructure/node_modules/
+infrastructure/cdk.out/
+infrastructure/dist/
+infrastructure/*.js
+infrastructure/*.d.ts
 prd/
 .vercel
 
@@ -39,3 +47,11 @@ pipecat-langgraph-example/
 # Local OpenEMR credentials and generated tool UUID mappings
 integrations/openemr/.env.openemr
 integrations/openemr/.http_tool_uuids.json
+
+# Personal / per-machine Kiro files (not shared)
+# project-memory.md: personal local machine notes, explicitly "NOT checked in"
+.kiro/steering/project-memory.md
+# mcp.json: designed for local dev acceleration
+.kiro/settings/mcp.json
+# git-sync.sh: local-only helper, not part of this work
+scripts/git-sync.sh

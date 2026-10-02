@@ -1,0 +1,200 @@
+name: Deploy to EC2 (SSM)
+
+# Deploy_Pipeline: after the Build_Pipeline (docker-image.yml) publishes images
+# for a release, deploy that version to the single EC2 host via SSM Run Command
+# using short-lived OIDC credentials. Supports manual (re)deploy / rollback of
+# any published tag via workflow_dispatch. (Req 4, 5, 8, 9)
+#
+# No inbound SSH is used anywhere; the host is reached only through SSM.
+# No static AWS keys are used anywhere; auth is OIDC-only. (Req 4.3, 5.2)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to deploy (e.g. spinsci-v1.28.0). Enables rollback to an older tag."
+        required: true
+        type: string
+      health_timeout:
+        description: "Health-check timeout in seconds (30-600, default 120)."
+        required: false
+        default: "120"
+        type: string
+
+# OIDC needs id-token: write; contents: read for checkout. No other scopes.
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  # Never run two deploys against the single host at once.
+  group: deploy-ec2
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  # Set these as repository/environment variables (NOT secrets — they are not
+  # sensitive): the OIDC role ARN (stack output DeployRoleArn), the instance id
+  # (stack output InstanceId), and the public host for the health check.
+  DEPLOY_ROLE_ARN: ${{ vars.DEPLOY_ROLE_ARN }}
+  INSTANCE_ID: ${{ vars.INSTANCE_ID }}
+  PUBLIC_HOST: ${{ vars.PUBLIC_HOST }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for the deploy-logic module)
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install deploy-logic deps
+        working-directory: infrastructure
+        run: npm ci
+
+      # --- 1. Resolve the Release_Tag (from release event or manual input) ----
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ inputs.tag }}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::error::No Release_Tag resolved; aborting." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved Release_Tag: $TAG"
+
+      # --- 2. Gate on image availability BEFORE any OIDC/SSM (Req 4.5, 8.3) ---
+      - name: Gate on image availability
+        id: gate
+        working-directory: infrastructure
+        run: |
+          set -euo pipefail
+          if npx tsx bin/deploy-cli.ts image-gate "${{ steps.tag.outputs.tag }}"; then
+            echo "Images published; proceeding."
+          else
+            echo "::error::Images for tag ${{ steps.tag.outputs.tag }} are not published. No deploy issued." >&2
+            exit 1
+          fi
+
+      # --- 3. OIDC auth — short-lived creds, no static keys (Req 5.1, 5.2) ----
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          # No aws-access-key-id / aws-secret-access-key: OIDC only. (Req 5.2)
+
+      # --- 4. SSM reachability check (Req 4.7) --------------------------------
+      - name: Verify instance is an online SSM managed instance
+        run: |
+          set -euo pipefail
+          STATUS="$(aws ssm describe-instance-information \
+            --filters "Key=InstanceIds,Values=${INSTANCE_ID}" \
+            --query 'InstanceInformationList[0].PingStatus' --output text)"
+          echo "SSM PingStatus: $STATUS"
+          if [ "$STATUS" != "Online" ]; then
+            echo "::error::Instance ${INSTANCE_ID} is not an Online SSM managed instance (status: $STATUS). Deploy failed." >&2
+            exit 1
+          fi
+
+      # --- 5. Send the update command (Req 4.1, 4.2, 8.1) ---------------------
+      - name: Send deploy command via SSM
+        id: send
+        run: |
+          set -euo pipefail
+          PARAMS="$(cd infrastructure && npx tsx bin/deploy-cli.ts ssm-params "${{ steps.tag.outputs.tag }}")"
+          echo "SSM parameters: $PARAMS"
+          CMD_ID="$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --instance-ids "${INSTANCE_ID}" \
+            --comment "SpinSci deploy ${{ steps.tag.outputs.tag }}" \
+            --timeout-seconds 3600 \
+            --parameters "$PARAMS" \
+            --query 'Command.CommandId' --output text)"
+          echo "command_id=$CMD_ID" >> "$GITHUB_OUTPUT"
+          echo "SSM CommandId: $CMD_ID"
+
+      # --- 6. Wait for the command + record output (Req 4.4, 4.6) -------------
+      - name: Wait for command and record output
+        id: invocation
+        run: |
+          set -euo pipefail
+          CMD_ID="${{ steps.send.outputs.command_id }}"
+          # Poll until the invocation reaches a terminal status.
+          for _ in $(seq 1 120); do
+            STATUS="$(aws ssm get-command-invocation \
+              --command-id "$CMD_ID" --instance-id "${INSTANCE_ID}" \
+              --query 'Status' --output text 2>/dev/null || echo 'Pending')"
+            case "$STATUS" in
+              Success|Failed|Cancelled|TimedOut) break ;;
+            esac
+            sleep 10
+          done
+
+          INVOCATION="$(aws ssm get-command-invocation \
+            --command-id "$CMD_ID" --instance-id "${INSTANCE_ID}")"
+          STATUS="$(echo "$INVOCATION" | jq -r '.Status')"
+          {
+            echo "### SpinSci deploy ${{ steps.tag.outputs.tag }}"
+            echo ""
+            echo "- SSM CommandId: \`$CMD_ID\`"
+            echo "- Status: \`$STATUS\`"
+            echo ""
+            echo "<details><summary>stdout</summary>"
+            echo ""
+            echo '```'
+            echo "$INVOCATION" | jq -r '.StandardOutputContent'
+            echo '```'
+            echo "</details>"
+            echo "<details><summary>stderr</summary>"
+            echo ""
+            echo '```'
+            echo "$INVOCATION" | jq -r '.StandardErrorContent'
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "::error::SSM command $CMD_ID finished with status $STATUS for tag ${{ steps.tag.outputs.tag }}." >&2
+            exit 1
+          fi
+
+      # --- 7. Health verification (Req 9.1-9.4) -------------------------------
+      - name: Verify application health
+        run: |
+          set -euo pipefail
+          TIMEOUT="$(cd infrastructure && npx tsx bin/deploy-cli.ts resolve-timeout "${{ inputs.health_timeout }}")"
+          INTERVAL=10
+          URL="https://${PUBLIC_HOST}/api/v1/health"
+          echo "Polling $URL for up to ${TIMEOUT}s (every ${INTERVAL}s)..."
+          DEADLINE=$(( $(date +%s) + TIMEOUT ))
+          while :; do
+            CODE="$(curl -s -o /tmp/health.json -w '%{http_code}' --max-time 10 "$URL" || echo 000)"
+            if [ "$CODE" = "200" ] && [ "$(jq -r '.status' /tmp/health.json 2>/dev/null)" = "ok" ]; then
+              echo "Health check passed (HTTP $CODE, status=ok)."
+              exit 0
+            fi
+            echo "Not healthy yet (HTTP $CODE); retrying..."
+            if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+              echo "::error::Health verification did not succeed within ${TIMEOUT}s for tag ${{ steps.tag.outputs.tag }}. No automatic rollback is performed." >&2
+              exit 1
+            fi
+            sleep "$INTERVAL"
+          done
+
+      # --- 8. Report success (Req 9.6). Failures surface via failed steps. ----
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ Deploy of ${{ steps.tag.outputs.tag }} succeeded and health verified." >> "$GITHUB_STEP_SUMMARY"

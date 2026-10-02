@@ -1,0 +1,28 @@
+{
+  "name": "spinsci-ec2-infrastructure",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS CDK (TypeScript) app provisioning a single EC2 host for the SpinSci docker-compose stack",
+  "bin": {
+    "spinsci-ec2": "bin/spinsci-ec2.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "synth": "cdk synth",
+    "cdk": "cdk"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.272.0",
+    "constructs": "^10.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "aws-cdk": "2.1143.0",
+    "fast-check": "^4.10.2",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
+    "typescript": "~5.6.3",
+    "vitest": "^3.2.4"
+  }
+}
