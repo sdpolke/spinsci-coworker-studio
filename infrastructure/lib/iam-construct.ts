@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as kms from 'aws-cdk-lib/aws-kms';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 
@@ -235,6 +236,65 @@ export class IamConstruct extends Construct {
       const key = kms.Key.fromKeyArn(this, 'AppSecretKmsKey', kmsKeyArn);
       key.grantDecrypt(this.instanceRole);
     }
+  }
+
+  /**
+   * Grant the EC2 instance role least-privilege read/write on an existing S3
+   * bucket used for the app's object storage (call audio + transcripts) when it
+   * runs with `ENABLE_AWS_S3=true` instead of the bundled MinIO container.
+   *
+   * Security properties:
+   *  - the bucket is IMPORTED by name, never created here — the stack does not
+   *    own the bucket's lifecycle or its encryption/public-access config;
+   *  - the grant is scoped to EXACTLY this bucket and its objects — no wildcard
+   *    across buckets;
+   *  - object actions are the minimal set the app's `S3FileSystem` exercises
+   *    (put/get/delete + multipart abort for uploads); bucket actions are limited
+   *    to `ListBucket` + `GetBucketLocation`;
+   *  - the grant lands only on the INSTANCE role; the OIDC deploy role never
+   *    gets bucket access.
+   *
+   * This is the durable equivalent of the inline `SpinSciVoiceAudioS3Access`
+   * policy an operator attaches by hand during the MinIO → S3 migration: once
+   * this stack is deployed, the grant is managed by CloudFormation and survives
+   * redeploys.
+   *
+   * Called by the stack only when `audioBucketName` is supplied.
+   *
+   * @param bucketName name of the existing S3 bucket
+   */
+  public addAudioBucketAccess(bucketName: string): void {
+    const bucket = s3.Bucket.fromBucketName(
+      this,
+      'AudioBucket',
+      bucketName,
+    );
+
+    // Bucket-level: list + locate, scoped to this bucket ARN only.
+    this.instanceRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        sid: 'SpinSciAudioBucketList',
+        effect: iam.Effect.ALLOW,
+        actions: ['s3:ListBucket', 's3:GetBucketLocation'],
+        resources: [bucket.bucketArn],
+      }),
+    );
+
+    // Object-level: the exact set S3FileSystem uses, scoped to this bucket's
+    // objects only.
+    this.instanceRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        sid: 'SpinSciAudioBucketObjects',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          's3:GetObject',
+          's3:PutObject',
+          's3:DeleteObject',
+          's3:AbortMultipartUpload',
+        ],
+        resources: [bucket.arnForObjects('*')],
+      }),
+    );
   }
 
   /**

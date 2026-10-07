@@ -55,3 +55,6 @@ integrations/openemr/.http_tool_uuids.json
 .kiro/settings/mcp.json
 # git-sync.sh: local-only helper, not part of this work
 scripts/git-sync.sh
+
+# Agent skills (local only)
+.agents/skills/

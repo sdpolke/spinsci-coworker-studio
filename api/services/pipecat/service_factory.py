@@ -984,10 +984,20 @@ def create_llm_service_from_provider(
             **kwargs,
         )
     elif provider == ServiceProviders.GROQ.value:
-        return GroqLLMService(
-            api_key=api_key,
-            settings=GroqLLMSettings(model=model, temperature=0.1),
-        )
+        # Groq's reasoning models (gpt-oss, deepseek-r1, qwen3) default to
+        # returning their chain of thought in the message content. On a voice
+        # call that gets spoken: callers heard "We have a conversation. The last
+        # step was... Thus we should call that tool" read aloud mid-booking.
+        # "hidden" keeps the reasoning server-side and returns only the reply.
+        settings = GroqLLMSettings(model=model, temperature=0.1)
+        if any(m in model for m in ("gpt-oss", "deepseek-r1", "qwen3")):
+            # Must travel in extra_body. `extra` is spread as direct keyword
+            # arguments onto AsyncCompletions.create(), and the OpenAI SDK
+            # rejects anything it does not know with "unexpected keyword
+            # argument 'reasoning_format'", which fails the whole turn and
+            # leaves the caller hearing nothing at all.
+            settings.extra = {"extra_body": {"reasoning_format": "hidden"}}
+        return GroqLLMService(api_key=api_key, settings=settings)
     elif provider == ServiceProviders.OPENROUTER.value:
         kwargs = {}
         if base_url:

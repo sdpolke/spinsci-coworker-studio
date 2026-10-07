@@ -191,4 +191,20 @@ export interface SpinSciEc2StackProps extends cdk.StackProps {
    * grant is needed.
    */
   readonly kmsKeyArn?: string;
+
+  /**
+   * Name of an existing S3 bucket the app uses for object storage (call audio,
+   * transcripts) when it runs with `ENABLE_AWS_S3=true` instead of the bundled
+   * MinIO container. When set, the stack grants the instance role
+   * least-privilege, bucket-scoped read/write (`s3:GetObject`, `s3:PutObject`,
+   * `s3:DeleteObject`, `s3:AbortMultipartUpload` on the objects, plus
+   * `s3:ListBucket` / `s3:GetBucketLocation` on the bucket) so the box can use
+   * the bucket via its instance role with no static AWS keys in `.env`.
+   *
+   * The bucket itself is created and hardened out-of-band (private, encrypted,
+   * public access blocked); the stack only IMPORTS it by name and attaches the
+   * grant. When omitted, no S3 permission is attached and the box keeps using
+   * MinIO (`ENABLE_AWS_S3=false`). (MinIO → S3 migration)
+   */
+  readonly audioBucketName?: string;
 }

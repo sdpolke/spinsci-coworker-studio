@@ -99,6 +99,14 @@ export class SpinSciEc2Stack extends cdk.Stack {
       iam.addAppSecretAccess(props.appSecretArn, props.kmsKeyArn);
     }
 
+    // --- Audio bucket: least-privilege S3 access for the instance role (opt-in)
+    // When the box runs with ENABLE_AWS_S3=true instead of MinIO, the instance
+    // role needs bucket-scoped read/write. Bucket imported by name; its
+    // lifecycle/encryption/public-access config is owned out-of-band.
+    if (props.audioBucketName) {
+      iam.addAudioBucketAccess(props.audioBucketName);
+    }
+
     // --- Stack outputs -------------------------------------------------------
     new cdk.CfnOutput(this, 'PublicIp', {
       value: compute.publicIp,

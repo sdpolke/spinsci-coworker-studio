@@ -7,6 +7,7 @@ from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
 from api.constants import (
+    ENVIRONMENT,
     LANGFUSE_HOST,
     LANGFUSE_PROJECT_ID,
     LANGFUSE_PUBLIC_KEY,
@@ -14,6 +15,10 @@ from api.constants import (
 )
 from pipecat.utils.run_context import get_current_org_id
 from pipecat.utils.tracing.setup import setup_tracing
+
+# Langfuse maps ``local`` to its default environment; everything else is sent
+# verbatim. Keeping the mapping here means a single call site below.
+_LANGFUSE_ENVIRONMENT = "development" if ENVIRONMENT == "local" else ENVIRONMENT
 
 _tracing_initialized = False
 _org_routing_exporter = None
@@ -33,7 +38,15 @@ def normalize_langfuse_host(host: str | None) -> str:
 
 
 class _OrgAttributeSpanProcessor(SpanProcessor):
-    """Stamps each span with the current org_id from the async context var."""
+    """Stamps each span with the current org_id and deployment environment.
+
+    ``spinsci.org_id`` drives per-org export routing. ``langfuse.environment``
+    is stamped on *every* span (not just the trace root) because Langfuse
+    filters and aggregates environment per observation — a root-only value
+    would leave child spans unfiltered. See
+    https://langfuse.com/integrations/native/opentelemetry (propagating
+    trace attributes to all spans).
+    """
 
     def on_start(self, span, parent_context=None):
         from pipecat.utils.run_context import get_current_org_id
@@ -41,6 +54,8 @@ class _OrgAttributeSpanProcessor(SpanProcessor):
         org_id = get_current_org_id()
         if org_id:
             span.set_attribute("spinsci.org_id", str(org_id))
+        if _LANGFUSE_ENVIRONMENT:
+            span.set_attribute("langfuse.environment", _LANGFUSE_ENVIRONMENT)
 
     def on_end(self, span):
         pass
@@ -358,3 +373,77 @@ def get_trace_url(trace_id: str, org_id=None) -> str | None:
     if project_id:
         return f"{host}/project/{project_id}/traces/{trace_id}"
     return f"{host}/trace/{trace_id}"
+
+
+def build_conversation_trace_attributes(
+    *,
+    workflow_run_id: int,
+    trace_name: str | None,
+    user_id: int | str | None = None,
+    channel: str | None = None,
+    provider: str | None = None,
+    model: str | None = None,
+    is_realtime: bool | None = None,
+    workflow_version_id: int | str | None = None,
+    extra_tags: tuple[str, ...] = (),
+) -> dict:
+    """Build Langfuse trace-level span attributes for a conversation span.
+
+    Pipecat emits one ``conversation`` span per pipeline run that Langfuse
+    treats as the trace root. On its own that span carries no user, session, or
+    descriptive name, so voice traces show up as "Unnamed trace" with no way to
+    filter by user or channel. This stamps the Langfuse-mapped attributes
+    (see https://langfuse.com/integrations/native/opentelemetry) so the trace
+    is nameable, user-attributable, groupable into a session, and filterable:
+
+    - ``langfuse.trace.name``  — stable, low-cardinality name (no run ids).
+    - ``langfuse.user.id``     — end-user attribution and per-user cost views.
+    - ``langfuse.session.id``  — groups every turn of one call into a session
+      (the workflow run is the natural session key).
+    - ``langfuse.trace.tags``  — business dimensions set at creation time
+      (channel, provider, model, realtime); low-cardinality by construction.
+    - ``langfuse.trace.metadata.*`` — filterable top-level metadata.
+
+    Dynamic values (run id, model) go into tags/metadata, never the name, per
+    Langfuse best practices (names are treated like an API and must stay
+    stable for evaluators, dashboards, and saved filters).
+
+    ``langfuse.environment`` is intentionally omitted here — it is stamped on
+    every span by ``_OrgAttributeSpanProcessor`` so it is present trace-wide,
+    not only on the root.
+    """
+    attributes: dict[str, object] = {
+        # Session groups all turns of a single call/conversation.
+        "langfuse.session.id": str(workflow_run_id),
+    }
+
+    if trace_name:
+        attributes["langfuse.trace.name"] = trace_name
+    if user_id is not None:
+        attributes["langfuse.user.id"] = str(user_id)
+
+    tags: list[str] = []
+    if channel:
+        tags.append(f"channel:{channel}")
+    if provider:
+        tags.append(f"provider:{provider}")
+    if model:
+        tags.append(f"model:{model}")
+    if is_realtime is not None:
+        tags.append("realtime" if is_realtime else "cascade")
+    tags.extend(extra_tags)
+    if tags:
+        # Langfuse maps langfuse.trace.tags -> string[]. OTEL attribute values
+        # may be a sequence of strings, which the OTLP exporter encodes as an
+        # array; Langfuse reads it directly as the tags list.
+        attributes["langfuse.trace.tags"] = tags
+
+    # Filterable top-level metadata (prefix keeps these queryable rather than
+    # buried in the catch-all metadata.attributes bucket).
+    if workflow_version_id is not None:
+        attributes["langfuse.trace.metadata.workflow_version_id"] = str(
+            workflow_version_id
+        )
+    attributes["langfuse.trace.metadata.workflow_run_id"] = str(workflow_run_id)
+
+    return attributes

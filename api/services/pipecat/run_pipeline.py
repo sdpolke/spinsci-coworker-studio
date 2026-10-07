@@ -66,6 +66,7 @@ from api.services.pipecat.service_factory import (
     stt_uses_external_turns,
 )
 from api.services.pipecat.tracing_config import (
+    build_conversation_trace_attributes,
     ensure_tracing,
 )
 from api.services.pipecat.transcript_log_coordinator import TranscriptLogCoordinator
@@ -1223,8 +1224,31 @@ async def _run_pipeline_impl(
             recording_router=recording_router,
         )
 
-    # Create pipeline task with audio configuration
-    task = create_pipeline_task(pipeline, workflow_run_id, audio_config)
+    # Create pipeline task with audio configuration.
+    #
+    # Stamp Langfuse trace-level attributes on the conversation span so voice
+    # traces are nameable, attributable to the end user, grouped into a session
+    # (one session per call), and filterable by channel/provider/model. Without
+    # this the Pipecat conversation span exports as an unnamed, user-less trace.
+    conversation_trace_attributes = build_conversation_trace_attributes(
+        workflow_run_id=workflow_run_id,
+        trace_name=workflow.name or "voice-conversation",
+        user_id=workflow.user_id,
+        channel=getattr(workflow_run, "mode", None),
+        provider=getattr(user_config.llm, "provider", None)
+        if user_config.llm
+        else None,
+        model=getattr(user_config.llm, "model", None) if user_config.llm else None,
+        is_realtime=bool(is_realtime),
+        workflow_version_id=workflow_run.definition_id,
+    )
+    task = create_pipeline_task(
+        pipeline,
+        workflow_run_id,
+        audio_config,
+        conversation_type="voice",
+        additional_span_attributes=conversation_trace_attributes,
+    )
     transcript_log_coordinator = TranscriptLogCoordinator(in_memory_logs_buffer)
     if task.turn_tracking_observer is None:
         raise RuntimeError("Transcript logging requires turn tracking to be enabled")

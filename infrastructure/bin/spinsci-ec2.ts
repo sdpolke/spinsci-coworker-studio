@@ -178,6 +178,18 @@ export function resolveStackProps(app: cdk.App): {
     );
   }
 
+  // Optional S3 object-storage bucket (ENABLE_AWS_S3=true path). Imported by
+  // name; validate against S3 bucket naming rules so a typo fails at synth.
+  const audioBucketName = ctxString(app, 'audioBucketName');
+  if (audioBucketName && !isS3BucketName(audioBucketName)) {
+    throw new Error(
+      `Invalid input "audioBucketName": must be a valid S3 bucket name ` +
+        `(3-63 chars, lowercase letters, digits, dots and hyphens; start and ` +
+        `end alphanumeric), got "${audioBucketName}". No resources were ` +
+        'synthesized.',
+    );
+  }
+
   const env: cdk.Environment = { account, region };
 
   const props: SpinSciEc2StackProps = {
@@ -196,6 +208,7 @@ export function resolveStackProps(app: cdk.App): {
     oidcProviderArn,
     appSecretArn,
     kmsKeyArn,
+    audioBucketName,
   };
 
   return { env, props };
@@ -215,6 +228,17 @@ function isSecretsManagerArn(arn: string): boolean {
 /** Validate a KMS key ARN (key/<uuid>, not an alias). */
 function isKmsKeyArn(arn: string): boolean {
   return /^arn:aws[a-z-]*:kms:[a-z0-9-]+:\d{12}:key\/[A-Za-z0-9-]+$/.test(arn);
+}
+
+/**
+ * Validate an S3 bucket name against the common DNS-compatible rules the app's
+ * buckets follow: 3-63 chars, lowercase letters/digits/dots/hyphens, starting
+ * and ending with an alphanumeric. (Not IP-formatted — rejected implicitly by
+ * requiring at least one non-digit segment is overkill here; a typo in a
+ * hand-set name is what this guards against.)
+ */
+function isS3BucketName(name: string): boolean {
+  return /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(name);
 }
 
 const app = new cdk.App();
