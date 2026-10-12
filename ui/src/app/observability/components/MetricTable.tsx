@@ -60,7 +60,9 @@ export function MetricTable<Row>({
                                     <th
                                         key={column.header}
                                         className={`pb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground ${
-                                            column.align === 'right' ? 'text-right' : 'text-left'
+                                            column.align === 'right'
+                                                ? 'text-right'
+                                                : 'text-left'
                                         }`}
                                     >
                                         {column.header}
@@ -78,7 +80,9 @@ export function MetricTable<Row>({
                                         <td
                                             key={column.header}
                                             className={`py-2 ${
-                                                column.align === 'right' ? 'text-right' : 'text-left'
+                                                column.align === 'right'
+                                                    ? 'text-right'
+                                                    : 'text-left'
                                             } ${column.numeric ? 'font-mono tabular-nums' : ''}`}
                                         >
                                             {column.cell(row) ?? '—'}

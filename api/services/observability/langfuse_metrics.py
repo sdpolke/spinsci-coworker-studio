@@ -17,6 +17,13 @@ its own fixed dimension list -- name, type, model, user, session and a few more
 dashboard exists for, *by tool server and tool*, therefore cannot be asked of
 it. Observations are fetched with their attributes and reduced in Python.
 
+**Why one fetch feeds every panel.** A dashboard render needs the same traces
+and the same observations for all of its panels. Fetching per panel meant eight
+scans of the same window, which is slow for the person waiting, unkind to a
+shared Langfuse, and -- because the scans happen at slightly different moments
+-- lets two panels disagree about the same call. :class:`CallData` is loaded
+once and every panel reduces it.
+
 Credentials come from the environment (``LANGFUSE_HOST``,
 ``LANGFUSE_PUBLIC_KEY``, ``LANGFUSE_SECRET_KEY``). When they are absent the
 service reports itself unconfigured and the dashboard says so plainly, rather
@@ -25,6 +32,7 @@ than rendering zeroes that look like a quiet system.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Sequence
@@ -38,21 +46,38 @@ from api.constants import (
     LANGFUSE_SECRET_KEY,
 )
 from api.services.observability.conventions import (
-    CALL_CHANNEL,
+    CALL_NODE,
+    CHANNEL_LABELS,
     TOOL_DURATION_MS,
+    TOOL_ERROR_KIND,
     TOOL_NAME,
     TOOL_OUTCOME,
     TOOL_SERVER,
+    CallChannel,
     SpanName,
+    ToolOutcome,
+    channel_for_transport,
 )
 
 # One page of observations. Langfuse caps a page well below this; the loop
 # below pages until the window is covered or the ceiling is reached.
 _PAGE_SIZE = 100
-# Ceiling on rows pulled for one dashboard render. A window with more tool
-# calls than this reports what it counted rather than hanging on a long scan.
-_MAX_ROWS = 2000
 _TIMEOUT_SECONDS = 20.0
+
+
+def _row_ceiling() -> int:
+    """Most rows pulled for one dashboard render.
+
+    A single fifteen-turn call emits a few hundred spans, so this is a ceiling
+    on *calls per render* as much as on rows. It is configurable because the
+    right value depends on traffic: too low silently truncates a busy window,
+    too high makes a week-long window slow. When it does bite, the snapshot
+    says so rather than quietly reporting partial figures as complete.
+    """
+    try:
+        return max(int(os.getenv("SPINSCI_TELEMETRY_MAX_ROWS", "8000")), _PAGE_SIZE)
+    except ValueError:
+        return 8000
 
 
 class LangfuseNotConfigured(RuntimeError):
@@ -102,31 +127,32 @@ def _get(path: str, params: dict[str, Any]) -> dict[str, Any] | None:
         return None
 
 
-def _iter_observations(
-    window: TimeWindow, *, name: str | None = None
-) -> list[dict[str, Any]]:
-    """Observations in the window, paged, optionally filtered to one span name."""
+def _paged(
+    path: str, params: dict[str, Any], limit: int
+) -> tuple[list[dict[str, Any]], bool]:
+    """Every page of a listing endpoint, up to ``limit`` rows.
+
+    Returns the rows and whether more existed than were taken, so a caller can
+    tell the reader that the figures cover part of the window rather than
+    presenting a truncated scan as the whole picture.
+    """
     rows: list[dict[str, Any]] = []
     page = 1
-    while len(rows) < _MAX_ROWS:
-        params: dict[str, Any] = {
-            "fromStartTime": window.start.isoformat(),
-            "toStartTime": window.end.isoformat(),
-            "limit": _PAGE_SIZE,
-            "page": page,
-        }
-        if name:
-            params["name"] = name
-        payload = _get("/api/public/observations", params)
+    truncated = False
+    while True:
+        payload = _get(path, {**params, "limit": _PAGE_SIZE, "page": page})
         if not payload:
             break
         batch = payload.get("data") or []
-        rows.extend(batch)
+        rows.extend(row for row in batch if isinstance(row, dict))
         meta = payload.get("meta") or {}
         if page >= (meta.get("totalPages") or 1) or not batch:
             break
+        if len(rows) >= limit:
+            truncated = True
+            break
         page += 1
-    return rows[:_MAX_ROWS]
+    return rows[:limit], truncated
 
 
 def _attributes(observation: dict[str, Any]) -> dict[str, Any]:
@@ -138,6 +164,58 @@ def _attributes(observation: dict[str, Any]) -> dict[str, Any]:
     return attributes if isinstance(attributes, dict) else {}
 
 
+# ------------------------------------------------------------------- channel
+#
+# The channel is not a span attribute: the pipeline records it as a trace tag
+# (``channel:<transport>``) alongside the model and provider tags, and the
+# transport is the raw one -- ``smallwebrtc``, ``twilio``, ``telnyx``. Reading
+# the tag and classifying the transport is what makes a browser-versus-
+# telephony split possible without the pipeline emitting anything new.
+
+_CHANNEL_TAG = "channel"
+
+
+def _trace_tags(trace: dict[str, Any]) -> dict[str, str]:
+    """``key:value`` trace tags as a mapping. A bare tag maps to an empty value."""
+    tags = trace.get("tags")
+    if not isinstance(tags, list):
+        return {}
+    parsed: dict[str, str] = {}
+    for tag in tags:
+        key, separator, value = str(tag).partition(":")
+        parsed[key.strip()] = value.strip() if separator else ""
+    return parsed
+
+
+def transport_of(trace: dict[str, Any]) -> str | None:
+    """The transport a call arrived on, e.g. ``smallwebrtc`` or ``twilio``."""
+    return _trace_tags(trace).get(_CHANNEL_TAG) or None
+
+
+def channel_of(trace: dict[str, Any]) -> CallChannel:
+    """Browser, telephony or text chat, for one trace."""
+    return channel_for_transport(transport_of(trace))
+
+
+def channel_label(trace: dict[str, Any]) -> str:
+    channel = channel_of(trace)
+    return CHANNEL_LABELS.get(channel, str(channel))
+
+
+def _is_call(trace: dict[str, Any]) -> bool:
+    """Whether a trace is a real call rather than something else we traced.
+
+    A health check and a seeding script land in the same project as the calls,
+    and averaging them in produces an "average call duration" that no caller
+    ever experienced. A call is identified positively -- it carries the channel
+    tag the pipeline stamps, or a session -- so anything else is excluded
+    without this module needing to know the name of every synthetic trace.
+    """
+    return bool(transport_of(trace) or trace.get("sessionId"))
+
+
+# --------------------------------------------------------------------- layers
+#
 #: Span name -> the layer of the pipeline it belongs to.
 #:
 #: Pipecat names its spans ``llm``/``llm-<node>``, ``tts``, ``stt``, ``turn-N``
@@ -235,6 +313,10 @@ def _percentile(values: Sequence[float], fraction: float) -> float | None:
     return ordered[max(index, 0)]
 
 
+def _mean(values: Sequence[float]) -> float | None:
+    return (sum(values) / len(values)) if values else None
+
+
 def _latency_seconds(observation: dict[str, Any]) -> float | None:
     """Seconds for one span, preferring our own measurement.
 
@@ -255,28 +337,148 @@ def _latency_seconds(observation: dict[str, Any]) -> float | None:
         return None
 
 
+def _tokens_of(observation: dict[str, Any]) -> int:
+    usage = observation.get("usage") or {}
+    if not isinstance(usage, dict):
+        return 0
+    try:
+        return int(usage.get("total") or usage.get("totalTokens") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _is_failure(observation: dict[str, Any]) -> bool:
+    """Whether a span represents something going wrong.
+
+    Two conditions, because they are genuinely different. A span marked ERROR
+    or WARNING raised. A tool whose outcome is not ``ok`` returned without
+    raising -- an unreachable server, a lookup that found nothing -- and the
+    call degraded politely and carried on, so it is invisible without this.
+    """
+    if str(observation.get("level") or "").upper() in {"ERROR", "WARNING"}:
+        return True
+    outcome = _attributes(observation).get(TOOL_OUTCOME)
+    return bool(outcome and str(outcome) != str(ToolOutcome.OK))
+
+
+# ------------------------------------------------------------------ the fetch
+
+
+@dataclass
+class CallData:
+    """One window of telemetry, fetched once and reduced by every panel."""
+
+    window: TimeWindow
+    #: Traces that are real calls, newest first.
+    calls: list[dict[str, Any]]
+    #: Observations in scope for the aggregate panels.
+    observations: list[dict[str, Any]]
+    #: Those observations grouped by call, in time order.
+    by_call: dict[str, list[dict[str, Any]]]
+    truncated: bool = False
+
+
+def load(window: TimeWindow, channel: str | None = None) -> CallData:
+    """Fetch the window once.
+
+    The channel filter is applied to *traces* and then propagated to their
+    observations, so narrowing to browser calls narrows every panel -- the
+    tools, the models and the layers included. Filtering on a span attribute,
+    which is what this did before, matched nothing: the channel lives on the
+    trace, not on each span.
+    """
+    ceiling = _row_ceiling()
+    traces, traces_truncated = _paged(
+        "/api/public/traces",
+        {
+            "fromTimestamp": window.start.isoformat(),
+            "toTimestamp": window.end.isoformat(),
+        },
+        ceiling,
+    )
+    observations, observations_truncated = _paged(
+        "/api/public/observations",
+        {
+            "fromStartTime": window.start.isoformat(),
+            "toStartTime": window.end.isoformat(),
+        },
+        ceiling,
+    )
+
+    wanted = channel.strip().lower() if channel else None
+    calls: list[dict[str, Any]] = []
+    excluded: set[str] = set()
+    for trace in traces:
+        trace_id = str(trace.get("id") or "")
+        if not _is_call(trace) or (wanted and str(channel_of(trace)) != wanted):
+            excluded.add(trace_id)
+            continue
+        calls.append(trace)
+
+    call_ids = {str(trace.get("id") or "") for trace in calls}
+
+    kept: list[dict[str, Any]] = []
+    by_call: dict[str, list[dict[str, Any]]] = {trace_id: [] for trace_id in call_ids}
+    for observation in observations:
+        trace_id = str(observation.get("traceId") or "")
+        if trace_id in call_ids:
+            by_call[trace_id].append(observation)
+            kept.append(observation)
+        elif trace_id not in excluded and not wanted:
+            # A span whose trace was excluded is dropped. One whose trace we
+            # never saw -- its call began before the window -- is kept, because
+            # dropping it would lose real work rather than filter out noise.
+            kept.append(observation)
+
+    for spans in by_call.values():
+        spans.sort(key=lambda span: str(span.get("startTime") or ""))
+    calls.sort(key=lambda trace: str(trace.get("timestamp") or ""), reverse=True)
+
+    return CallData(
+        window=window,
+        calls=calls,
+        observations=kept,
+        by_call=by_call,
+        truncated=traces_truncated or observations_truncated,
+    )
+
+
 @dataclass
 class _Bucket:
     """Running aggregate for one group."""
 
     count: int = 0
     samples: list[float] = field(default_factory=list)
+    first_byte: list[float] = field(default_factory=list)
     tokens: int = 0
+    failures: int = 0
 
-    def add(self, seconds: float | None, tokens: int = 0) -> None:
+    def add(
+        self,
+        seconds: float | None,
+        tokens: int = 0,
+        first_byte: float | None = None,
+        failed: bool = False,
+    ) -> None:
         self.count += 1
         self.tokens += tokens
+        self.failures += 1 if failed else 0
         if seconds is not None:
             self.samples.append(seconds)
+        if first_byte is not None:
+            self.first_byte.append(first_byte)
 
     def as_row(self, **dimensions: Any) -> dict[str, Any]:
         return {
             **dimensions,
             "count_count": self.count,
-            "avg_latency": (sum(self.samples) / len(self.samples)) if self.samples else None,
+            "avg_latency": _mean(self.samples),
             "p95_latency": _percentile(self.samples, 0.95),
             "max_latency": max(self.samples) if self.samples else None,
+            "avg_first_token": _mean(self.first_byte),
+            "p95_first_token": _percentile(self.first_byte, 0.95),
             "sum_totalTokens": self.tokens or None,
+            "failures": self.failures,
         }
 
 
@@ -284,7 +486,7 @@ def _reduce(
     observations: Iterable[dict[str, Any]],
     key: Any,
     *,
-    tokens_of: Any = None,
+    with_tokens: bool = False,
 ) -> list[dict[str, Any]]:
     """Group observations by ``key(observation)`` and aggregate each group."""
     buckets: dict[tuple, _Bucket] = {}
@@ -296,8 +498,12 @@ def _reduce(
         bucket_key = tuple(dims.values())
         buckets.setdefault(bucket_key, _Bucket())
         dimensions[bucket_key] = dims
-        tokens = tokens_of(observation) if tokens_of else 0
-        buckets[bucket_key].add(_latency_seconds(observation), tokens)
+        buckets[bucket_key].add(
+            _latency_seconds(observation),
+            tokens=_tokens_of(observation) if with_tokens else 0,
+            first_byte=time_to_first_token(observation),
+            failed=_is_failure(observation),
+        )
 
     rows = [buckets[k].as_row(**dimensions[k]) for k in buckets]
     rows.sort(key=lambda row: row["count_count"], reverse=True)
@@ -310,34 +516,38 @@ def _reduce(
 # tools, servers and models appear on their own.
 
 
-def tool_performance(window: TimeWindow, channel: str | None = None) -> list[dict[str, Any]]:
+def _tool_spans(data: CallData) -> list[dict[str, Any]]:
+    return [
+        observation
+        for observation in data.observations
+        if str(observation.get("name") or "") == str(SpanName.MCP_TOOL_CALL)
+    ]
+
+
+def tool_performance(data: CallData) -> list[dict[str, Any]]:
     """Latency and volume for every tool, grouped by server and tool.
 
     The panel that covers "each MCP, each Epic, each tool". Nothing here names
     a specific server, so the first call to a newly registered one adds a row.
     """
-    spans = _iter_observations(window, name=str(SpanName.MCP_TOOL_CALL))
 
-    def key(observation: dict[str, Any]) -> dict[str, Any] | None:
+    def key(observation: dict[str, Any]) -> dict[str, Any]:
         attributes = _attributes(observation)
-        if channel and attributes.get(CALL_CHANNEL) != channel:
-            return None
         return {
             TOOL_SERVER: str(attributes.get(TOOL_SERVER) or "unknown"),
             TOOL_NAME: str(attributes.get(TOOL_NAME) or "unknown"),
         }
 
-    return _reduce(spans, key)
+    return _reduce(_tool_spans(data), key)
 
 
-def tool_outcomes(window: TimeWindow) -> list[dict[str, Any]]:
+def tool_outcomes(data: CallData) -> list[dict[str, Any]]:
     """How tool calls ended, grouped by server and outcome.
 
     Separating ``unavailable`` from ``error`` is the point: one means their
     server is down and the call degraded, the other means we called it wrong,
     and the two need different fixes.
     """
-    spans = _iter_observations(window, name=str(SpanName.MCP_TOOL_CALL))
 
     def key(observation: dict[str, Any]) -> dict[str, Any]:
         attributes = _attributes(observation)
@@ -346,90 +556,201 @@ def tool_outcomes(window: TimeWindow) -> list[dict[str, Any]]:
             TOOL_OUTCOME: str(attributes.get(TOOL_OUTCOME) or "unknown"),
         }
 
-    return [
-        {k: v for k, v in row.items() if k != "sum_totalTokens"}
-        for row in _reduce(spans, key)
-    ]
+    return _reduce(_tool_spans(data), key)
 
 
-def model_performance(window: TimeWindow) -> list[dict[str, Any]]:
-    """Latency and token usage per model.
+def model_performance(data: CallData) -> list[dict[str, Any]]:
+    """Latency, time to first token and token usage per model.
 
     Grouped by the model each generation reports, so a model swapped on the
-    Models page shows up here without touching this.
+    Models page shows up here without touching this. First token sits beside
+    total latency because they answer different questions: total decides cost
+    and throughput, first token decides whether the caller thinks the line has
+    gone dead.
     """
     generations = [
-        o for o in _iter_observations(window) if (o.get("type") or "").upper() == "GENERATION"
+        observation
+        for observation in data.observations
+        if (observation.get("type") or "").upper() == "GENERATION"
     ]
 
     def key(observation: dict[str, Any]) -> dict[str, Any] | None:
         model = observation.get("model") or observation.get("providedModelName")
         return {"providedModelName": str(model)} if model else None
 
-    def tokens_of(observation: dict[str, Any]) -> int:
-        usage = observation.get("usage") or {}
-        if isinstance(usage, dict):
-            total = usage.get("total") or usage.get("totalTokens")
-            try:
-                return int(total or 0)
-            except (TypeError, ValueError):
-                return 0
-        return 0
-
-    return _reduce(generations, key, tokens_of=tokens_of)
+    return _reduce(generations, key, with_tokens=True)
 
 
-def pipeline_stage_latency(window: TimeWindow) -> list[dict[str, Any]]:
+def pipeline_stage_latency(data: CallData) -> list[dict[str, Any]]:
     """Average and p95 latency for each pipeline stage.
 
     Grouped by span name, which is how the LLM, speech and tool stages separate
     without this needing to know what any of them are called.
     """
-    observations = _iter_observations(window)
 
     def key(observation: dict[str, Any]) -> dict[str, Any] | None:
         name = observation.get("name")
         return {"name": str(name)} if name else None
 
-    return _reduce(observations, key)
+    return _reduce(data.observations, key)
 
 
-def layer_breakdown(window: TimeWindow) -> list[dict[str, Any]]:
+def layer_breakdown(data: CallData) -> list[dict[str, Any]]:
     """Latency per pipeline layer: speech in, model, speech out, tools.
 
     The panel that answers "where did the time go" without the reader needing
-    to know what a span is called. LLM rows also carry time to first token,
-    which is the figure that decides whether a call feels responsive -- total
-    LLM latency includes generating the whole reply, but the caller stops
-    waiting as soon as speech begins.
+    to know what a span is called. Rows carry time to first byte as well as
+    total latency, which is the figure that decides whether a call feels
+    responsive: total LLM latency includes generating the whole reply, but the
+    caller stops waiting as soon as speech begins.
     """
-    observations = _iter_observations(window)
 
-    buckets: dict[str, _Bucket] = {}
-    ttft: dict[str, list[float]] = {}
-    for observation in observations:
+    def key(observation: dict[str, Any]) -> dict[str, Any] | None:
         layer = classify_layer(str(observation.get("name") or ""))
-        if layer not in RESPONSE_LAYERS:
-            continue
-        buckets.setdefault(layer, _Bucket()).add(_latency_seconds(observation))
-        first_token = time_to_first_token(observation)
-        if first_token is not None:
-            ttft.setdefault(layer, []).append(first_token)
+        return {"layer": layer} if layer in RESPONSE_LAYERS else None
 
-    rows = []
-    for layer, bucket in buckets.items():
-        row = bucket.as_row(layer=layer)
-        samples = ttft.get(layer, [])
-        row["avg_first_token"] = (sum(samples) / len(samples)) if samples else None
-        row["p95_first_token"] = _percentile(samples, 0.95)
-        rows.append(row)
-
+    rows = _reduce(data.observations, key)
     # Slowest first: the layer to look at is the one taking the most time.
     rows.sort(key=lambda row: row["avg_latency"] or 0, reverse=True)
     return rows
 
 
-def turn_stats(window: TimeWindow) -> dict[str, Any]:
+def _turn_latencies(spans: Iterable[dict[str, Any]]) -> list[float]:
+    return [
+        value
+        for span in spans
+        if classify_layer(str(span.get("name") or "")) == LAYER_TURN
+        for value in [_latency_seconds(span)]
+        if value is not None
+    ]
+
+
+def _first_bytes(spans: Iterable[dict[str, Any]], layer: str) -> list[float]:
+    return [
+        value
+        for span in spans
+        if classify_layer(str(span.get("name") or "")) == layer
+        for value in [time_to_first_token(span)]
+        if value is not None
+    ]
+
+
+def _duration_of(trace: dict[str, Any], spans: Sequence[dict[str, Any]]) -> float | None:
+    """How long a call lasted, in seconds.
+
+    The trace latency where Langfuse has computed one, otherwise the span of
+    the conversation. A call still in progress has no trace latency, so without
+    the fallback a live call would show no duration at all.
+    """
+    try:
+        latency = trace.get("latency")
+        if latency is not None:
+            return float(latency)
+    except (TypeError, ValueError):
+        pass
+    for span in spans:
+        if classify_layer(str(span.get("name") or "")) == LAYER_CONVERSATION:
+            seconds = _latency_seconds(span)
+            if seconds is not None:
+                return seconds
+    return None
+
+
+def channel_breakdown(data: CallData) -> list[dict[str, Any]]:
+    """Calls, duration and responsiveness split by browser and telephony.
+
+    The two run the same pipeline and differ only in transport, which is what
+    makes comparing them worth doing: a gap between browser and telephony in
+    first-token or turn latency is a network or codec problem, not a model one.
+    """
+    buckets: dict[str, _Bucket] = {}
+    transports: dict[str, set[str]] = {}
+    turns: dict[str, list[float]] = {}
+
+    for trace in data.calls:
+        label = channel_label(trace)
+        spans = data.by_call.get(str(trace.get("id") or ""), [])
+        buckets.setdefault(label, _Bucket()).add(
+            _duration_of(trace, spans),
+            tokens=sum(_tokens_of(span) for span in spans),
+            first_byte=_mean(_first_bytes(spans, LAYER_LLM)),
+            failed=any(_is_failure(span) for span in spans),
+        )
+        transport = transport_of(trace)
+        if transport:
+            transports.setdefault(label, set()).add(transport)
+        turns.setdefault(label, []).extend(_turn_latencies(spans))
+
+    rows = []
+    for label, bucket in buckets.items():
+        row = bucket.as_row(channel=label)
+        row["transports"] = ", ".join(sorted(transports.get(label, ()))) or None
+        row["turns"] = len(turns.get(label, []))
+        row["avg_turn_latency"] = _mean(turns.get(label, []))
+        row["p95_turn_latency"] = _percentile(turns.get(label, []), 0.95)
+        rows.append(row)
+    rows.sort(key=lambda row: row["count_count"], reverse=True)
+    return rows
+
+
+def per_call(data: CallData) -> list[dict[str, Any]]:
+    """One row per call: channel, duration, turns, first token and failures.
+
+    The view that was missing. Averages say the system is healthy; this says
+    which call was not, and carries enough of each call's shape -- how many
+    turns it took, how long the caller waited for the first word, how many tool
+    calls it made and how many failed -- to decide whether to open the trace.
+    """
+    rows: list[dict[str, Any]] = []
+    for trace in data.calls:
+        trace_id = str(trace.get("id") or "")
+        spans = data.by_call.get(trace_id, [])
+
+        by_layer: dict[str, list[float]] = {}
+        tool_calls = 0
+        failures = 0
+        for span in spans:
+            layer = classify_layer(str(span.get("name") or ""))
+            seconds = _latency_seconds(span)
+            if seconds is not None and layer in RESPONSE_LAYERS:
+                by_layer.setdefault(layer, []).append(seconds)
+            if layer == LAYER_TOOL:
+                tool_calls += 1
+            if _is_failure(span):
+                failures += 1
+
+        turn_latencies = _turn_latencies(spans)
+        rows.append(
+            {
+                "trace_id": trace_id,
+                "started_at": trace.get("timestamp"),
+                "workflow": trace.get("name"),
+                "channel": channel_label(trace),
+                "transport": transport_of(trace),
+                "session_id": trace.get("sessionId"),
+                "user_id": trace.get("userId"),
+                "duration": _duration_of(trace, spans),
+                "turns": len(turn_latencies),
+                "avg_turn_latency": _mean(turn_latencies),
+                "max_turn_latency": max(turn_latencies) if turn_latencies else None,
+                # Two different waits, both worth seeing per call: the model's
+                # first token, and the first audio frame the caller can hear.
+                "avg_first_token": _mean(_first_bytes(spans, LAYER_LLM)),
+                "avg_first_audio": _mean(_first_bytes(spans, LAYER_TTS)),
+                "avg_llm_latency": _mean(by_layer.get(LAYER_LLM, [])),
+                "avg_stt_latency": _mean(by_layer.get(LAYER_STT, [])),
+                "avg_tts_latency": _mean(by_layer.get(LAYER_TTS, [])),
+                "tool_calls": tool_calls,
+                "tool_seconds": sum(by_layer.get(LAYER_TOOL, [])) or None,
+                "failures": failures,
+                "tokens": sum(_tokens_of(span) for span in spans) or None,
+                "spans": len(spans),
+            }
+        )
+    return rows
+
+
+def turn_stats(data: CallData) -> dict[str, Any]:
     """How a conversation is made up: turns per call and time per turn.
 
     A turn is one exchange -- the caller stops speaking, the agent replies --
@@ -437,45 +758,35 @@ def turn_stats(window: TimeWindow) -> dict[str, Any]:
     Reported alongside turns per call, because a short turn time on a call that
     needed twenty turns is not a good call.
     """
-    observations = _iter_observations(window)
-
     turn_latencies: list[float] = []
-    turns_per_conversation: dict[str, int] = {}
-    conversation_latencies: list[float] = []
+    turns_per_call: list[float] = []
+    durations: list[float] = []
+    first_token: list[float] = []
 
-    for observation in observations:
-        layer = classify_layer(str(observation.get("name") or ""))
-        seconds = _latency_seconds(observation)
-        if layer == LAYER_TURN:
-            if seconds is not None:
-                turn_latencies.append(seconds)
-            trace_id = str(observation.get("traceId") or "")
-            if trace_id:
-                turns_per_conversation[trace_id] = turns_per_conversation.get(trace_id, 0) + 1
-        elif layer == LAYER_CONVERSATION and seconds is not None:
-            conversation_latencies.append(seconds)
+    for trace in data.calls:
+        spans = data.by_call.get(str(trace.get("id") or ""), [])
+        latencies = _turn_latencies(spans)
+        turn_latencies.extend(latencies)
+        turns_per_call.append(float(len(latencies)))
+        duration = _duration_of(trace, spans)
+        if duration is not None:
+            durations.append(duration)
+        first_token.extend(_first_bytes(spans, LAYER_LLM))
 
-    turn_counts = list(turns_per_conversation.values())
     return {
         "turns": len(turn_latencies),
-        "conversations": len(turns_per_conversation) or len(conversation_latencies),
-        "avg_turn_latency": (
-            sum(turn_latencies) / len(turn_latencies) if turn_latencies else None
-        ),
+        "conversations": len(data.calls),
+        "avg_turn_latency": _mean(turn_latencies),
         "p95_turn_latency": _percentile(turn_latencies, 0.95),
         "max_turn_latency": max(turn_latencies) if turn_latencies else None,
-        "avg_turns_per_conversation": (
-            sum(turn_counts) / len(turn_counts) if turn_counts else None
-        ),
-        "avg_conversation_latency": (
-            sum(conversation_latencies) / len(conversation_latencies)
-            if conversation_latencies
-            else None
-        ),
+        "avg_turns_per_conversation": _mean(turns_per_call),
+        "avg_conversation_latency": _mean(durations),
+        "avg_first_token": _mean(first_token),
+        "p95_first_token": _percentile(first_token, 0.95),
     }
 
 
-def failures(window: TimeWindow) -> list[dict[str, Any]]:
+def failures(data: CallData) -> list[dict[str, Any]]:
     """Everything that went wrong, from both places failure shows up.
 
     Two sources, because they are genuinely different. A span marked ERROR or
@@ -483,76 +794,149 @@ def failures(window: TimeWindow) -> list[dict[str, Any]]:
     returned without raising -- an unreachable server, a tool that found
     nothing -- and would otherwise be invisible, since the call degraded
     politely and carried on.
-    """
-    observations = _iter_observations(window)
-    rows: dict[tuple[str, str, str], int] = {}
 
-    for observation in observations:
+    Rows carry how many distinct calls were affected as well as how many times
+    it happened: one call retrying five times and five calls each failing once
+    need different responses.
+    """
+    rows: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for observation in data.observations:
         name = str(observation.get("name") or "unknown")
-        layer = classify_layer(name)
         level = str(observation.get("level") or "DEFAULT").upper()
         attributes = _attributes(observation)
 
         if level in {"ERROR", "WARNING"}:
             detail = str(
                 observation.get("statusMessage")
-                or attributes.get("spinsci.tool.error_kind")
+                or attributes.get(TOOL_ERROR_KIND)
                 or level.title()
             )
-            key = (layer, name, detail)
-            rows[key] = rows.get(key, 0) + 1
-            continue
-
-        outcome = attributes.get(TOOL_OUTCOME)
-        if outcome and outcome != "ok":
+            key = (classify_layer(name), name, detail)
+        else:
+            outcome = attributes.get(TOOL_OUTCOME)
+            if not outcome or str(outcome) == str(ToolOutcome.OK):
+                continue
             server = str(attributes.get(TOOL_SERVER) or "unknown")
             tool = str(attributes.get(TOOL_NAME) or name)
-            detail = str(attributes.get("spinsci.tool.error_kind") or outcome)
+            detail = str(attributes.get(TOOL_ERROR_KIND) or outcome)
             key = (LAYER_TOOL, f"{server} / {tool}", detail)
-            rows[key] = rows.get(key, 0) + 1
 
-    return [
-        {"layer": layer, "source": source, "detail": detail, "count_count": count}
-        for (layer, source, detail), count in sorted(
-            rows.items(), key=lambda item: item[1], reverse=True
-        )
-    ]
-
-
-def call_volume(window: TimeWindow) -> list[dict[str, Any]]:
-    """Calls and their duration, grouped by trace name.
-
-    Traces are named per conversation type, so browser, telephony and text
-    chat separate here without a second query.
-    """
-    rows: list[dict[str, Any]] = []
-    page = 1
-    while len(rows) < _MAX_ROWS:
-        payload = _get(
-            "/api/public/traces",
+        row = rows.setdefault(
+            key,
             {
-                "fromTimestamp": window.start.isoformat(),
-                "toTimestamp": window.end.isoformat(),
-                "limit": _PAGE_SIZE,
-                "page": page,
+                "layer": key[0],
+                "source": key[1],
+                "detail": key[2],
+                "count_count": 0,
+                "_calls": set(),
+                "last_seen": None,
             },
         )
-        if not payload:
-            break
-        batch = payload.get("data") or []
-        rows.extend(batch)
-        meta = payload.get("meta") or {}
-        if page >= (meta.get("totalPages") or 1) or not batch:
-            break
-        page += 1
+        row["count_count"] += 1
+        trace_id = str(observation.get("traceId") or "")
+        if trace_id:
+            row["_calls"].add(trace_id)
+        seen = str(observation.get("startTime") or "")
+        if seen and (row["last_seen"] is None or seen > row["last_seen"]):
+            row["last_seen"] = seen
 
-    def key(trace: dict[str, Any]) -> dict[str, Any]:
-        return {"name": str(trace.get("name") or "unnamed")}
-
+    ordered = sorted(rows.values(), key=lambda row: row["count_count"], reverse=True)
     return [
-        {k: v for k, v in row.items() if k != "sum_totalTokens"}
-        for row in _reduce(rows[:_MAX_ROWS], key)
+        {**{k: v for k, v in row.items() if k != "_calls"}, "calls": len(row["_calls"])}
+        for row in ordered
     ]
+
+
+def call_volume(data: CallData) -> list[dict[str, Any]]:
+    """Calls and their duration, grouped by workflow.
+
+    Grouped by the trace name, which is the workflow that ran. This is *not*
+    the channel split -- that is :func:`channel_breakdown`, which reads the
+    transport tag. Presenting this one as the channel was the bug behind a
+    dashboard full of ``unknown``.
+    """
+    buckets: dict[str, _Bucket] = {}
+    for trace in data.calls:
+        spans = data.by_call.get(str(trace.get("id") or ""), [])
+        name = str(trace.get("name") or "unnamed")
+        buckets.setdefault(name, _Bucket()).add(
+            _duration_of(trace, spans),
+            first_byte=_mean(_first_bytes(spans, LAYER_LLM)),
+            failed=any(_is_failure(span) for span in spans),
+        )
+    rows = [bucket.as_row(workflow=name) for name, bucket in buckets.items()]
+    rows.sort(key=lambda row: row["count_count"], reverse=True)
+    return rows
+
+
+def call_detail(trace_id: str) -> dict[str, Any] | None:
+    """Every span of one call, in order, with its own timings.
+
+    The drill-down behind a row of the per-call table: what the agent did, in
+    sequence, and how long each step took. Offsets are relative to the start of
+    the call, so a reader can see where in the conversation a slow step fell
+    without doing arithmetic on timestamps.
+    """
+    trace = _get(f"/api/public/traces/{trace_id}", {})
+    if not trace:
+        return None
+
+    spans = trace.get("observations")
+    if not isinstance(spans, list) or not spans:
+        spans, _ = _paged(
+            "/api/public/observations", {"traceId": trace_id}, _row_ceiling()
+        )
+    spans = [span for span in spans if isinstance(span, dict)]
+    spans.sort(key=lambda span: str(span.get("startTime") or ""))
+
+    call_start = _parse_time(trace.get("timestamp")) or (
+        _parse_time(spans[0].get("startTime")) if spans else None
+    )
+
+    timeline: list[dict[str, Any]] = []
+    for span in spans:
+        attributes = _attributes(span)
+        start = _parse_time(span.get("startTime"))
+        timeline.append(
+            {
+                "id": span.get("id"),
+                "name": span.get("name"),
+                "layer": classify_layer(str(span.get("name") or "")),
+                "offset": (
+                    (start - call_start).total_seconds() if start and call_start else None
+                ),
+                "duration": _latency_seconds(span),
+                "first_byte": time_to_first_token(span),
+                "level": span.get("level"),
+                "status_message": span.get("statusMessage"),
+                "model": span.get("model") or span.get("providedModelName"),
+                "tokens": _tokens_of(span) or None,
+                "node": attributes.get(CALL_NODE),
+                "tool_server": attributes.get(TOOL_SERVER),
+                "tool_name": attributes.get(TOOL_NAME),
+                "tool_outcome": attributes.get(TOOL_OUTCOME),
+                "error_kind": attributes.get(TOOL_ERROR_KIND),
+                "failed": _is_failure(span),
+            }
+        )
+
+    return {
+        "trace_id": trace_id,
+        "workflow": trace.get("name"),
+        "started_at": trace.get("timestamp"),
+        "channel": channel_label(trace),
+        "transport": transport_of(trace),
+        "session_id": trace.get("sessionId"),
+        "user_id": trace.get("userId"),
+        "duration": _duration_of(trace, spans),
+        "tags": [str(tag) for tag in (trace.get("tags") or [])],
+        "turns": len(_turn_latencies(spans)),
+        "avg_turn_latency": _mean(_turn_latencies(spans)),
+        "avg_first_token": _mean(_first_bytes(spans, LAYER_LLM)),
+        "avg_first_audio": _mean(_first_bytes(spans, LAYER_TTS)),
+        "timeline": timeline,
+    }
 
 
 @dataclass
@@ -562,6 +946,8 @@ class DashboardSnapshot:
     configured: bool
     window_hours: int
     generated_at: datetime
+    channels: list[dict[str, Any]]
+    calls: list[dict[str, Any]]
     call_volume: list[dict[str, Any]]
     pipeline_stages: list[dict[str, Any]]
     layers: list[dict[str, Any]]
@@ -570,15 +956,16 @@ class DashboardSnapshot:
     tool_outcomes: list[dict[str, Any]]
     failures: list[dict[str, Any]]
     models: list[dict[str, Any]]
+    truncated: bool = False
     message: str | None = None
 
 
 def build_snapshot(window_hours: int = 24, channel: str | None = None) -> DashboardSnapshot:
     """Gather every panel for one dashboard render.
 
-    Panels are gathered independently: one that fails returns empty and the
-    rest still render, because four panels and a gap are far more useful to
-    someone debugging than a single error.
+    One fetch, then every panel reduces the same rows, so no two panels can
+    disagree about the same window and a render costs two paged requests rather
+    than sixteen.
     """
     now = datetime.now(timezone.utc)
     if not is_configured():
@@ -586,8 +973,16 @@ def build_snapshot(window_hours: int = 24, channel: str | None = None) -> Dashbo
             configured=False,
             window_hours=window_hours,
             generated_at=now,
-            call_volume=[], pipeline_stages=[], layers=[], turns={},
-            tools=[], tool_outcomes=[], failures=[], models=[],
+            channels=[],
+            calls=[],
+            call_volume=[],
+            pipeline_stages=[],
+            layers=[],
+            turns={},
+            tools=[],
+            tool_outcomes=[],
+            failures=[],
+            models=[],
             message=(
                 "Langfuse is not configured. Set LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY "
                 "and LANGFUSE_SECRET_KEY to enable call telemetry."
@@ -595,16 +990,27 @@ def build_snapshot(window_hours: int = 24, channel: str | None = None) -> Dashbo
         )
 
     window = TimeWindow.last_hours(window_hours)
+    data = load(window, channel=channel)
+
     return DashboardSnapshot(
         configured=True,
         window_hours=window_hours,
         generated_at=now,
-        call_volume=call_volume(window),
-        pipeline_stages=pipeline_stage_latency(window),
-        layers=layer_breakdown(window),
-        turns=turn_stats(window),
-        tools=tool_performance(window, channel=channel),
-        tool_outcomes=tool_outcomes(window),
-        failures=failures(window),
-        models=model_performance(window),
+        channels=channel_breakdown(data),
+        calls=per_call(data),
+        call_volume=call_volume(data),
+        pipeline_stages=pipeline_stage_latency(data),
+        layers=layer_breakdown(data),
+        turns=turn_stats(data),
+        tools=tool_performance(data),
+        tool_outcomes=tool_outcomes(data),
+        failures=failures(data),
+        models=model_performance(data),
+        truncated=data.truncated,
+        message=(
+            f"Showing the most recent {len(data.observations):,} spans in this window. "
+            "Narrow the window for exact figures."
+            if data.truncated
+            else None
+        ),
     )

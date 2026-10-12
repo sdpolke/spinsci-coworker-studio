@@ -29,7 +29,9 @@ interface BarRowProps {
 export function BarRow({ label, sublabel, value, max, display, secondary }: BarRowProps) {
     const pct = max > 0 ? Math.max((value / max) * 100, 1.5) : 0;
     const secondaryPct =
-        secondary && max > 0 ? Math.min(Math.max((secondary.value / max) * 100, 0), 100) : null;
+        secondary && max > 0
+            ? Math.min(Math.max((secondary.value / max) * 100, 0), 100)
+            : null;
 
     return (
         <div className="grid grid-cols-[minmax(0,13rem)_1fr_auto] items-center gap-3 py-1.5">

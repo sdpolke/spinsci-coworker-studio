@@ -22,6 +22,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from api.enums import WorkflowRunMode
+
 
 class SpanName(StrEnum):
     """Span names. Stable, low-cardinality, and treated like an API.
@@ -110,3 +112,62 @@ class ToolOutcome(StrEnum):
     UNAVAILABLE = "unavailable"
     TIMEOUT = "timeout"
     NOT_FOUND = "not_found"
+
+
+# --- Channel classification ----------------------------------------------
+#
+# The pipeline records the *transport* a call arrived on (``webrtc``,
+# ``twilio``, ``telnyx`` ...) because that is what it actually knows.
+# A dashboard reader wants the coarser question answered: was this a browser
+# call or a phone call? Deriving one from the other here, from the transport
+# enum itself, means a newly supported telephony provider is classified
+# correctly the moment it is added to ``WorkflowRunMode`` -- no dashboard edit,
+# no second list to keep in step.
+
+#: Transports that are a person in a web browser.
+BROWSER_TRANSPORTS = frozenset({WorkflowRunMode.WEBRTC.value, WorkflowRunMode.SMALLWEBRTC.value})
+
+#: Transports that are not voice at all. ``CHAT`` is the historical spelling.
+TEXT_TRANSPORTS = frozenset({WorkflowRunMode.TEXTCHAT.value, WorkflowRunMode.CHAT.value})
+
+#: Transports that reached us over a carrier.
+#:
+#: Derived from the enum by subtraction so that adding a provider to
+#: ``WorkflowRunMode`` classifies it as telephony automatically -- the common
+#: case, and the one most likely to be forgotten. ``VOICE`` is excluded because
+#: the historical value says only "a voice call" and not over what, and a wrong
+#: row in a channel split is worse than an honest unclassified one.
+_AMBIGUOUS_TRANSPORTS = frozenset({WorkflowRunMode.VOICE.value})
+TELEPHONY_TRANSPORTS = frozenset(
+    mode.value
+    for mode in WorkflowRunMode
+    if mode.value not in BROWSER_TRANSPORTS | TEXT_TRANSPORTS | _AMBIGUOUS_TRANSPORTS
+)
+
+#: Lowercased lookup, because the historical enum values are not all lowercase
+#: and the tag is read back from a trace rather than constructed here.
+_CHANNEL_BY_TRANSPORT = {
+    **{value.lower(): CallChannel.BROWSER for value in BROWSER_TRANSPORTS},
+    **{value.lower(): CallChannel.TEXT_CHAT for value in TEXT_TRANSPORTS},
+    **{value.lower(): CallChannel.TELEPHONY for value in TELEPHONY_TRANSPORTS},
+}
+
+
+def channel_for_transport(transport: str | None) -> CallChannel:
+    """Which channel a transport belongs to.
+
+    An unrecognised transport is ``UNKNOWN`` rather than being guessed into
+    telephony: a wrong row in a channel split is worse than an honest one.
+    """
+    if not transport:
+        return CallChannel.UNKNOWN
+    return _CHANNEL_BY_TRANSPORT.get(str(transport).strip().lower(), CallChannel.UNKNOWN)
+
+
+#: How each channel is written in the dashboard.
+CHANNEL_LABELS = {
+    CallChannel.BROWSER: "Browser",
+    CallChannel.TELEPHONY: "Telephony",
+    CallChannel.TEXT_CHAT: "Text chat",
+    CallChannel.UNKNOWN: "Unclassified",
+}

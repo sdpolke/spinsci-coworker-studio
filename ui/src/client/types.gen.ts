@@ -8836,6 +8836,16 @@ export type XaittsConfiguration = {
     language?: string;
 };
 
+/**
+ * CallChannel
+ *
+ * How the caller reached us.
+ *
+ * Browser and telephony calls run the same pipeline and differ only by this
+ * tag, so one dashboard serves both and they stay comparable.
+ */
+export type CallChannel = 'browser' | 'telephony' | 'text_chat' | 'unknown';
+
 export type InitiateCallApiV1TelephonyInitiateCallPostData = {
     body: InitiateCallRequest;
     headers?: {
@@ -16992,9 +17002,9 @@ export type CallSummaryApiV1ObservabilityCallsSummaryGetData = {
         /**
          * Channel
          *
-         * Restrict to one channel, e.g. browser or telephony. All channels when absent.
+         * Restrict every panel to one channel. All channels when absent. The channel is derived from the transport the call arrived on, so browser covers WebRTC and telephony covers every carrier.
          */
-        channel?: string | null;
+        channel?: CallChannel | null;
     };
     url: '/api/v1/observability/calls/summary';
 };
@@ -17165,3 +17175,53 @@ export type AutoscaleMetricApiV1HealthAutoscaleMetricGetResponses = {
 };
 
 export type AutoscaleMetricApiV1HealthAutoscaleMetricGetResponse = AutoscaleMetricApiV1HealthAutoscaleMetricGetResponses[keyof AutoscaleMetricApiV1HealthAutoscaleMetricGetResponses];
+
+export type CallDetailApiV1ObservabilityCallsTraceIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Trace Id
+         *
+         * Langfuse trace id, as the per-call table reports it.
+         */
+        trace_id: string;
+    };
+    query?: never;
+    url: '/api/v1/observability/calls/{trace_id}';
+};
+
+export type CallDetailApiV1ObservabilityCallsTraceIdGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CallDetailApiV1ObservabilityCallsTraceIdGetError = CallDetailApiV1ObservabilityCallsTraceIdGetErrors[keyof CallDetailApiV1ObservabilityCallsTraceIdGetErrors];
+
+export type CallDetailApiV1ObservabilityCallsTraceIdGetResponses = {
+    /**
+     * Response Call Detail Api V1 Observability Calls  Trace Id  Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type CallDetailApiV1ObservabilityCallsTraceIdGetResponse = CallDetailApiV1ObservabilityCallsTraceIdGetResponses[keyof CallDetailApiV1ObservabilityCallsTraceIdGetResponses];
