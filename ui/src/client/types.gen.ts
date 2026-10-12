@@ -16969,6 +16969,105 @@ export type GetNodeTypeApiV1NodeTypesNameGetResponses = {
 
 export type GetNodeTypeApiV1NodeTypesNameGetResponse = GetNodeTypeApiV1NodeTypesNameGetResponses[keyof GetNodeTypeApiV1NodeTypesNameGetResponses];
 
+export type CallSummaryApiV1ObservabilityCallsSummaryGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Window Hours
+         *
+         * How far back to aggregate, in hours. One week maximum.
+         */
+        window_hours?: number;
+        /**
+         * Channel
+         *
+         * Restrict to one channel, e.g. browser or telephony. All channels when absent.
+         */
+        channel?: string | null;
+    };
+    url: '/api/v1/observability/calls/summary';
+};
+
+export type CallSummaryApiV1ObservabilityCallsSummaryGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CallSummaryApiV1ObservabilityCallsSummaryGetError = CallSummaryApiV1ObservabilityCallsSummaryGetErrors[keyof CallSummaryApiV1ObservabilityCallsSummaryGetErrors];
+
+export type CallSummaryApiV1ObservabilityCallsSummaryGetResponses = {
+    /**
+     * Response Call Summary Api V1 Observability Calls Summary Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type CallSummaryApiV1ObservabilityCallsSummaryGetResponse = CallSummaryApiV1ObservabilityCallsSummaryGetResponses[keyof CallSummaryApiV1ObservabilityCallsSummaryGetResponses];
+
+export type StatusApiV1ObservabilityStatusGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/observability/status';
+};
+
+export type StatusApiV1ObservabilityStatusGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StatusApiV1ObservabilityStatusGetError = StatusApiV1ObservabilityStatusGetErrors[keyof StatusApiV1ObservabilityStatusGetErrors];
+
+export type StatusApiV1ObservabilityStatusGetResponses = {
+    /**
+     * Response Status Api V1 Observability Status Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type StatusApiV1ObservabilityStatusGetResponse = StatusApiV1ObservabilityStatusGetResponses[keyof StatusApiV1ObservabilityStatusGetResponses];
+
 export type HealthApiV1HealthGetData = {
     body?: never;
     path?: never;

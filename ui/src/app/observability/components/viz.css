@@ -1,0 +1,75 @@
+/**
+ * Chart colour roles for the telemetry dashboard.
+ *
+ * Written as roles rather than raw hex so light and dark swap in one place and
+ * the components never name a colour. Values come from the validated default
+ * palette; the two categorical slots used here (blue, orange) pass every gate
+ * in both modes -- worst adjacent CVD delta E 24.7 light / 26.8 dark against a
+ * target of 8, normal-vision 33.6 / 31.8 against a floor of 15.
+ *
+ * Status colours are the reserved set and are never reused as a series colour.
+ * They always ship with a text label beside them, never colour alone.
+ */
+
+.viz-root {
+    color-scheme: light;
+
+    /* Sequential blue, light -> dark. Magnitude comparisons use this one hue;
+       more is darker. Never a rainbow for a single measure. */
+    --viz-seq-100: #cde2fb;
+    --viz-seq-250: #86b6ef;
+    --viz-seq-400: #3987e5;
+    --viz-seq-450: #2a78d6;
+    --viz-seq-550: #1c5cab;
+
+    /* Categorical, in fixed slot order. Assigned to an entity, never cycled. */
+    --viz-series-1: #2a78d6;
+    --viz-series-2: #eb6834;
+
+    /* Reserved status roles. */
+    --viz-good: #0ca30c;
+    --viz-warning: #fab219;
+    --viz-critical: #d03b3b;
+
+    /* Recessive chrome: a track should read as "empty", not as a second series. */
+    --viz-track: #e8e7e3;
+    --viz-grid: #e8e7e3;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme='light'])) .viz-root {
+        color-scheme: dark;
+        --viz-seq-100: #104281;
+        --viz-seq-250: #184f95;
+        --viz-seq-400: #2a78d6;
+        --viz-seq-450: #3987e5;
+        --viz-seq-550: #5598e7;
+
+        --viz-series-1: #3987e5;
+        --viz-series-2: #d95926;
+
+        --viz-track: #2c2c2a;
+        --viz-grid: #2c2c2a;
+    }
+}
+
+:root[data-theme='dark'] .viz-root {
+    color-scheme: dark;
+    --viz-seq-100: #104281;
+    --viz-seq-250: #184f95;
+    --viz-seq-400: #2a78d6;
+    --viz-seq-450: #3987e5;
+    --viz-seq-550: #5598e7;
+
+    --viz-series-1: #3987e5;
+    --viz-series-2: #d95926;
+
+    --viz-track: #2c2c2a;
+    --viz-grid: #2c2c2a;
+}
+
+/* Data-ends are rounded and anchored to the baseline: the end that encodes the
+   value is rounded, the end at zero stays square so the bar reads from zero. */
+.viz-bar {
+    border-radius: 0 4px 4px 0;
+}

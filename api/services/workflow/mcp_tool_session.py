@@ -18,6 +18,12 @@ from mcp.client.session_group import StreamableHttpParameters
 from pipecat.adapters.schemas.function_schema import FunctionSchema
 from pipecat.services.mcp_service import MCPClient
 
+from api.services.observability.conventions import (
+    MCP_EMPTY_RESULT,
+    ToolKind,
+    ToolOutcome,
+)
+from api.services.observability.tool_spans import tool_call_span
 from api.services.workflow.tools.mcp_tool import namespace_function_name
 from api.utils.credential_auth import build_auth_header
 
@@ -206,18 +212,47 @@ class McpToolSession:
     async def call(self, namespaced_name: str, arguments: Dict[str, Any]) -> str:
         """Invoke an MCP tool by its namespaced LLM name. Returns a string
         (flattened text content). Raises if the session is unavailable so
-        the caller can map it to a structured error for the LLM."""
-        if not self.available or self._session is None:
-            raise RuntimeError(f"MCP session unavailable for {namespaced_name}")
+        the caller can map it to a structured error for the LLM.
+
+        Every MCP tool call on the platform passes through here, so this is the
+        one place that needs instrumenting: a server registered tomorrow is
+        traced the moment it is used, with no work per server and no way to
+        forget. The span records which server, which tool, how long, and how it
+        ended -- never the arguments or the result, unless payload capture is
+        deliberately enabled (see ``observability.capture``), because these
+        carry patient data.
+        """
         original = self._name_map.get(namespaced_name)
-        if original is None:
-            raise RuntimeError(f"Unknown MCP function {namespaced_name}")
-        result = await self._session.call_tool(original, arguments=arguments)
-        text = ""
-        for content in getattr(result, "content", []) or []:
-            if getattr(content, "text", None):
-                text += content.text
-        return text or "Sorry, the MCP tool returned no content."
+        with tool_call_span(
+            tool_name=original or namespaced_name,
+            server=self._tool_name,
+            server_id=self._tool_uuid,
+            function_name=namespaced_name,
+            kind=ToolKind.MCP,
+            arguments=arguments,
+        ) as recorder:
+            # An unreachable server is a degradation the call survives, not a
+            # bug in the tool, and the two need telling apart on a dashboard.
+            if not self.available or self._session is None:
+                recorder.set_outcome(ToolOutcome.UNAVAILABLE)
+                raise RuntimeError(f"MCP session unavailable for {namespaced_name}")
+            if original is None:
+                recorder.set_outcome(ToolOutcome.NOT_FOUND)
+                raise RuntimeError(f"Unknown MCP function {namespaced_name}")
+
+            result = await self._session.call_tool(original, arguments=arguments)
+            text = ""
+            for content in getattr(result, "content", []) or []:
+                if getattr(content, "text", None):
+                    text += content.text
+
+            recorder.set_result(text)
+            if not text:
+                # Worth separating: a tool that answers with nothing usually
+                # means wrong arguments, and it reaches the caller as an
+                # apology rather than an error, so nothing else would show it.
+                recorder.set_attribute(MCP_EMPTY_RESULT, True)
+            return text or "Sorry, the MCP tool returned no content."
 
     async def close(self) -> None:
         if self._client is not None:

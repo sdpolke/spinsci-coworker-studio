@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   AlertTriangle,
   ArrowUpCircle,
   AudioLines,
@@ -155,6 +156,11 @@ const NAV_SECTIONS: SidebarNavSection[] = [
         title: "Reports",
         url: "/reports",
         icon: FileText,
+      },
+      {
+        title: "Call Telemetry",
+        url: "/observability",
+        icon: Activity,
       }
     ],
   },
