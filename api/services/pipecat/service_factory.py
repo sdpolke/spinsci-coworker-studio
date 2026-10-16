@@ -1,3 +1,4 @@
+import re
 from functools import wraps
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
@@ -227,6 +228,79 @@ def stt_uses_external_turns(user_config) -> bool:
     if user_config.stt.provider == ServiceProviders.CARTESIA.value:
         return user_config.stt.model == "ink-2"
     return False
+
+
+#: Groq's server-side rejection of a tool name the model invented or truncated.
+#: Matched on both halves so a reworded message does not silently stop matching
+#: and quietly reintroduce the dead-air bug.
+_GROQ_BAD_TOOL = re.compile(
+    r"tool call validation failed.*?attempted to call tool '([^']+)'",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+class SpinSciGroqLLMService(GroqLLMService):
+    """Groq, with the one recovery its strictness makes necessary.
+
+    Groq validates tool calls server-side. When the model names a function that
+    is not in ``request.tools`` -- almost always a truncation of a real one,
+    ``go_to_document_visit`` for ``go_to_document_visit_details`` -- Groq
+    rejects the **whole completion** instead of returning the call.
+
+    That matters because it bypasses every recovery path we have. Other
+    providers return the call, Pipecat answers it with "The function X is not
+    currently available", and the model reads that and corrects itself. Here
+    there is no tool result to read: the turn dies, nothing reaches TTS, and the
+    caller sits in silence on a live call until they hang up. Prompt wording
+    cannot fix it, because the model never gets another turn in which to apply
+    the instruction.
+
+    So the correction is injected here. The rejected name and the names that
+    actually exist go into the context, and the completion is run once more.
+    One retry only: if the model cannot pick a real name when handed the list,
+    it will not get there on a third attempt, and the error should surface
+    rather than loop on a caller.
+    """
+
+    async def _process_context(self, context):
+        try:
+            await super()._process_context(context)
+            return
+        except Exception as exc:  # noqa: BLE001 - re-raised unless it is this one
+            match = _GROQ_BAD_TOOL.search(str(exc))
+            if match is None:
+                raise
+            rejected = match.group(1)
+
+        available = sorted(self._advertised_tool_names(context))
+        logger.warning(
+            f"Groq rejected tool call {rejected!r}; retrying with the "
+            f"{len(available)} names actually available"
+        )
+
+        # Addressed to the model as a system turn rather than spoken content,
+        # so nothing here can reach the caller even if the retry also fails.
+        context.add_message(
+            {
+                "role": "system",
+                "content": (
+                    f"Your last reply tried to call a function named '{rejected}', "
+                    "which does not exist, so it was rejected and nothing happened. "
+                    + (
+                        "The functions available to you right now are: "
+                        + ", ".join(available)
+                        + ". "
+                        if available
+                        else "No functions are available to you right now. "
+                    )
+                    + "Choose the one you actually meant and call it using that "
+                    "exact name, character for character. Do not shorten it and "
+                    "do not invent a variation. Say nothing to the caller about "
+                    "this; it is not something they need to know about."
+                ),
+            }
+        )
+        await super()._process_context(context)
 
 
 class SpinSciGoogleLLMService(GoogleLLMService):
@@ -997,7 +1071,7 @@ def create_llm_service_from_provider(
             # argument 'reasoning_format'", which fails the whole turn and
             # leaves the caller hearing nothing at all.
             settings.extra = {"extra_body": {"reasoning_format": "hidden"}}
-        return GroqLLMService(api_key=api_key, settings=settings)
+        return SpinSciGroqLLMService(api_key=api_key, settings=settings)
     elif provider == ServiceProviders.OPENROUTER.value:
         kwargs = {}
         if base_url:
