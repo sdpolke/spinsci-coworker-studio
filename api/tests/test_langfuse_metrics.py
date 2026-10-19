@@ -432,3 +432,131 @@ def test_time_to_first_token_falls_back_to_the_otel_field():
     observation["startTime"] = start.isoformat()
     observation["completionStartTime"] = (start + timedelta(milliseconds=250)).isoformat()
     assert metrics.time_to_first_token(observation) == pytest.approx(0.25)
+
+
+# --- per-turn breakdown ----------------------------------------------------
+
+
+def turn(trace_id: str, index: int, *, start: str, latency: float = 10.0) -> dict:
+    return span(trace_id, f"turn-{index}", latency=latency, start=start)
+
+
+def test_turn_breakdown_sums_stages_and_never_subtracts(stub_langfuse):
+    """A tool span is nested under its generation but is not contained by it in
+    time: a real booking generation reported 2.086s around a 3.644s Epic call.
+    Subtracting the nesting produces negative model time."""
+    stub_langfuse(
+        [trace_row("call")],
+        [
+            turn("call", 1, start="2026-10-12T10:00:00Z", latency=20.0),
+            span("call", "stt", latency=6.0, ttfb=0.30, start="2026-10-12T10:00:01Z"),
+            span("call", "llm-book-appointment", latency=2.086, ttfb=0.12,
+                 start="2026-10-12T10:00:08Z"),
+            tool_span("call", "epic_schedule_appointment", ms=3644.39),
+            span("call", "tts", latency=4.0, ttfb=0.11, start="2026-10-12T10:00:12Z"),
+        ],
+    )
+    (row,) = metrics.turn_breakdown(metrics.load(WINDOW).by_call["call"])
+
+    assert row["llm_seconds"] == pytest.approx(2.086)
+    assert row["tool_seconds"] == pytest.approx(3.64439)
+    # Summed, so the Epic call is visible rather than cancelling the model out.
+    assert row["segments"]["llm"] > 0
+    assert row["segments"]["tool"] == pytest.approx(3.64439)
+    assert row["route"] == "epic_schedule_appointment"
+    assert row["tool_calls"] == 1
+
+
+def test_first_word_uses_the_transcription_lag_not_the_whole_stt_span(stub_langfuse):
+    """An stt span runs while the caller is still talking, so its latency is
+    mostly their speech. Counting it would report a six second wait that nobody
+    experienced."""
+    stub_langfuse(
+        [trace_row("call")],
+        [
+            turn("call", 1, start="2026-10-12T10:00:00Z", latency=20.0),
+            span("call", "stt", latency=6.0, ttfb=0.30, start="2026-10-12T10:00:01Z"),
+            span("call", "llm-greet", latency=1.0, ttfb=0.20, start="2026-10-12T10:00:07Z"),
+            span("call", "tts", latency=4.0, ttfb=0.10, start="2026-10-12T10:00:08Z"),
+        ],
+    )
+    (row,) = metrics.turn_breakdown(metrics.load(WINDOW).by_call["call"])
+
+    assert row["first_word"] == pytest.approx(0.60)  # 0.30 + 0.20 + 0.10
+    assert row["ttft"] == pytest.approx(0.20)
+    assert row["segments"]["stt"] == pytest.approx(0.30)
+    assert row["segments"]["tts"] == pytest.approx(0.10)
+
+
+def test_a_tool_outliving_its_turn_is_still_counted(stub_langfuse):
+    """Attribution is by time, and a tool call can finish after the turn window
+    closes. Dropping it would quietly lose Epic time from the totals."""
+    stub_langfuse(
+        [trace_row("call")],
+        [
+            turn("call", 1, start="2026-10-12T10:00:00Z", latency=2.0),
+            span("call", "llm-find", latency=1.0, ttfb=0.2, start="2026-10-12T10:00:01Z"),
+            # Starts after the turn window has closed.
+            {**tool_span("call", "epic_get_open_slots", ms=800.0),
+             "startTime": "2026-10-12T10:00:30Z"},
+        ],
+    )
+    (row,) = metrics.turn_breakdown(metrics.load(WINDOW).by_call["call"])
+    assert row["tool_calls"] == 1
+    assert row["tool_seconds"] == pytest.approx(0.8)
+
+
+def test_transcripts_are_withheld_unless_switched_on(stub_langfuse, monkeypatch):
+    """Turn text is a patient saying their name and date of birth. The timings
+    and the route are unaffected; only the two text fields are."""
+    spans = [
+        turn("call", 1, start="2026-10-12T10:00:00Z"),
+        span("call", "stt", latency=2.0, ttfb=0.3, start="2026-10-12T10:00:01Z",
+             attributes={"transcript": "Theodore Mychart, seventh of July 1948"}),
+        span("call", "tts", latency=2.0, ttfb=0.1, start="2026-10-12T10:00:03Z",
+             attributes={"text": "Thank you, let me pull that up."}),
+    ]
+    stub_langfuse([trace_row("call")], spans)
+
+    monkeypatch.delenv("SPINSCI_TELEMETRY_TRANSCRIPTS", raising=False)
+    (hidden,) = metrics.turn_breakdown(metrics.load(WINDOW).by_call["call"])
+    assert hidden["caller"] is None and hidden["agent"] is None
+    assert hidden["transcripts_hidden"] is True
+    assert hidden["first_word"] == pytest.approx(0.40)
+
+    monkeypatch.setenv("SPINSCI_TELEMETRY_TRANSCRIPTS", "true")
+    (shown,) = metrics.turn_breakdown(metrics.load(WINDOW).by_call["call"])
+    assert "Theodore Mychart" in shown["caller"]
+    assert shown["transcripts_hidden"] is False
+
+
+def test_route_falls_back_to_the_node_when_no_tool_ran(stub_langfuse):
+    stub_langfuse(
+        [trace_row("call")],
+        [
+            turn("call", 1, start="2026-10-12T10:00:00Z"),
+            span("call", "llm-collect-patient", latency=1.0, ttfb=0.2,
+                 start="2026-10-12T10:00:01Z"),
+        ],
+    )
+    (row,) = metrics.turn_breakdown(metrics.load(WINDOW).by_call["call"])
+    assert row["route"] == "collect patient"
+    assert row["tool_calls"] == 0
+
+
+def test_percentiles_travel_with_their_sample_count(stub_langfuse):
+    """A p99 over nine turns is the slowest turn wearing a statistic's name, so
+    the reader is given n to judge it by."""
+    stub_langfuse(
+        [trace_row("call")],
+        [
+            turn("call", 1, start="2026-10-12T10:00:00Z"),
+            span("call", "llm-a", latency=1.0, ttfb=0.2, start="2026-10-12T10:00:01Z"),
+            span("call", "tts", latency=1.0, ttfb=0.1, start="2026-10-12T10:00:02Z"),
+        ],
+    )
+    stats = metrics.turn_stats(metrics.load(WINDOW))
+    assert stats["first_word_samples"] == 1
+    assert stats["first_token_samples"] == 1
+    assert stats["p99_first_word"] is not None
+    assert stats["p50_first_token"] == pytest.approx(0.2)

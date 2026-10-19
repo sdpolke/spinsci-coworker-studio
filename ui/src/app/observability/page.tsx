@@ -267,17 +267,32 @@ export default function ObservabilityPage() {
                         loading={loading}
                     />
                     <StatTile
-                        label="First token"
-                        value={formatSeconds(turns?.avg_first_token ?? null)}
-                        sub={`p95 ${formatSeconds(turns?.p95_first_token ?? null)}`}
-                        hint="How long before the agent starts replying"
+                        label="First word"
+                        value={formatSeconds(turns?.p50_first_word ?? null)}
+                        sub={`p95 ${formatSeconds(turns?.p95_first_word ?? null)} · p99 ${formatSeconds(turns?.p99_first_word ?? null)}`}
+                        hint={
+                            turns?.first_word_samples
+                                ? `Caller stops speaking to first audible word · n=${formatCount(turns.first_word_samples)}`
+                                : 'Caller stops speaking to first audible word'
+                        }
                         loading={loading}
                         emphasis
                     />
                     <StatTile
+                        label="Model TTFT"
+                        value={formatSeconds(turns?.p50_first_token ?? null)}
+                        sub={`p95 ${formatSeconds(turns?.p95_first_token ?? null)} · p99 ${formatSeconds(turns?.p99_first_token ?? null)}`}
+                        hint={
+                            turns?.first_token_samples
+                                ? `Prompt sent to first token · n=${formatCount(turns.first_token_samples)}`
+                                : 'Prompt sent to first token'
+                        }
+                        loading={loading}
+                    />
+                    <StatTile
                         label="Avg turn"
                         value={formatSeconds(turns?.avg_turn_latency ?? null)}
-                        sub={`p95 ${formatSeconds(turns?.p95_turn_latency ?? null)}`}
+                        sub={`p95 ${formatSeconds(turns?.p95_turn_latency ?? null)} · p99 ${formatSeconds(turns?.p99_turn_latency ?? null)}`}
                         hint="Caller stops speaking to full reply"
                         loading={loading}
                     />

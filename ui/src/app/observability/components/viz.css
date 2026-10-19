@@ -26,6 +26,17 @@
     --viz-series-1: #2a78d6;
     --viz-series-2: #eb6834;
 
+
+    /* Pipeline stages for the per-turn bar, in the order a caller meets them.
+       Assigned to a stage, never cycled. Validated as a stacked palette:
+       worst adjacent CVD delta E 9.1 light / 8.4 dark (target 8), normal
+       vision 22.9 / 19.8 (floor 15). Two light steps sit below 3:1 on the
+       surface, so every segment is also written out beneath the bar. */
+    --viz-stage-stt: #2a78d6;
+    --viz-stage-llm: #eb6834;
+    --viz-stage-tool: #1baf7a;
+    --viz-stage-tts: #eda100;
+
     /* Reserved status roles. */
     --viz-good: #0ca30c;
     --viz-warning: #fab219;
@@ -48,6 +59,12 @@
         --viz-series-1: #3987e5;
         --viz-series-2: #d95926;
 
+        --viz-stage-stt: #3987e5;
+        --viz-stage-llm: #d95926;
+        --viz-stage-tool: #199e70;
+        --viz-stage-tts: #c98500;
+
+
         --viz-track: #2c2c2a;
         --viz-grid: #2c2c2a;
     }
@@ -63,6 +80,11 @@
 
     --viz-series-1: #3987e5;
     --viz-series-2: #d95926;
+
+    --viz-stage-stt: #3987e5;
+    --viz-stage-llm: #d95926;
+    --viz-stage-tool: #199e70;
+    --viz-stage-tts: #c98500;
 
     --viz-track: #2c2c2a;
     --viz-grid: #2c2c2a;

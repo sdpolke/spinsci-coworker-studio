@@ -274,6 +274,31 @@ def _parse_time(value: Any) -> datetime | None:
 #: is measurable alongside "first token in".
 TTFB_ATTRIBUTE = "metrics.ttfb"
 
+#: Characters handed to the voice, on a tts span.
+CHARACTER_COUNT_ATTRIBUTE = "metrics.character_count"
+#: Seconds of caller audio, on an stt span.
+AUDIO_SECONDS_ATTRIBUTE = "metrics.audio_seconds"
+#: What was said. Both are conversation content, see ``show_transcripts``.
+TRANSCRIPT_ATTRIBUTE = "transcript"
+SPOKEN_TEXT_ATTRIBUTE = "text"
+
+
+def show_transcripts() -> bool:
+    """Whether a per-turn row may carry what was actually said.
+
+    Off unless explicitly enabled. On this platform a turn's transcript is a
+    patient saying their name, their date of birth and their symptoms, and an
+    admin dashboard is a wider audience than the call itself had. The timings,
+    the route and the outcomes -- everything the page exists to show -- are
+    unaffected by this flag; only the two text columns are.
+    """
+    return os.getenv("SPINSCI_TELEMETRY_TRANSCRIPTS", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
 
 def time_to_first_token(observation: dict[str, Any]) -> float | None:
     """Seconds until the first token or first audio frame.
@@ -693,6 +718,211 @@ def channel_breakdown(data: CallData) -> list[dict[str, Any]]:
     return rows
 
 
+def _attr_float(observation: dict[str, Any], key: str) -> float | None:
+    raw = _attributes(observation).get(key)
+    try:
+        return float(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _node_of(span_name: str) -> str | None:
+    """The workflow node a span belongs to, from its name.
+
+    Pipecat names a generation ``llm-<node>``, truncated to the span-name
+    limit, so this is the node as far as anything downstream can know it.
+    """
+    name = span_name or ""
+    if not name.startswith("llm-"):
+        return None
+    return name[4:].replace("-", " ").strip() or None
+
+
+def _span_window(observation: dict[str, Any]) -> tuple[datetime, datetime] | None:
+    start = _parse_time(observation.get("startTime"))
+    if start is None:
+        return None
+    return start, start + timedelta(seconds=_latency_seconds(observation) or 0.0)
+
+
+def turn_breakdown(spans: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One row per turn: what ran, which tool, and where the time went.
+
+    Spans are matched to a turn by **time overlap** rather than by walking
+    parents. Parenting is not reliable here -- a generation that calls a tool
+    parents the tool span under itself, and some generations hang off the
+    conversation rather than off a turn -- so following the tree silently drops
+    rows. A clock does not.
+
+    The four stage figures are summed, never subtracted from one another. A
+    tool span is nested under its generation but is *not* contained by it in
+    time: one booking generation reports 2.086s with a 3.644s Epic call inside
+    it. Treating the nesting as containment produces negative model time.
+    """
+    turns = sorted(
+        (s for s in spans if classify_layer(str(s.get("name") or "")) == LAYER_TURN),
+        key=lambda s: str(s.get("startTime") or ""),
+    )
+    if not turns:
+        return []
+
+    windows = [(_span_window(t), t) for t in turns]
+    windows = [(w, t) for w, t in windows if w is not None]
+    buckets: list[dict[str, Any]] = [
+        {
+            "index": index,
+            "started_at": turn.get("startTime"),
+            "duration": _latency_seconds(turn),
+            "stt_seconds": 0.0,
+            "stt_lag": None,
+            "llm_seconds": 0.0,
+            "tool_seconds": 0.0,
+            "tts_seconds": 0.0,
+            "ttft": None,
+            "first_audio": None,
+            "caller_audio_seconds": None,
+            "tokens_in": 0,
+            "tokens_out": 0,
+            "tts_characters": 0,
+            "caller": [],
+            "agent": [],
+            "node": None,
+            "tools": [],
+            "failures": 0,
+        }
+        for index, (_, turn) in enumerate(windows, start=1)
+    ]
+
+    for span in spans:
+        layer = classify_layer(str(span.get("name") or ""))
+        if layer not in RESPONSE_LAYERS:
+            continue
+        start = _parse_time(span.get("startTime"))
+        if start is None:
+            continue
+        # The turn that was open when this span began. Later turns cannot own
+        # it, and the most recent open one is the right answer when windows
+        # overlap slightly at the seam.
+        # The turn that was open when this span began. Where windows overlap at
+        # the seam the most recent open one wins. A span that falls in no
+        # window at all -- a tool call that outlived its turn, which happens --
+        # goes to the last turn that had started, because dropping it would
+        # quietly lose Epic time from the totals.
+        owner = None
+        for position, ((window_start, window_end), _) in enumerate(windows):
+            if window_start > start:
+                break
+            if window_start <= start <= window_end:
+                owner = position
+            elif owner is None or position > owner:
+                owner = position
+        if owner is None:
+            continue
+
+        row = buckets[owner]
+        seconds = _latency_seconds(span) or 0.0
+        attributes = _attributes(span)
+
+        if layer == LAYER_STT:
+            row["stt_seconds"] += seconds
+            # The span runs while the caller is still talking, so its latency
+            # is mostly their speech. Its ttfb is the part that is ours: how
+            # long after they stopped before the transcript arrived.
+            lag = time_to_first_token(span)
+            if lag is not None and row["stt_lag"] is None:
+                row["stt_lag"] = lag
+            row["caller_audio_seconds"] = (
+                row["caller_audio_seconds"] or 0.0
+            ) + (_attr_float(span, AUDIO_SECONDS_ATTRIBUTE) or 0.0)
+            said = attributes.get(TRANSCRIPT_ATTRIBUTE) or span.get("output")
+            if isinstance(said, str) and said.strip():
+                row["caller"].append(said.strip())
+        elif layer == LAYER_LLM:
+            row["llm_seconds"] += seconds
+            first_token = time_to_first_token(span)
+            if first_token is not None and row["ttft"] is None:
+                row["ttft"] = first_token
+            row["tokens_in"] += int(
+                (span.get("usage") or {}).get("input") or 0
+            )
+            row["tokens_out"] += int(
+                (span.get("usage") or {}).get("output") or 0
+            )
+            row["node"] = row["node"] or _node_of(str(span.get("name") or ""))
+        elif layer == LAYER_TTS:
+            row["tts_seconds"] += seconds
+            first_audio = time_to_first_token(span)
+            if first_audio is not None and row["first_audio"] is None:
+                row["first_audio"] = first_audio
+            row["tts_characters"] += int(_attr_float(span, CHARACTER_COUNT_ATTRIBUTE) or 0)
+            spoken = attributes.get(SPOKEN_TEXT_ATTRIBUTE) or span.get("input")
+            if isinstance(spoken, str) and spoken.strip():
+                row["agent"].append(spoken.strip())
+        elif layer == LAYER_TOOL:
+            row["tool_seconds"] += seconds
+            row["tools"].append(
+                {
+                    "server": attributes.get(TOOL_SERVER),
+                    "name": attributes.get(TOOL_NAME),
+                    "duration": seconds,
+                    "outcome": attributes.get(TOOL_OUTCOME),
+                }
+            )
+        if _is_failure(span):
+            row["failures"] += 1
+
+    transcripts = show_transcripts()
+    rows: list[dict[str, Any]] = []
+    for row in buckets:
+        ttft = row["ttft"]
+        first_audio = row["first_audio"]
+        # What the caller waits through: transcription, then the model's first
+        # token, then the first audio frame. Not the whole turn, which also
+        # holds the caller talking and the silence before they start.
+        first_word = None
+        if ttft is not None or first_audio is not None:
+            first_word = (row["stt_lag"] or 0.0) + (ttft or 0.0) + (first_audio or 0.0)
+
+        rows.append(
+            {
+                **{k: v for k, v in row.items() if k not in {"caller", "agent"}},
+                "caller": " ".join(row["caller"]) if transcripts else None,
+                "agent": " ".join(row["agent"]) if transcripts else None,
+                "transcripts_hidden": not transcripts
+                and bool(row["caller"] or row["agent"]),
+                "first_word": first_word,
+                "agent_seconds": (
+                    (row["stt_lag"] or 0.0)
+                    + row["llm_seconds"]
+                    + row["tool_seconds"]
+                    + (row["first_audio"] or 0.0)
+                ),
+                # The four figures the bar is drawn from. Speech in and speech
+                # out contribute the wait they cause, not the whole span: an
+                # stt span runs while the caller is still speaking and a tts
+                # span runs while the agent is still being heard.
+                "segments": {
+                    "stt": row["stt_lag"] or 0.0,
+                    "llm": row["llm_seconds"],
+                    "tool": row["tool_seconds"],
+                    "tts": row["first_audio"] or 0.0,
+                },
+                "route": (
+                    " · ".join(
+                        str(t["name"]) for t in row["tools"] if t.get("name")
+                    )
+                    or row["node"]
+                    or "no tool"
+                ),
+                "tool_calls": len(row["tools"]),
+                "tokens_in": row["tokens_in"] or None,
+                "tokens_out": row["tokens_out"] or None,
+                "tts_characters": row["tts_characters"] or None,
+            }
+        )
+    return rows
+
+
 def per_call(data: CallData) -> list[dict[str, Any]]:
     """One row per call: channel, duration, turns, first token and failures.
 
@@ -720,6 +950,7 @@ def per_call(data: CallData) -> list[dict[str, Any]]:
                 failures += 1
 
         turn_latencies = _turn_latencies(spans)
+        rows_for_call = turn_breakdown(spans)
         rows.append(
             {
                 "trace_id": trace_id,
@@ -742,8 +973,21 @@ def per_call(data: CallData) -> list[dict[str, Any]]:
                 "avg_tts_latency": _mean(by_layer.get(LAYER_TTS, [])),
                 "tool_calls": tool_calls,
                 "tool_seconds": sum(by_layer.get(LAYER_TOOL, [])) or None,
+                # What the caller waits through, per turn, summarised for the
+                # list: transcription, then first token, then first audio.
+                "median_first_word": _percentile(
+                    [r["first_word"] for r in rows_for_call if r["first_word"] is not None],
+                    0.5,
+                ),
+                "median_ttft": _percentile(
+                    [r["ttft"] for r in rows_for_call if r["ttft"] is not None], 0.5
+                ),
+                "tts_characters": sum(r["tts_characters"] or 0 for r in rows_for_call)
+                or None,
                 "failures": failures,
                 "tokens": sum(_tokens_of(span) for span in spans) or None,
+                "tokens_in": sum(r["tokens_in"] or 0 for r in rows_for_call) or None,
+                "tokens_out": sum(r["tokens_out"] or 0 for r in rows_for_call) or None,
                 "spans": len(spans),
             }
         )
@@ -773,16 +1017,36 @@ def turn_stats(data: CallData) -> dict[str, Any]:
             durations.append(duration)
         first_token.extend(_first_bytes(spans, LAYER_LLM))
 
+    # Percentiles travel with the sample count they were taken over. A p99 of
+    # twenty turns is the slowest turn by another name, and a figure that looks
+    # authoritative but is not is worse than no figure: the reader cannot tell.
+    first_words = [
+        row["first_word"]
+        for trace in data.calls
+        for row in turn_breakdown(data.by_call.get(str(trace.get("id") or ""), []))
+        if row["first_word"] is not None
+    ]
+
     return {
         "turns": len(turn_latencies),
         "conversations": len(data.calls),
         "avg_turn_latency": _mean(turn_latencies),
         "p95_turn_latency": _percentile(turn_latencies, 0.95),
+        "p99_turn_latency": _percentile(turn_latencies, 0.99),
         "max_turn_latency": max(turn_latencies) if turn_latencies else None,
         "avg_turns_per_conversation": _mean(turns_per_call),
         "avg_conversation_latency": _mean(durations),
+        # The model's own first token.
         "avg_first_token": _mean(first_token),
+        "p50_first_token": _percentile(first_token, 0.5),
         "p95_first_token": _percentile(first_token, 0.95),
+        "p99_first_token": _percentile(first_token, 0.99),
+        "first_token_samples": len(first_token),
+        # What the caller actually waits through.
+        "p50_first_word": _percentile(first_words, 0.5),
+        "p95_first_word": _percentile(first_words, 0.95),
+        "p99_first_word": _percentile(first_words, 0.99),
+        "first_word_samples": len(first_words),
     }
 
 
@@ -921,6 +1185,17 @@ def call_detail(trace_id: str) -> dict[str, Any] | None:
             }
         )
 
+    rows = turn_breakdown(spans)
+    first_words = [r["first_word"] for r in rows if r["first_word"] is not None]
+    ttfts = [r["ttft"] for r in rows if r["ttft"] is not None]
+    tool_seconds = sum(r["tool_seconds"] for r in rows)
+    tool_calls = sum(r["tool_calls"] for r in rows)
+    slowest = max(
+        (t for r in rows for t in r["tools"] if t.get("duration") is not None),
+        key=lambda t: t["duration"],
+        default=None,
+    )
+
     return {
         "trace_id": trace_id,
         "workflow": trace.get("name"),
@@ -931,10 +1206,27 @@ def call_detail(trace_id: str) -> dict[str, Any] | None:
         "user_id": trace.get("userId"),
         "duration": _duration_of(trace, spans),
         "tags": [str(tag) for tag in (trace.get("tags") or [])],
-        "turns": len(_turn_latencies(spans)),
+        "turns": len(rows),
+        "turns_with_tool": sum(1 for r in rows if r["tool_calls"]),
         "avg_turn_latency": _mean(_turn_latencies(spans)),
-        "avg_first_token": _mean(_first_bytes(spans, LAYER_LLM)),
+        # Median and worst, not a percentile. A call has a handful of turns, and
+        # a nearest-rank p95 over nine samples is the slowest one wearing a
+        # statistic's name.
+        "median_first_word": _percentile(first_words, 0.5),
+        "max_first_word": max(first_words) if first_words else None,
+        "median_ttft": _percentile(ttfts, 0.5),
+        "max_ttft": max(ttfts) if ttfts else None,
+        "avg_first_token": _mean(ttfts),
         "avg_first_audio": _mean(_first_bytes(spans, LAYER_TTS)),
+        "tool_seconds": tool_seconds or None,
+        "tool_calls": tool_calls,
+        "slowest_tool": slowest,
+        "tokens_in": sum(r["tokens_in"] or 0 for r in rows) or None,
+        "tokens_out": sum(r["tokens_out"] or 0 for r in rows) or None,
+        "tts_characters": sum(r["tts_characters"] or 0 for r in rows) or None,
+        "failures": sum(r["failures"] for r in rows),
+        "transcripts_available": any(r.get("transcripts_hidden") for r in rows),
+        "turn_rows": rows,
         "timeline": timeline,
     }
 

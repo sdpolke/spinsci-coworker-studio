@@ -19,10 +19,18 @@ export interface TurnStats {
     avg_turn_latency: number | null;
     p95_turn_latency: number | null;
     max_turn_latency: number | null;
+    p99_turn_latency: number | null;
     avg_turns_per_conversation: number | null;
     avg_conversation_latency: number | null;
     avg_first_token: number | null;
+    p50_first_token: number | null;
     p95_first_token: number | null;
+    p99_first_token: number | null;
+    first_token_samples: number;
+    p50_first_word: number | null;
+    p95_first_word: number | null;
+    p99_first_word: number | null;
+    first_word_samples: number;
 }
 
 /** One call. The row a person actually came here to find. */
@@ -49,9 +57,60 @@ export interface CallRow {
     avg_tts_latency: number | null;
     tool_calls: number;
     tool_seconds: number | null;
+    median_first_word: number | null;
+    median_ttft: number | null;
+    tts_characters: number | null;
     failures: number;
     tokens: number | null;
+    tokens_in: number | null;
+    tokens_out: number | null;
     spans: number;
+}
+
+/** The four waits that make up one turn's response, as the bar draws them. */
+export interface TurnSegments {
+    stt: number;
+    llm: number;
+    tool: number;
+    tts: number;
+}
+
+/** One exchange: what ran, which tool, and where the time went. */
+export interface TurnRow {
+    index: number;
+    started_at: string | null;
+    duration: number | null;
+    /** Null unless SPINSCI_TELEMETRY_TRANSCRIPTS is enabled. */
+    caller: string | null;
+    agent: string | null;
+    /** True when this turn had speech but the transcript is withheld. */
+    transcripts_hidden: boolean;
+    /** The MCP tool that ran, or the workflow node when none did. */
+    route: string;
+    node: string | null;
+    tools: {
+        server: string | null;
+        name: string | null;
+        duration: number | null;
+        outcome: string | null;
+    }[];
+    tool_calls: number;
+    segments: TurnSegments;
+    agent_seconds: number;
+    /** Model's own first token. */
+    ttft: number | null;
+    /** First audio frame out of the voice. */
+    first_audio: number | null;
+    /** What the caller waits through: transcribe + first token + first audio. */
+    first_word: number | null;
+    stt_seconds: number;
+    llm_seconds: number;
+    tool_seconds: number;
+    tts_seconds: number;
+    tokens_in: number | null;
+    tokens_out: number | null;
+    tts_characters: number | null;
+    failures: number;
 }
 
 /** One step inside a call, for the drill-down timeline. */
@@ -86,9 +145,29 @@ export interface CallDetail {
     duration: number | null;
     tags: string[];
     turns: number;
+    turns_with_tool: number;
     avg_turn_latency: number | null;
+    median_first_word: number | null;
+    max_first_word: number | null;
+    median_ttft: number | null;
+    max_ttft: number | null;
     avg_first_token: number | null;
     avg_first_audio: number | null;
+    tool_seconds: number | null;
+    tool_calls: number;
+    slowest_tool: {
+        server: string | null;
+        name: string | null;
+        duration: number | null;
+        outcome: string | null;
+    } | null;
+    tokens_in: number | null;
+    tokens_out: number | null;
+    tts_characters: number | null;
+    failures: number;
+    /** True when transcripts exist but are withheld by configuration. */
+    transcripts_available: boolean;
+    turn_rows: TurnRow[];
     timeline: SpanRow[];
 }
 

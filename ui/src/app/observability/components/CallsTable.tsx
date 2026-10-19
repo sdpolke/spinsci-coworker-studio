@@ -17,6 +17,7 @@ import {
     formatWhen,
 } from '../types';
 import { CallTimeline } from './CallTimeline';
+import { TurnTable } from './TurnTable';
 
 interface CallsTableProps {
     calls: CallRow[];
@@ -218,16 +219,42 @@ export function CallsTable({ calls, loading }: CallsTableProps) {
 
                                     {open && (
                                         <tr className="border-b border-border/50 bg-muted/20">
-                                            <td colSpan={11} className="px-4 py-4">
-                                                <CallTimeline
-                                                    detail={
-                                                        details[call.trace_id] ?? null
-                                                    }
-                                                    loading={
-                                                        detailLoading === call.trace_id
-                                                    }
-                                                    error={detailError}
-                                                />
+                                            <td colSpan={12} className="px-4 py-4">
+                                                {details[call.trace_id] && (
+                                                    <TurnTable
+                                                        turns={
+                                                            details[call.trace_id]
+                                                                .turn_rows
+                                                        }
+                                                        transcriptsHidden={
+                                                            details[call.trace_id]
+                                                                .transcripts_available
+                                                        }
+                                                    />
+                                                )}
+                                                {/* The span timeline stays available
+                                                    for the cases the per-turn view
+                                                    cannot explain, but folded away:
+                                                    it is the debugging view, not the
+                                                    reading one. */}
+                                                <details className="mt-3">
+                                                    <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                                                        Raw span timeline
+                                                    </summary>
+                                                    <div className="mt-3">
+                                                        <CallTimeline
+                                                            detail={
+                                                                details[call.trace_id] ??
+                                                                null
+                                                            }
+                                                            loading={
+                                                                detailLoading ===
+                                                                call.trace_id
+                                                            }
+                                                            error={detailError}
+                                                        />
+                                                    </div>
+                                                </details>
                                                 <p className="mt-3 font-mono text-[10px] text-muted-foreground">
                                                     trace {call.trace_id}
                                                     {call.transport &&
