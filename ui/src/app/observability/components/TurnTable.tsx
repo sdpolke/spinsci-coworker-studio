@@ -8,8 +8,8 @@ import { formatCount, formatSeconds, TurnRow } from '../types';
 
 interface TurnTableProps {
     turns: TurnRow[];
-    /** True when transcripts exist but configuration withholds them. */
-    transcriptsHidden: boolean;
+    /** Whether the transcript text may be shown. Lengths are shown either way. */
+    transcriptsEnabled: boolean;
 }
 
 /**
@@ -57,7 +57,7 @@ function outcomeTone(outcome: string | null): string {
  * talking, and a synthesis span runs while the agent is still being heard.
  * Neither is time anybody waits.
  */
-export function TurnTable({ turns, transcriptsHidden }: TurnTableProps) {
+export function TurnTable({ turns, transcriptsEnabled }: TurnTableProps) {
     if (turns.length === 0) {
         return (
             <Card className="p-8 text-center">
@@ -91,10 +91,10 @@ export function TurnTable({ turns, transcriptsHidden }: TurnTableProps) {
                     />
                     first token
                 </span>
-                {transcriptsHidden && (
+                {!transcriptsEnabled && (
                     <span className="ml-auto inline-flex items-center gap-1.5">
                         <EyeOff className="h-3.5 w-3.5" />
-                        Transcripts withheld
+                        Transcripts off — lengths only
                     </span>
                 )}
             </div>
@@ -104,8 +104,8 @@ export function TurnTable({ turns, transcriptsHidden }: TurnTableProps) {
                     <thead>
                         <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
                             <Th right>#</Th>
-                            {!transcriptsHidden && <Th>Caller</Th>}
-                            {!transcriptsHidden && <Th>Agent</Th>}
+                            <Th>Caller</Th>
+                            <Th>Agent</Th>
                             <Th>Route</Th>
                             <Th>Where the time went</Th>
                             <Th right title="Prompt sent to the model's first token">
@@ -134,16 +134,20 @@ export function TurnTable({ turns, transcriptsHidden }: TurnTableProps) {
                                         {turn.index}
                                     </Td>
 
-                                    {!transcriptsHidden && (
-                                        <Td className="max-w-[14rem] text-muted-foreground">
-                                            {turn.caller || '—'}
-                                        </Td>
-                                    )}
-                                    {!transcriptsHidden && (
-                                        <Td className="max-w-[16rem]">
-                                            {turn.agent || '—'}
-                                        </Td>
-                                    )}
+                                    <Td className="max-w-[14rem] text-muted-foreground">
+                                        <Said
+                                            text={turn.caller}
+                                            words={turn.caller_words}
+                                            enabled={transcriptsEnabled}
+                                        />
+                                    </Td>
+                                    <Td className="max-w-[16rem]">
+                                        <Said
+                                            text={turn.agent}
+                                            words={turn.agent_words}
+                                            enabled={transcriptsEnabled}
+                                        />
+                                    </Td>
 
                                     <Td>
                                         <span
@@ -292,6 +296,36 @@ export function TurnTable({ turns, transcriptsHidden }: TurnTableProps) {
                 and speech synthesis after.
             </p>
         </Card>
+    );
+}
+
+/**
+ * What was said, or how much of it.
+ *
+ * With transcripts off the column keeps its place and reports length instead of
+ * going blank. "14 words" on the turn that collects a date of birth is a useful
+ * thing to see; an empty cell is not, and a column that disappears entirely
+ * changes the shape of the table between one deployment and the next.
+ */
+function Said({
+    text,
+    words,
+    enabled,
+}: {
+    text: string | null;
+    words: number;
+    enabled: boolean;
+}) {
+    if (enabled) {
+        return <>{text || <span className="text-muted-foreground">—</span>}</>;
+    }
+    if (words === 0) {
+        return <span className="text-muted-foreground">—</span>;
+    }
+    return (
+        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+            {words} {words === 1 ? 'word' : 'words'}
+        </span>
     );
 }
 

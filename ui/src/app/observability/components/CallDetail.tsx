@@ -232,7 +232,7 @@ export function CallDetail({ call, onBack }: CallDetailProps) {
                 detail && (
                     <TurnTable
                         turns={detail.turn_rows}
-                        transcriptsHidden={detail.transcripts_available}
+                        transcriptsEnabled={detail.transcripts_enabled}
                     />
                 )
             )}

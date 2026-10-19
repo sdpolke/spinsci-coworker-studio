@@ -83,8 +83,9 @@ export interface TurnRow {
     /** Null unless SPINSCI_TELEMETRY_TRANSCRIPTS is enabled. */
     caller: string | null;
     agent: string | null;
-    /** True when this turn had speech but the transcript is withheld. */
-    transcripts_hidden: boolean;
+    /** Word counts, reported whether or not the text itself is. */
+    caller_words: number;
+    agent_words: number;
     /** The MCP tool that ran, or the workflow node when none did. */
     route: string;
     node: string | null;
@@ -165,8 +166,8 @@ export interface CallDetail {
     tokens_out: number | null;
     tts_characters: number | null;
     failures: number;
-    /** True when transcripts exist but are withheld by configuration. */
-    transcripts_available: boolean;
+    /** Whether SPINSCI_TELEMETRY_TRANSCRIPTS is on. The setting, not a guess. */
+    transcripts_enabled: boolean;
     turn_rows: TurnRow[];
     timeline: SpanRow[];
 }

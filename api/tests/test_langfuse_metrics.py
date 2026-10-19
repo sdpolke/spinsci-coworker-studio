@@ -521,13 +521,16 @@ def test_transcripts_are_withheld_unless_switched_on(stub_langfuse, monkeypatch)
     monkeypatch.delenv("SPINSCI_TELEMETRY_TRANSCRIPTS", raising=False)
     (hidden,) = metrics.turn_breakdown(metrics.load(WINDOW).by_call["call"])
     assert hidden["caller"] is None and hidden["agent"] is None
-    assert hidden["transcripts_hidden"] is True
     assert hidden["first_word"] == pytest.approx(0.40)
+    # Lengths survive the flag, so the column reports "6 words" rather than
+    # going blank. They are also what the column is mostly read for.
+    assert hidden["caller_words"] == 6
+    assert hidden["agent_words"] == 7
 
     monkeypatch.setenv("SPINSCI_TELEMETRY_TRANSCRIPTS", "true")
     (shown,) = metrics.turn_breakdown(metrics.load(WINDOW).by_call["call"])
     assert "Theodore Mychart" in shown["caller"]
-    assert shown["transcripts_hidden"] is False
+    assert shown["caller_words"] == 6
 
 
 def test_route_falls_back_to_the_node_when_no_tool_ran(stub_langfuse):
@@ -560,3 +563,20 @@ def test_percentiles_travel_with_their_sample_count(stub_langfuse):
     assert stats["first_token_samples"] == 1
     assert stats["p99_first_word"] is not None
     assert stats["p50_first_token"] == pytest.approx(0.2)
+
+
+def test_the_transcript_flag_is_read_not_inferred(stub_langfuse, monkeypatch):
+    """Inferring it from "did any row have text" made a silent call look like a
+    configured one, so the columns appeared on that call and nowhere else."""
+    monkeypatch.delenv("SPINSCI_TELEMETRY_TRANSCRIPTS", raising=False)
+    silent = trace_row("silent")
+    stub_langfuse([silent], [turn("silent", 1, start="2026-10-12T10:00:00Z")])
+
+    def fake_get(path, params):
+        return silent if path.endswith("silent") else None
+
+    monkeypatch.setattr(metrics, "_get", fake_get)
+    detail = metrics.call_detail("silent")
+    assert detail is not None
+    # No speech on this call at all, and the answer still reflects the setting.
+    assert detail["transcripts_enabled"] is False

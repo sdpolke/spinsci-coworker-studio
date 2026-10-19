@@ -874,6 +874,8 @@ def turn_breakdown(spans: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     transcripts = show_transcripts()
     rows: list[dict[str, Any]] = []
     for row in buckets:
+        caller_text = " ".join(row["caller"])
+        agent_text = " ".join(row["agent"])
         ttft = row["ttft"]
         first_audio = row["first_audio"]
         # What the caller waits through: transcription, then the model's first
@@ -886,10 +888,15 @@ def turn_breakdown(spans: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
         rows.append(
             {
                 **{k: v for k, v in row.items() if k not in {"caller", "agent"}},
-                "caller": " ".join(row["caller"]) if transcripts else None,
-                "agent": " ".join(row["agent"]) if transcripts else None,
-                "transcripts_hidden": not transcripts
-                and bool(row["caller"] or row["agent"]),
+                "caller": caller_text if transcripts else None,
+                "agent": agent_text if transcripts else None,
+                # Lengths are safe to report whichever way the flag is set, and
+                # they answer most of what the text was being read for: whether
+                # the caller gave a one-word answer or a monologue, and whether
+                # the agent talked over them. A column that says "4 words" is
+                # worth more than one that is blank.
+                "caller_words": len(caller_text.split()) if caller_text else 0,
+                "agent_words": len(agent_text.split()) if agent_text else 0,
                 "first_word": first_word,
                 "agent_seconds": (
                     (row["stt_lag"] or 0.0)
@@ -1225,7 +1232,10 @@ def call_detail(trace_id: str) -> dict[str, Any] | None:
         "tokens_out": sum(r["tokens_out"] or 0 for r in rows) or None,
         "tts_characters": sum(r["tts_characters"] or 0 for r in rows) or None,
         "failures": sum(r["failures"] for r in rows),
-        "transcripts_available": any(r.get("transcripts_hidden") for r in rows),
+        # The setting itself, not a guess from the data. Inferring it from
+        # "did any row have text" made a silent call look like a configured
+        # one, so the columns appeared on that call and nowhere else.
+        "transcripts_enabled": show_transcripts(),
         "turn_rows": rows,
         "timeline": timeline,
     }
