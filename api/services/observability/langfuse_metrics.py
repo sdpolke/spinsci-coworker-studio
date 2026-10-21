@@ -48,6 +48,7 @@ from api.constants import (
 from api.services.observability.conventions import (
     CALL_NODE,
     CHANNEL_LABELS,
+    ORG_ID,
     TOOL_DURATION_MS,
     TOOL_ERROR_KIND,
     TOOL_NAME,
@@ -200,6 +201,68 @@ def channel_of(trace: dict[str, Any]) -> CallChannel:
 def channel_label(trace: dict[str, Any]) -> str:
     channel = channel_of(trace)
     return CHANNEL_LABELS.get(channel, str(channel))
+
+
+def _require_organisation(organization_id: int | str | None) -> str:
+    """The caller's organisation as a comparable string, or refuse.
+
+    Called before any request is made. Two ways this was wrong: the check sat
+    after the fetch, so an absent tenant still hit the network; and ``None``
+    reached ``str()``, which yields the truthy ``"None"`` and sailed through as
+    a filter that matched nothing. An empty dashboard reads as "no calls", not
+    as "this query was never scoped", which is the worse of the two failures.
+    """
+    if organization_id is None:
+        raise ValueError("organization_id is required to read call telemetry")
+    organisation = str(organization_id).strip()
+    if not organisation:
+        raise ValueError("organization_id is required to read call telemetry")
+    return organisation
+
+
+def organisation_of(observation: dict[str, Any]) -> str | None:
+    """The organisation a span belongs to, as a trimmed string, or None.
+
+    Compared as strings throughout. The pipeline stamps the value with
+    ``str(org_id)``, while a caller's organisation arrives from the database as
+    an int, and ``1 != "1"``. Normalising at both ends is what stops a filter
+    that looks correct from matching nothing -- which on this path fails open
+    only if someone later "fixes" it by removing the filter.
+    """
+    value = _attributes(observation).get(ORG_ID)
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _owners_by_trace(observations: Iterable[dict[str, Any]]) -> dict[str, set[str]]:
+    """Which organisations each trace has spans for.
+
+    A trace carries no organisation of its own, so ownership is read from its
+    spans. A set rather than a single value on purpose: a trace showing spans
+    from two organisations is not something that should happen, and the caller
+    treats it as untrustworthy rather than picking one.
+    """
+    owners: dict[str, set[str]] = {}
+    for observation in observations:
+        trace_id = str(observation.get("traceId") or "")
+        organisation = organisation_of(observation)
+        if trace_id and organisation:
+            owners.setdefault(trace_id, set()).add(organisation)
+    return owners
+
+
+def _belongs_to(owners: set[str] | None, organisation: str) -> bool:
+    """Whether a trace is this organisation's, and unambiguously so.
+
+    Fails closed in both unclear cases. A trace with no organisation on any span
+    cannot be shown to anyone, because there is nothing to say it is theirs; a
+    trace with spans from more than one organisation cannot be shown either,
+    because at least one of them would be seeing another's call. Both are
+    excluded rather than guessed at.
+    """
+    return owners is not None and owners == {organisation}
 
 
 def _is_call(trace: dict[str, Any]) -> bool:
@@ -394,6 +457,8 @@ class CallData:
     """One window of telemetry, fetched once and reduced by every panel."""
 
     window: TimeWindow
+    #: The organisation every row here belongs to.
+    organization_id: str
     #: Traces that are real calls, newest first.
     calls: list[dict[str, Any]]
     #: Observations in scope for the aggregate panels.
@@ -403,15 +468,31 @@ class CallData:
     truncated: bool = False
 
 
-def load(window: TimeWindow, channel: str | None = None) -> CallData:
-    """Fetch the window once.
+def load(
+    window: TimeWindow, organization_id: int | str, channel: str | None = None
+) -> CallData:
+    """Fetch one organisation's window.
+
+    ``organization_id`` is positional and required. It was briefly absent, and
+    the result was two tenants reading each other's calls off a shared Langfuse
+    project: every span carries the organisation, and nothing consulted it. A
+    default of None would have let the same mistake back in silently, so there
+    is no default.
+
+    Scoping happens before anything else. Spans are filtered to this
+    organisation, traces are kept only where their spans unambiguously belong to
+    it, and every panel reduces what is left -- so a tool, a model or a failure
+    from another tenant cannot reach a figure, let alone a row.
 
     The channel filter is applied to *traces* and then propagated to their
-    observations, so narrowing to browser calls narrows every panel -- the
-    tools, the models and the layers included. Filtering on a span attribute,
-    which is what this did before, matched nothing: the channel lives on the
-    trace, not on each span.
+    observations, so narrowing to browser calls narrows every panel. Filtering
+    on a span attribute, which is what this did before, matched nothing: the
+    channel lives on the trace, not on each span.
     """
+    # Before the fetch, deliberately: an unscoped read should cost nothing and
+    # reach nothing.
+    organisation = _require_organisation(organization_id)
+
     ceiling = _row_ceiling()
     traces, traces_truncated = _paged(
         "/api/public/traces",
@@ -430,11 +511,18 @@ def load(window: TimeWindow, channel: str | None = None) -> CallData:
         ceiling,
     )
 
+    # Ownership is read from the spans, because a trace carries none itself.
+    owners = _owners_by_trace(observations)
+    observations = [o for o in observations if organisation_of(o) == organisation]
+
     wanted = channel.strip().lower() if channel else None
     calls: list[dict[str, Any]] = []
     excluded: set[str] = set()
     for trace in traces:
         trace_id = str(trace.get("id") or "")
+        if not _belongs_to(owners.get(trace_id), organisation):
+            excluded.add(trace_id)
+            continue
         if not _is_call(trace) or (wanted and str(channel_of(trace)) != wanted):
             excluded.add(trace_id)
             continue
@@ -449,10 +537,13 @@ def load(window: TimeWindow, channel: str | None = None) -> CallData:
         if trace_id in call_ids:
             by_call[trace_id].append(observation)
             kept.append(observation)
-        elif trace_id not in excluded and not wanted:
-            # A span whose trace was excluded is dropped. One whose trace we
-            # never saw -- its call began before the window -- is kept, because
-            # dropping it would lose real work rather than filter out noise.
+        elif trace_id not in excluded and not wanted and _belongs_to(
+            owners.get(trace_id), organisation
+        ):
+            # A span whose trace began before the window is kept, because
+            # dropping it would lose real work rather than filter out noise --
+            # but only once its own spans show it is this organisation's.
+            # Without that check an unseen trace would be kept on trust.
             kept.append(observation)
 
     for spans in by_call.values():
@@ -461,6 +552,7 @@ def load(window: TimeWindow, channel: str | None = None) -> CallData:
 
     return CallData(
         window=window,
+        organization_id=organisation,
         calls=calls,
         observations=kept,
         by_call=by_call,
@@ -1141,14 +1233,22 @@ def call_volume(data: CallData) -> list[dict[str, Any]]:
     return rows
 
 
-def call_detail(trace_id: str) -> dict[str, Any] | None:
+def call_detail(trace_id: str, organization_id: int | str) -> dict[str, Any] | None:
     """Every span of one call, in order, with its own timings.
+
+    Returns None unless the call unambiguously belongs to ``organization_id``.
+    A trace id is guessable and was previously the only thing this needed, so
+    any tenant could read any other tenant's call by id alone. Returning None
+    rather than raising keeps the route on a 404: a 403 would confirm the call
+    exists, which is itself worth knowing to someone probing ids.
 
     The drill-down behind a row of the per-call table: what the agent did, in
     sequence, and how long each step took. Offsets are relative to the start of
     the call, so a reader can see where in the conversation a slow step fell
     without doing arithmetic on timestamps.
     """
+    organisation = _require_organisation(organization_id)
+
     trace = _get(f"/api/public/traces/{trace_id}", {})
     if not trace:
         return None
@@ -1160,6 +1260,16 @@ def call_detail(trace_id: str) -> dict[str, Any] | None:
         )
     spans = [span for span in spans if isinstance(span, dict)]
     spans.sort(key=lambda span: str(span.get("startTime") or ""))
+
+    # Checked against every span, not the first one: a trace carrying spans
+    # from two organisations is not something to pick a winner from.
+    owners = {org for span in spans if (org := organisation_of(span))}
+    if owners != {organisation}:
+        logger.warning(
+            f"Refusing call {trace_id} to organisation {organisation}: "
+            f"span owners {sorted(owners) or 'none'}"
+        )
+        return None
 
     call_start = _parse_time(trace.get("timestamp")) or (
         _parse_time(spans[0].get("startTime")) if spans else None
@@ -1262,7 +1372,11 @@ class DashboardSnapshot:
     message: str | None = None
 
 
-def build_snapshot(window_hours: int = 24, channel: str | None = None) -> DashboardSnapshot:
+def build_snapshot(
+    organization_id: int | str,
+    window_hours: int = 24,
+    channel: str | None = None,
+) -> DashboardSnapshot:
     """Gather every panel for one dashboard render.
 
     One fetch, then every panel reduces the same rows, so no two panels can
@@ -1292,7 +1406,7 @@ def build_snapshot(window_hours: int = 24, channel: str | None = None) -> Dashbo
         )
 
     window = TimeWindow.last_hours(window_hours)
-    data = load(window, channel=channel)
+    data = load(window, organization_id, channel=channel)
 
     return DashboardSnapshot(
         configured=True,

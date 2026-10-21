@@ -52,7 +52,10 @@ async def call_summary(
     than failing the request, because four panels and a gap are more useful to
     someone debugging than a single error.
     """
+    # The caller's organisation scopes every panel. Passed positionally and
+    # without a default on the service side, so a future route cannot forget it.
     snapshot = langfuse_metrics.build_snapshot(
+        organization_id=user.selected_organization_id,
         window_hours=window_hours,
         channel=str(channel) if channel else None,
     )
@@ -73,7 +76,11 @@ async def call_detail(
     byte, so a slow or failed step can be found without leaving the platform
     for the raw trace viewer.
     """
-    detail = langfuse_metrics.call_detail(trace_id)
+    # 404 rather than 403 for a call belonging to another organisation: a 403
+    # confirms the trace exists, which is worth knowing to anyone guessing ids.
+    detail = langfuse_metrics.call_detail(
+        trace_id, organization_id=user.selected_organization_id
+    )
     if detail is None:
         raise HTTPException(status_code=404, detail="No trace with that id")
     return detail

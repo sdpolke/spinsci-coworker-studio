@@ -94,7 +94,16 @@ CALL_WORKFLOW_RUN_ID = "spinsci.call.workflow_run_id"
 CALL_NODE = "spinsci.call.node"              # workflow node the call was on
 
 # --- Organisation ---------------------------------------------------------
-ORG_ID = "spinsci.organization_id"
+#
+# The tenant discriminator, and the one attribute the telemetry read path must
+# never be wrong about: it is what keeps one organisation's calls off another
+# organisation's dashboard.
+#
+# The value here must match what ``_OrgAttributeSpanProcessor`` stamps on every
+# span in ``api/services/pipecat/tracing_config.py``. It previously read
+# ``spinsci.organization_id``, which nothing emits, so anything filtering by the
+# constant matched no spans at all. A test asserts the two agree.
+ORG_ID = "spinsci.org_id"
 
 
 class ToolOutcome(StrEnum):
