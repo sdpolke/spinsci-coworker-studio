@@ -59,6 +59,10 @@ from api.services.observability.conventions import (
     ToolOutcome,
     channel_for_transport,
 )
+from api.services.observability.credentials import (
+    CredentialSource,
+    LangfuseCredentials,
+)
 
 # One page of observations. Langfuse caps a page well below this; the loop
 # below pages until the window is covered or the ceiling is reached.
@@ -102,23 +106,27 @@ class TimeWindow:
         return cls(start=end - timedelta(hours=hours), end=end)
 
 
-def _get(path: str, params: dict[str, Any]) -> dict[str, Any] | None:
+def _get(
+    path: str, params: dict[str, Any], credentials: LangfuseCredentials | None
+) -> dict[str, Any] | None:
     """One authenticated GET against the Langfuse public API.
 
     Returns None on any failure. A panel that cannot load should leave the rest
     of the dashboard standing, so nothing here raises except a genuinely
     missing configuration, which the caller reports differently.
     """
-    if not is_configured():
+    if credentials is None or not credentials.configured:
         raise LangfuseNotConfigured(
-            "LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY must all be set"
+            "No Langfuse credentials for this organisation. Set them in "
+            "organisation settings, or configure LANGFUSE_HOST, "
+            "LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY for the deployment."
         )
-    url = f"{str(LANGFUSE_HOST).rstrip('/')}{path}"
+    url = f"{credentials.host.rstrip('/')}{path}"
     try:
         response = httpx.get(
             url,
             params=params,
-            auth=(str(LANGFUSE_PUBLIC_KEY), str(LANGFUSE_SECRET_KEY)),
+            auth=(credentials.public_key, credentials.secret_key),
             timeout=_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
@@ -129,7 +137,10 @@ def _get(path: str, params: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _paged(
-    path: str, params: dict[str, Any], limit: int
+    path: str,
+    params: dict[str, Any],
+    limit: int,
+    credentials: LangfuseCredentials,
 ) -> tuple[list[dict[str, Any]], bool]:
     """Every page of a listing endpoint, up to ``limit`` rows.
 
@@ -141,7 +152,7 @@ def _paged(
     page = 1
     truncated = False
     while True:
-        payload = _get(path, {**params, "limit": _PAGE_SIZE, "page": page})
+        payload = _get(path, {**params, "limit": _PAGE_SIZE, "page": page}, credentials)
         if not payload:
             break
         batch = payload.get("data") or []
@@ -469,7 +480,10 @@ class CallData:
 
 
 def load(
-    window: TimeWindow, organization_id: int | str, channel: str | None = None
+    window: TimeWindow,
+    organization_id: int | str,
+    credentials: LangfuseCredentials,
+    channel: str | None = None,
 ) -> CallData:
     """Fetch one organisation's window.
 
@@ -501,6 +515,7 @@ def load(
             "toTimestamp": window.end.isoformat(),
         },
         ceiling,
+        credentials,
     )
     observations, observations_truncated = _paged(
         "/api/public/observations",
@@ -509,6 +524,7 @@ def load(
             "toStartTime": window.end.isoformat(),
         },
         ceiling,
+        credentials,
     )
 
     # Ownership is read from the spans, because a trace carries none itself.
@@ -1233,7 +1249,11 @@ def call_volume(data: CallData) -> list[dict[str, Any]]:
     return rows
 
 
-def call_detail(trace_id: str, organization_id: int | str) -> dict[str, Any] | None:
+def call_detail(
+    trace_id: str,
+    organization_id: int | str,
+    credentials: LangfuseCredentials,
+) -> dict[str, Any] | None:
     """Every span of one call, in order, with its own timings.
 
     Returns None unless the call unambiguously belongs to ``organization_id``.
@@ -1249,14 +1269,17 @@ def call_detail(trace_id: str, organization_id: int | str) -> dict[str, Any] | N
     """
     organisation = _require_organisation(organization_id)
 
-    trace = _get(f"/api/public/traces/{trace_id}", {})
+    trace = _get(f"/api/public/traces/{trace_id}", {}, credentials)
     if not trace:
         return None
 
     spans = trace.get("observations")
     if not isinstance(spans, list) or not spans:
         spans, _ = _paged(
-            "/api/public/observations", {"traceId": trace_id}, _row_ceiling()
+            "/api/public/observations",
+            {"traceId": trace_id},
+            _row_ceiling(),
+            credentials,
         )
     spans = [span for span in spans if isinstance(span, dict)]
     spans.sort(key=lambda span: str(span.get("startTime") or ""))
@@ -1369,11 +1392,15 @@ class DashboardSnapshot:
     failures: list[dict[str, Any]]
     models: list[dict[str, Any]]
     truncated: bool = False
+    #: Which Langfuse answered: this organisation's own project, or the
+    #: deployment's. An empty dashboard means different things in each case.
+    credentials_source: str = str(CredentialSource.ENVIRONMENT)
     message: str | None = None
 
 
 def build_snapshot(
     organization_id: int | str,
+    credentials: LangfuseCredentials,
     window_hours: int = 24,
     channel: str | None = None,
 ) -> DashboardSnapshot:
@@ -1384,7 +1411,7 @@ def build_snapshot(
     than sixteen.
     """
     now = datetime.now(timezone.utc)
-    if not is_configured():
+    if not credentials.configured:
         return DashboardSnapshot(
             configured=False,
             window_hours=window_hours,
@@ -1399,14 +1426,16 @@ def build_snapshot(
             tool_outcomes=[],
             failures=[],
             models=[],
+            credentials_source=str(credentials.source),
             message=(
-                "Langfuse is not configured. Set LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY "
-                "and LANGFUSE_SECRET_KEY to enable call telemetry."
+                "Langfuse is not configured for this organisation. Set its "
+                "credentials in organisation settings, or configure them for "
+                "the deployment, to enable call telemetry."
             ),
         )
 
     window = TimeWindow.last_hours(window_hours)
-    data = load(window, organization_id, channel=channel)
+    data = load(window, organization_id, credentials, channel=channel)
 
     return DashboardSnapshot(
         configured=True,
@@ -1423,6 +1452,7 @@ def build_snapshot(
         failures=failures(data),
         models=model_performance(data),
         truncated=data.truncated,
+        credentials_source=str(credentials.source),
         message=(
             f"Showing the most recent {len(data.observations):,} spans in this window. "
             "Narrow the window for exact figures."

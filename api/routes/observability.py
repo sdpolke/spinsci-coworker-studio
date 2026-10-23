@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from api.db.models import UserModel
 from api.services.auth.depends import get_user_with_selected_organization
+from api.services.observability import credentials as langfuse_credentials
 from api.services.observability import langfuse_metrics
 from api.services.observability.conventions import CallChannel
 
@@ -54,8 +55,14 @@ async def call_summary(
     """
     # The caller's organisation scopes every panel. Passed positionally and
     # without a default on the service side, so a future route cannot forget it.
+    # Resolved here because it reads configuration, and handed to the read
+    # layer as an argument: an organisation with its own Langfuse must be read
+    # from the same project the exporter writes it to, or it sees an empty page
+    # on the day it configures one.
+    creds = await langfuse_credentials.resolve(user.selected_organization_id)
     snapshot = langfuse_metrics.build_snapshot(
         organization_id=user.selected_organization_id,
+        credentials=creds,
         window_hours=window_hours,
         channel=str(channel) if channel else None,
     )
@@ -78,8 +85,11 @@ async def call_detail(
     """
     # 404 rather than 403 for a call belonging to another organisation: a 403
     # confirms the trace exists, which is worth knowing to anyone guessing ids.
+    creds = await langfuse_credentials.resolve(user.selected_organization_id)
     detail = langfuse_metrics.call_detail(
-        trace_id, organization_id=user.selected_organization_id
+        trace_id,
+        organization_id=user.selected_organization_id,
+        credentials=creds,
     )
     if detail is None:
         raise HTTPException(status_code=404, detail="No trace with that id")
@@ -96,15 +106,19 @@ async def status(
     Without it, both render as zeroes and the difference only surfaces when
     somebody asks why there are no calls.
     """
-    configured = langfuse_metrics.is_configured()
+    creds = await langfuse_credentials.resolve(user.selected_organization_id)
     return {
-        "configured": configured,
+        "configured": creds.configured,
+        # Which project answered. "No calls" and "no calls in your own project"
+        # are different answers, and only one is a reason to check settings.
+        "source": str(creds.source),
         "message": (
             None
-            if configured
+            if creds.configured
             else (
-                "Langfuse is not configured. Set LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY "
-                "and LANGFUSE_SECRET_KEY to enable call telemetry."
+                "Langfuse is not configured for this organisation. Set its "
+                "credentials in organisation settings, or configure them for "
+                "the deployment, to enable call telemetry."
             )
         ),
     }

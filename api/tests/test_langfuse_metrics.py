@@ -28,6 +28,14 @@ from api.services.observability.conventions import (
     ToolOutcome,
     channel_for_transport,
 )
+from api.services.observability.credentials import CredentialSource, LangfuseCredentials
+
+ENV_CREDENTIALS = LangfuseCredentials(
+    host="https://langfuse.example",
+    public_key="pk-test",
+    secret_key="sk-test",
+    source=CredentialSource.ENVIRONMENT,
+)
 
 WINDOW = metrics.TimeWindow(
     start=datetime(2026, 10, 12, tzinfo=timezone.utc),
@@ -124,7 +132,7 @@ def stub_langfuse(monkeypatch):
     """Serve fixed traces and observations in place of the HTTP calls."""
 
     def install(traces: list[dict], observations: list[dict], truncated: bool = False):
-        def fake_paged(path: str, params: dict, limit: int):
+        def fake_paged(path: str, params: dict, limit: int, credentials=None):
             rows = traces if "traces" in path else observations
             return list(rows), truncated
 
@@ -199,7 +207,7 @@ def test_a_synthetic_trace_is_excluded_from_call_figures(stub_langfuse):
         ],
         [span("real", "turn-1", latency=4.0), span("fake", "noise", latency=0.1)],
     )
-    data = metrics.load(WINDOW, ORG)
+    data = metrics.load(WINDOW, ORG, ENV_CREDENTIALS)
 
     assert [t["id"] for t in data.calls] == ["real"]
     # The synthetic trace's spans are dropped too, so the layer and tool panels
@@ -211,7 +219,7 @@ def test_a_synthetic_trace_is_excluded_from_call_figures(stub_langfuse):
 def test_a_span_whose_trace_began_before_the_window_is_kept(stub_langfuse):
     """Dropping it would lose real work rather than filter out noise."""
     stub_langfuse([trace_row("real")], [span("earlier-call", "turn-1", latency=3.0)])
-    data = metrics.load(WINDOW, ORG)
+    data = metrics.load(WINDOW, ORG, ENV_CREDENTIALS)
     assert [o["traceId"] for o in data.observations] == ["earlier-call"]
 
 
@@ -232,13 +240,13 @@ def test_the_channel_filter_narrows_every_panel(stub_langfuse):
         [tool_span("web", "epic_patient_lookup"), tool_span("phone", "epic_get_open_slots")],
     )
 
-    telephony = metrics.load(WINDOW, ORG, channel="telephony")
+    telephony = metrics.load(WINDOW, ORG, ENV_CREDENTIALS, channel="telephony")
     assert [t["id"] for t in telephony.calls] == ["phone"]
     assert [row[TOOL_NAME] for row in metrics.tool_performance(telephony)] == [
         "epic_get_open_slots"
     ]
 
-    everything = metrics.load(WINDOW, ORG)
+    everything = metrics.load(WINDOW, ORG, ENV_CREDENTIALS)
     assert len(everything.calls) == 2
     assert len(metrics.tool_performance(everything)) == 2
 
@@ -260,7 +268,7 @@ def test_per_call_reports_one_row_with_the_shape_of_the_call(stub_langfuse):
             tool_span("call", "epic_get_open_slots", outcome="unavailable", ms=100.0),
         ],
     )
-    (row,) = metrics.per_call(metrics.load(WINDOW, ORG))
+    (row,) = metrics.per_call(metrics.load(WINDOW, ORG, ENV_CREDENTIALS))
 
     assert row["channel"] == "Telephony"
     assert row["transport"] == "twilio"
@@ -285,7 +293,7 @@ def test_per_call_still_reports_a_call_with_no_trace_latency(stub_langfuse):
         [trace_row("live", latency=None)],
         [span("live", "conversation", latency=42.0), span("live", "turn-1", latency=3.0)],
     )
-    (row,) = metrics.per_call(metrics.load(WINDOW, ORG))
+    (row,) = metrics.per_call(metrics.load(WINDOW, ORG, ENV_CREDENTIALS))
     assert row["duration"] == 42.0
 
 
@@ -304,7 +312,7 @@ def test_call_volume_groups_by_workflow_not_channel(stub_langfuse):
         # excluded by design and these rows would not appear at all.
         [span("a", "turn-1"), span("b", "turn-1"), span("c", "turn-1")],
     )
-    rows = metrics.call_volume(metrics.load(WINDOW, ORG))
+    rows = metrics.call_volume(metrics.load(WINDOW, ORG, ENV_CREDENTIALS))
 
     assert [(row["workflow"], row["count_count"]) for row in rows] == [
         ("GI Patient Scheduling Agent", 2),
@@ -329,7 +337,7 @@ def test_channel_breakdown_compares_browser_against_telephony(stub_langfuse):
             span("phone", "llm", latency=1.0, ttfb=0.6),
         ],
     )
-    rows = {row["channel"]: row for row in metrics.channel_breakdown(metrics.load(WINDOW, ORG))}
+    rows = {row["channel"]: row for row in metrics.channel_breakdown(metrics.load(WINDOW, ORG, ENV_CREDENTIALS))}
 
     assert rows["Browser"]["count_count"] == 2
     assert rows["Browser"]["avg_latency"] == 150.0
@@ -348,7 +356,7 @@ def test_tool_latency_prefers_the_recorded_duration_over_langfuse(stub_langfuse)
     observation["latency"] = 99.0
     stub_langfuse([trace_row("call")], [observation])
 
-    (row,) = metrics.tool_performance(metrics.load(WINDOW, ORG))
+    (row,) = metrics.tool_performance(metrics.load(WINDOW, ORG, ENV_CREDENTIALS))
     assert row["avg_latency"] == pytest.approx(0.25)
 
 
@@ -376,7 +384,7 @@ def test_models_carry_time_to_first_token(stub_langfuse):
             ),
         ],
     )
-    (row,) = metrics.model_performance(metrics.load(WINDOW, ORG))
+    (row,) = metrics.model_performance(metrics.load(WINDOW, ORG, ENV_CREDENTIALS))
 
     assert row["providedModelName"] == "openai/gpt-oss-120b"
     assert row["avg_latency"] == 1.5
@@ -396,7 +404,7 @@ def test_failures_cover_both_raising_and_degrading(stub_langfuse):
             tool_span("b", "epic_patient_lookup", outcome="ok"),
         ],
     )
-    rows = metrics.failures(metrics.load(WINDOW, ORG))
+    rows = metrics.failures(metrics.load(WINDOW, ORG, ENV_CREDENTIALS))
 
     degraded = next(row for row in rows if "epic_get_open_slots" in row["source"])
     assert degraded["count_count"] == 2
@@ -422,14 +430,14 @@ def test_layer_breakdown_excludes_the_container_spans(stub_langfuse):
             tool_span("call", "epic_patient_lookup", ms=500.0),
         ],
     )
-    layers = {row["layer"] for row in metrics.layer_breakdown(metrics.load(WINDOW, ORG))}
+    layers = {row["layer"] for row in metrics.layer_breakdown(metrics.load(WINDOW, ORG, ENV_CREDENTIALS))}
     assert layers == {"LLM", "Speech to text", "Text to speech", "Tools"}
 
 
 def test_a_truncated_window_says_so(stub_langfuse):
     """Partial figures presented as complete are worse than no figures."""
     stub_langfuse([trace_row("call")], [span("call", "turn-1")], truncated=True)
-    assert metrics.load(WINDOW, ORG).truncated is True
+    assert metrics.load(WINDOW, ORG, ENV_CREDENTIALS).truncated is True
 
 
 # --- percentiles -----------------------------------------------------------
@@ -477,7 +485,7 @@ def test_turn_breakdown_sums_stages_and_never_subtracts(stub_langfuse):
             span("call", "tts", latency=4.0, ttfb=0.11, start="2026-10-12T10:00:12Z"),
         ],
     )
-    (row,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG).by_call["call"])
+    (row,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG, ENV_CREDENTIALS).by_call["call"])
 
     assert row["llm_seconds"] == pytest.approx(2.086)
     assert row["tool_seconds"] == pytest.approx(3.64439)
@@ -501,7 +509,7 @@ def test_first_word_uses_the_transcription_lag_not_the_whole_stt_span(stub_langf
             span("call", "tts", latency=4.0, ttfb=0.10, start="2026-10-12T10:00:08Z"),
         ],
     )
-    (row,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG).by_call["call"])
+    (row,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG, ENV_CREDENTIALS).by_call["call"])
 
     assert row["first_word"] == pytest.approx(0.60)  # 0.30 + 0.20 + 0.10
     assert row["ttft"] == pytest.approx(0.20)
@@ -522,7 +530,7 @@ def test_a_tool_outliving_its_turn_is_still_counted(stub_langfuse):
              "startTime": "2026-10-12T10:00:30Z"},
         ],
     )
-    (row,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG).by_call["call"])
+    (row,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG, ENV_CREDENTIALS).by_call["call"])
     assert row["tool_calls"] == 1
     assert row["tool_seconds"] == pytest.approx(0.8)
 
@@ -540,7 +548,7 @@ def test_transcripts_are_withheld_unless_switched_on(stub_langfuse, monkeypatch)
     stub_langfuse([trace_row("call")], spans)
 
     monkeypatch.delenv("SPINSCI_TELEMETRY_TRANSCRIPTS", raising=False)
-    (hidden,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG).by_call["call"])
+    (hidden,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG, ENV_CREDENTIALS).by_call["call"])
     assert hidden["caller"] is None and hidden["agent"] is None
     assert hidden["first_word"] == pytest.approx(0.40)
     # Lengths survive the flag, so the column reports "6 words" rather than
@@ -549,7 +557,7 @@ def test_transcripts_are_withheld_unless_switched_on(stub_langfuse, monkeypatch)
     assert hidden["agent_words"] == 7
 
     monkeypatch.setenv("SPINSCI_TELEMETRY_TRANSCRIPTS", "true")
-    (shown,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG).by_call["call"])
+    (shown,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG, ENV_CREDENTIALS).by_call["call"])
     assert "Theodore Mychart" in shown["caller"]
     assert shown["caller_words"] == 6
 
@@ -563,7 +571,7 @@ def test_route_falls_back_to_the_node_when_no_tool_ran(stub_langfuse):
                  start="2026-10-12T10:00:01Z"),
         ],
     )
-    (row,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG).by_call["call"])
+    (row,) = metrics.turn_breakdown(metrics.load(WINDOW, ORG, ENV_CREDENTIALS).by_call["call"])
     assert row["route"] == "collect patient"
     assert row["tool_calls"] == 0
 
@@ -579,7 +587,7 @@ def test_percentiles_travel_with_their_sample_count(stub_langfuse):
             span("call", "tts", latency=1.0, ttfb=0.1, start="2026-10-12T10:00:02Z"),
         ],
     )
-    stats = metrics.turn_stats(metrics.load(WINDOW, ORG))
+    stats = metrics.turn_stats(metrics.load(WINDOW, ORG, ENV_CREDENTIALS))
     assert stats["first_word_samples"] == 1
     assert stats["first_token_samples"] == 1
     assert stats["p99_first_word"] is not None
@@ -593,11 +601,11 @@ def test_the_transcript_flag_is_read_not_inferred(stub_langfuse, monkeypatch):
     silent = trace_row("silent")
     stub_langfuse([silent], [turn("silent", 1, start="2026-10-12T10:00:00Z")])
 
-    def fake_get(path, params):
+    def fake_get(path, params, credentials=None):
         return silent if path.endswith("silent") else None
 
     monkeypatch.setattr(metrics, "_get", fake_get)
-    detail = metrics.call_detail("silent", ORG)
+    detail = metrics.call_detail("silent", ORG, ENV_CREDENTIALS)
     assert detail is not None
     # No speech on this call at all, and the answer still reflects the setting.
     assert detail["transcripts_enabled"] is False
@@ -620,7 +628,7 @@ def test_another_organisation_is_not_in_the_call_list(stub_langfuse):
             span("theirs", "llm-outbound", org=OTHER_ORG, latency=2.0, ttfb=0.2),
         ],
     )
-    data = metrics.load(WINDOW, ORG)
+    data = metrics.load(WINDOW, ORG, ENV_CREDENTIALS)
 
     assert [t["id"] for t in data.calls] == ["mine"]
     assert [row["workflow"] for row in metrics.call_volume(data)] == ["GI Scheduling"]
@@ -654,7 +662,7 @@ def test_another_organisation_cannot_reach_any_panel(stub_langfuse):
             ),
         ],
     )
-    data = metrics.load(WINDOW, ORG)
+    data = metrics.load(WINDOW, ORG, ENV_CREDENTIALS)
 
     assert [r[TOOL_NAME] for r in metrics.tool_performance(data)] == ["epic_patient_lookup"]
     assert all("schedule_callback" not in str(r) for r in metrics.failures(data))
@@ -668,8 +676,8 @@ def test_another_organisation_cannot_reach_any_panel(stub_langfuse):
 def test_a_trace_with_no_organisation_on_any_span_is_shown_to_nobody(stub_langfuse):
     """Fails closed. There is nothing to say whose it is, so it is no one's."""
     stub_langfuse([trace_row("orphan")], [span("orphan", "turn-1", org=None)])
-    assert metrics.load(WINDOW, ORG).calls == []
-    assert metrics.load(WINDOW, OTHER_ORG).calls == []
+    assert metrics.load(WINDOW, ORG, ENV_CREDENTIALS).calls == []
+    assert metrics.load(WINDOW, OTHER_ORG, ENV_CREDENTIALS).calls == []
 
 
 def test_a_trace_with_two_organisations_is_shown_to_neither(stub_langfuse):
@@ -679,8 +687,8 @@ def test_a_trace_with_two_organisations_is_shown_to_neither(stub_langfuse):
         [trace_row("mixed")],
         [span("mixed", "turn-1"), span("mixed", "llm-a", org=OTHER_ORG, latency=1.0)],
     )
-    assert metrics.load(WINDOW, ORG).calls == []
-    assert metrics.load(WINDOW, OTHER_ORG).calls == []
+    assert metrics.load(WINDOW, ORG, ENV_CREDENTIALS).calls == []
+    assert metrics.load(WINDOW, OTHER_ORG, ENV_CREDENTIALS).calls == []
 
 
 @pytest.mark.parametrize("given", [2, "2", " 2 "])
@@ -689,7 +697,7 @@ def test_the_organisation_matches_whatever_shape_it_arrives_in(stub_langfuse, gi
     as an int. 1 != "1", and a filter that matches nothing is the failure mode
     most likely to be "fixed" by removing it."""
     stub_langfuse([trace_row("mine")], [span("mine", "turn-1")])
-    assert len(metrics.load(WINDOW, given).calls) == 1
+    assert len(metrics.load(WINDOW, given, ENV_CREDENTIALS).calls) == 1
 
 
 @pytest.mark.parametrize("empty", ["", "   ", None])
@@ -697,16 +705,16 @@ def test_an_empty_organisation_is_refused_not_treated_as_no_filter(stub_langfuse
     """The dangerous default. An absent tenant must never widen the query."""
     stub_langfuse([trace_row("mine")], [span("mine", "turn-1")])
     with pytest.raises(ValueError):
-        metrics.load(WINDOW, empty)
+        metrics.load(WINDOW, empty, ENV_CREDENTIALS)
     with pytest.raises(ValueError):
-        metrics.call_detail("mine", empty)
+        metrics.call_detail("mine", empty, ENV_CREDENTIALS)
 
 
 @pytest.mark.parametrize("blank", ["", "   "])
 def test_a_blank_organisation_on_a_span_counts_as_no_evidence(stub_langfuse, blank):
     """An attribute present but empty proves nothing and must not match."""
     stub_langfuse([trace_row("mine")], [span("mine", "turn-1", org=blank)])
-    assert metrics.load(WINDOW, ORG).calls == []
+    assert metrics.load(WINDOW, ORG, ENV_CREDENTIALS).calls == []
 
 
 def test_a_span_whose_trace_began_before_the_window_needs_proof_too(stub_langfuse):
@@ -720,7 +728,7 @@ def test_a_span_whose_trace_began_before_the_window_needs_proof_too(stub_langfus
             span("earlier-theirs", "llm-b", org=OTHER_ORG, latency=9.0, ttfb=0.9),
         ],
     )
-    data = metrics.load(WINDOW, ORG)
+    data = metrics.load(WINDOW, ORG, ENV_CREDENTIALS)
     kept = {str(o.get("traceId")) for o in data.observations}
 
     assert "earlier-mine" in kept
@@ -736,7 +744,7 @@ def test_the_channel_filter_does_not_widen_the_tenant_filter(stub_langfuse):
         ],
         [span("mine", "turn-1"), span("theirs", "turn-1", org=OTHER_ORG)],
     )
-    data = metrics.load(WINDOW, ORG, channel="telephony")
+    data = metrics.load(WINDOW, ORG, ENV_CREDENTIALS, channel="telephony")
     assert [t["id"] for t in data.calls] == ["mine"]
     assert all(metrics.organisation_of(o) == ORG for o in data.observations)
 
@@ -749,7 +757,7 @@ def stub_trace(monkeypatch):
     """Serve one trace by id, the way the detail endpoint fetches it."""
 
     def install(trace: dict, spans: list[dict]):
-        def fake_get(path, params):
+        def fake_get(path, params, credentials=None):
             return {**trace, "observations": spans} if trace["id"] in path else None
 
         monkeypatch.setattr(metrics, "_get", fake_get)
@@ -760,14 +768,14 @@ def stub_trace(monkeypatch):
 def test_a_call_detail_is_refused_to_another_organisation(stub_trace):
     """A trace id is guessable and was the only thing this check had."""
     stub_trace(trace_row("theirs"), [span("theirs", "turn-1", org=OTHER_ORG)])
-    assert metrics.call_detail("theirs", ORG) is None
+    assert metrics.call_detail("theirs", ORG, ENV_CREDENTIALS) is None
     # And is served to the organisation it belongs to.
-    assert metrics.call_detail("theirs", OTHER_ORG) is not None
+    assert metrics.call_detail("theirs", OTHER_ORG, ENV_CREDENTIALS) is not None
 
 
 def test_a_call_detail_with_no_spans_proves_nothing_and_is_refused(stub_trace):
     stub_trace(trace_row("empty"), [])
-    assert metrics.call_detail("empty", ORG) is None
+    assert metrics.call_detail("empty", ORG, ENV_CREDENTIALS) is None
 
 
 def test_a_call_detail_with_mixed_organisations_is_refused(stub_trace):
@@ -775,8 +783,8 @@ def test_a_call_detail_with_mixed_organisations_is_refused(stub_trace):
         trace_row("mixed"),
         [span("mixed", "turn-1"), span("mixed", "llm-a", org=OTHER_ORG, latency=1.0)],
     )
-    assert metrics.call_detail("mixed", ORG) is None
-    assert metrics.call_detail("mixed", OTHER_ORG) is None
+    assert metrics.call_detail("mixed", ORG, ENV_CREDENTIALS) is None
+    assert metrics.call_detail("mixed", OTHER_ORG, ENV_CREDENTIALS) is None
 
 
 def test_a_call_detail_is_served_to_its_owner(stub_trace):
@@ -788,7 +796,7 @@ def test_a_call_detail_is_served_to_its_owner(stub_trace):
             span("mine", "tts", latency=1.0, ttfb=0.1),
         ],
     )
-    detail = metrics.call_detail("mine", ORG)
+    detail = metrics.call_detail("mine", ORG, ENV_CREDENTIALS)
     assert detail is not None
     assert detail["turns"] == 1
 
@@ -813,7 +821,7 @@ def test_the_org_attribute_matches_what_the_pipeline_stamps():
 
 def test_an_empty_window_scopes_cleanly(stub_langfuse):
     stub_langfuse([], [])
-    data = metrics.load(WINDOW, ORG)
+    data = metrics.load(WINDOW, ORG, ENV_CREDENTIALS)
     assert data.calls == [] and data.observations == []
     assert metrics.turn_stats(data)["conversations"] == 0
     assert metrics.per_call(data) == []
