@@ -19,6 +19,7 @@ infrastructure/cdk.out/
 infrastructure/dist/
 infrastructure/*.js
 infrastructure/*.d.ts
+.agents/tasks
 prd/
 .vercel
 
