@@ -1,6 +1,6 @@
 import re
 from functools import wraps
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urlparse, urlunparse
 
 import aiohttp
@@ -237,6 +237,35 @@ _GROQ_BAD_TOOL = re.compile(
     r"tool call validation failed.*?attempted to call tool '([^']+)'",
     re.IGNORECASE | re.DOTALL,
 )
+
+
+#: Reasoning models whose API accepts ``reasoning_effort: "minimal"``.
+#:
+#: Matched on the exact family rather than by substring. ``"gpt-5" in model``
+#: was true for every ``gpt-5.6-*`` model as well, which rejects "minimal"
+#: outright -- supported values there are none, low, medium, high and xhigh --
+#: so the request 400s and the caller hears nothing at all.
+_OPENAI_MINIMAL_EFFORT_MODELS = frozenset({"gpt-5", "gpt-5-mini", "gpt-5-nano"})
+
+
+def _openai_reasoning_settings(model: str) -> dict[str, Any] | None:
+    """Extra request fields for an OpenAI reasoning model, or None.
+
+    None on anything not recognised, which is the point. A forced value that a
+    model does not accept fails the whole completion, and on a voice call a
+    failed completion is silence: no error reaches the caller, the turn simply
+    never arrives. Saying nothing lets the model's own default stand, which is
+    always valid.
+
+    Deliberately not extended to the gpt-5.6 family. Those models differ in what
+    they are for -- one is tuned for speed, another for hard reasoning -- so
+    pinning an effort here would override the choice someone made by picking the
+    model, and would do it invisibly.
+    """
+    name = (model or "").strip().lower()
+    if name in _OPENAI_MINIMAL_EFFORT_MODELS:
+        return {"reasoning_effort": "minimal", "verbosity": "low"}
+    return None
 
 
 class SpinSciGroqLLMService(GroqLLMService):
@@ -1043,13 +1072,11 @@ def create_llm_service_from_provider(
         if base_url:
             _validate_runtime_service_url(base_url, "base_url")
             kwargs["base_url"] = base_url
-        if "gpt-5" in model:
+        reasoning = _openai_reasoning_settings(model)
+        if reasoning is not None:
             return OpenAILLMService(
                 api_key=api_key,
-                settings=OpenAILLMSettings(
-                    model=model,
-                    extra={"reasoning_effort": "minimal", "verbosity": "low"},
-                ),
+                settings=OpenAILLMSettings(model=model, extra=reasoning),
                 **kwargs,
             )
         return OpenAILLMService(
