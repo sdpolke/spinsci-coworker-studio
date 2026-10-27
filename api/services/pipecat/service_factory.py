@@ -243,9 +243,30 @@ _GROQ_BAD_TOOL = re.compile(
 #:
 #: Matched on the exact family rather than by substring. ``"gpt-5" in model``
 #: was true for every ``gpt-5.6-*`` model as well, which rejects "minimal"
-#: outright -- supported values there are none, low, medium, high and xhigh --
-#: so the request 400s and the caller hears nothing at all.
+#: outright, so the request 400s and the caller hears nothing at all.
 _OPENAI_MINIMAL_EFFORT_MODELS = frozenset({"gpt-5", "gpt-5-mini", "gpt-5-nano"})
+
+#: Models that must be told explicitly not to reason when tools are in play.
+#:
+#: These apply a reasoning effort of their own unless told otherwise, and on
+#: ``/v1/chat/completions`` that default is incompatible with function tools:
+#:
+#:   Function tools with reasoning_effort are not supported for gpt-5.6-luna
+#:   in /v1/chat/completions. To use function tools, use /v1/responses or set
+#:   reasoning_effort to 'none'.
+#:
+#: Sending nothing is therefore not the same as sending "none", which is the
+#: trap: the first fix here removed the setting and the call still failed.
+#: Every turn of a workflow call carries function tools, because that is how a
+#: transition is made, so this applies to all of them all of the time.
+#:
+#: The cost is real and worth stating: on this endpoint these models cannot
+#: reason while holding tools. Reasoning plus tools needs the Responses API,
+#: which this service does not speak. A model chosen for reasoning will not
+#: reason here.
+_OPENAI_NO_REASONING_WITH_TOOLS = frozenset(
+    {"gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"}
+)
 
 
 def _openai_reasoning_settings(model: str) -> dict[str, Any] | None:
@@ -257,14 +278,16 @@ def _openai_reasoning_settings(model: str) -> dict[str, Any] | None:
     never arrives. Saying nothing lets the model's own default stand, which is
     always valid.
 
-    Deliberately not extended to the gpt-5.6 family. Those models differ in what
-    they are for -- one is tuned for speed, another for hard reasoning -- so
-    pinning an effort here would override the choice someone made by picking the
-    model, and would do it invisibly.
+    The gpt-5.6 family is the exception, and not by choice: on this endpoint
+    they refuse function tools unless reasoning is explicitly switched off, and
+    every turn of a workflow call carries tools. See
+    ``_OPENAI_NO_REASONING_WITH_TOOLS``.
     """
     name = (model or "").strip().lower()
     if name in _OPENAI_MINIMAL_EFFORT_MODELS:
         return {"reasoning_effort": "minimal", "verbosity": "low"}
+    if name in _OPENAI_NO_REASONING_WITH_TOOLS:
+        return {"reasoning_effort": "none"}
     return None
 
 

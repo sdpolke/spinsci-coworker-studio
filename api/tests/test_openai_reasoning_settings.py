@@ -23,9 +23,18 @@ def test_the_gpt5_family_keeps_minimal_effort(model):
 
 
 @pytest.mark.parametrize("model", ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"])
-def test_the_gpt56_family_is_not_given_an_effort_it_rejects(model):
-    """The bug, pinned. These accept none/low/medium/high/xhigh, not minimal."""
-    assert _openai_reasoning_settings(model) is None
+def test_the_gpt56_family_is_told_explicitly_not_to_reason(model):
+    """Two bugs pinned at once.
+
+    First: these reject "minimal", so the substring match killed every call.
+
+    Second, and less obvious: removing the setting was not enough. They apply a
+    reasoning effort of their own, and on /v1/chat/completions that default is
+    incompatible with function tools -- which every turn of a workflow call
+    carries, because that is how a transition is made. Sending nothing is not
+    the same as sending "none".
+    """
+    assert _openai_reasoning_settings(model) == {"reasoning_effort": "none"}
 
 
 @pytest.mark.parametrize(
@@ -44,9 +53,17 @@ def test_case_and_whitespace_do_not_change_the_answer(model):
     assert _openai_reasoning_settings(model) == MINIMAL
 
 
+@pytest.mark.parametrize("model", ["GPT-5.6-Luna", " gpt-5.6-sol "])
+def test_case_and_whitespace_for_the_56_family_too(model):
+    assert _openai_reasoning_settings(model) == {"reasoning_effort": "none"}
+
+
 def test_a_name_that_merely_contains_a_known_one_is_not_matched():
     """The whole point: containment is not identity."""
-    assert _openai_reasoning_settings("gpt-5.6-luna") is None
+    assert _openai_reasoning_settings("gpt-5.6-luna") != {
+        "reasoning_effort": "minimal",
+        "verbosity": "low",
+    }
     assert _openai_reasoning_settings("not-gpt-5-really") is None
 
 
