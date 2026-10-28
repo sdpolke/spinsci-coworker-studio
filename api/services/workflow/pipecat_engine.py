@@ -68,6 +68,13 @@ from api.services.workflow.tools.knowledge_base import retrieve_from_knowledge_b
 from api.utils.template_renderer import render_template
 
 
+#: How many times a node may be entered in one call before the engine stops
+#: trusting the model's choice and takes the node's escape edge instead.
+#: Three allows a genuine retry -- a caller who wants different dates looked at
+#: twice -- while still ending a loop long before the caller does.
+MAX_NODE_VISITS = 3
+
+
 class PipecatEngine:
     def __init__(
         self,
@@ -113,6 +120,9 @@ class PipecatEngine:
         self._current_node: Optional[Node] = None
         self._current_system_prompt: str = ""
         self._current_reasoning_tools: tuple[ReasoningToolDefinition, ...] = ()
+        #: Function names this engine registered for the current node, so they
+        #: can be removed when the node is left rather than accumulating.
+        self._registered_function_names: set[str] = set()
         self._gathered_context: dict = {}
         self._user_response_timeout_task: Optional[asyncio.Task] = None
         self._pending_extraction_tasks: set[asyncio.Task] = set()
@@ -654,6 +664,7 @@ class PipecatEngine:
             transition_func,
             is_node_transition=True,
         )
+        self._registered_function_names.add(name)
 
     async def _register_knowledge_base_function(
         self, document_uuids: list[str]
@@ -844,6 +855,53 @@ class PipecatEngine:
             self._current_node, run_in_background=False
         )
 
+    def _loop_escape_edge(self, node: Node):
+        """The way out of a node that is being re-entered.
+
+        Prefers an edge that leaves the cycle, which in practice is a handoff
+        or an ending: those are the transitions that cannot lead back. Falls
+        back to any edge to a node not yet visited this call, and gives up
+        rather than guessing if every edge leads somewhere already seen.
+        """
+        if node.is_end or not node.out_edges:
+            return None
+        visits = self._gathered_context.get("visit_counts", {})
+
+        terminal = [
+            e
+            for e in node.out_edges
+            if (target := self.workflow.nodes.get(e.target)) is not None
+            and (target.is_end or not target.out_edges)
+        ]
+        if terminal:
+            return terminal[0]
+
+        unvisited = [e for e in node.out_edges if not visits.get(e.target)]
+        return unvisited[0] if unvisited else None
+
+    async def _unregister_node_functions(self) -> None:
+        """Remove the functions registered for the node we are leaving.
+
+        Only the names this engine registered are removed, so anything the
+        pipeline registered for its own purposes is left alone.
+        """
+        if not self._registered_function_names:
+            return
+        unregister = getattr(self.llm, "unregister_function", None)
+        if unregister is None:
+            logger.debug("LLM service cannot unregister functions; skipping")
+            self._registered_function_names.clear()
+            return
+        for name in sorted(self._registered_function_names):
+            try:
+                unregister(name)
+            except Exception as exc:  # noqa: BLE001 - a stale tool is not fatal
+                logger.warning(f"Could not unregister {name}: {exc}")
+        logger.debug(
+            f"Unregistered {len(self._registered_function_names)} functions from the previous node"
+        )
+        self._registered_function_names.clear()
+
     async def _setup_llm_context(self, node: Node) -> None:
         """Common method to set up LLM context"""
         # Set OTel span name for tracing
@@ -851,6 +909,21 @@ class PipecatEngine:
             self.context.set_otel_span_name(f"llm-{node.name}")
         except AttributeError:
             logger.warning(f"context has no set_otel_span_name method")
+
+        # Drop the previous node's functions before registering this node's.
+        #
+        # Registration accumulates on the LLM service and nothing used to
+        # remove it. On the cascade path that went unnoticed, because the
+        # advertised list is rebuilt from the context each turn. On the realtime
+        # path the service keeps its own list, so a single call grew from one
+        # tool to twelve: by the booking step the model was still being offered
+        # every earlier transition and every earlier tool.
+        #
+        # That defeats the per-node filtering outright. With `go_to_identify`
+        # still on the table at the booking step the model can walk backwards
+        # into a step it has already completed, which is the loop; with every
+        # Epic tool on the table it can book before it has a slot.
+        await self._unregister_node_functions()
 
         # Register transition functions if not an end node
         if not node.is_end:
@@ -950,6 +1023,29 @@ class PipecatEngine:
         nodes_visited = self._gathered_context.setdefault("nodes_visited", [])
         if node.name not in nodes_visited:
             nodes_visited.append(node.name)
+
+        # Count revisits, separately from the list above, which deduplicates
+        # for tagging and so can never show a loop. Nothing else in the engine
+        # bounded one: a node could be re-entered until the call hit its
+        # maximum duration, and the caller heard the same question until they
+        # hung up.
+        visits = self._gathered_context.setdefault("visit_counts", {})
+        visits[node_id] = visits.get(node_id, 0) + 1
+        if visits[node_id] > MAX_NODE_VISITS:
+            escape = self._loop_escape_edge(node)
+            if escape is not None:
+                logger.warning(
+                    f"Node {node.name} entered {visits[node_id]} times; taking "
+                    f"{escape.get_function_name()} rather than looping again"
+                )
+                self._gathered_context.setdefault("loops_broken", []).append(node.name)
+                visits[node_id] = 0
+                await self.set_node(escape.target, emit_transition_event=emit_transition_event)
+                return
+            logger.error(
+                f"Node {node.name} entered {visits[node_id]} times and has no escape "
+                "edge. Continuing, but this workflow can loop indefinitely."
+            )
 
         # Send node transition event if callback is provided
         if emit_transition_event and self._node_transition_callback:
