@@ -1209,11 +1209,19 @@ def create_llm_service_from_provider(
 
 
 @_report_service_factory_failures(ErrorSource.LLM, config_section="realtime")
-def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
+def create_realtime_llm_service(
+    user_config,
+    audio_config: "AudioConfig",
+    run_configs: dict[str, Any] | None = None,
+):
     """Create a realtime (speech-to-speech) LLM service that handles STT+LLM+TTS.
 
     These services bypass separate STT/TTS and handle audio directly via
     a bidirectional WebSocket connection. Reads from user_config.realtime.
+
+    ``run_configs`` carries the agent's workflow configurations, which is where
+    the caller-side listening settings live. It is optional so that callers with
+    no agent context (and existing tests) still get the tuned defaults.
     """
     realtime_config = user_config.realtime
     provider = realtime_config.provider
@@ -1238,12 +1246,20 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
             SessionProperties,
         )
 
+        from api.services.pipecat.realtime.input_audio import (
+            resolve_input_audio_tuning,
+        )
+
         # Pin the transcription language when configured. Without it the model
         # auto-detects per utterance, which misfires on short/noisy telephony
         # audio (e.g. Portuguese transcribed as English or Chinese).
         transcription_kwargs = {}
         if language:
             transcription_kwargs["language"] = language
+
+        # Noise reduction and turn detection. There is no local VAD in front of
+        # a realtime service, so these decide whether room noise becomes a turn.
+        input_tuning = resolve_input_audio_tuning(run_configs, audio_config)
 
         return SpinSciOpenAIRealtimeLLMService(
             api_key=api_key,
@@ -1255,6 +1271,7 @@ def create_realtime_llm_service(user_config, audio_config: "AudioConfig"):
                             transcription=InputAudioTranscription(
                                 **transcription_kwargs
                             ),
+                            **input_tuning,
                         ),
                         output=AudioOutput(
                             voice=voice or "alloy",

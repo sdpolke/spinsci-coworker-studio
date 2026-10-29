@@ -21,6 +21,15 @@ DEFAULT_PROVISIONAL_VAD_PAUSE_SECS = 1.5
 DEFAULT_TURN_STOP_STRATEGY = "transcription"
 DEFAULT_CONTEXT_COMPACTION_ENABLED = False
 
+# Speech-to-speech turn taking. A realtime model runs without local VAD, so
+# these are the only defence against room noise reading as the caller speaking.
+# Higher than the provider's 0.5 default, which a door closing clears.
+DEFAULT_REALTIME_VAD_THRESHOLD = 0.6
+DEFAULT_REALTIME_VAD_PREFIX_PADDING_MS = 300
+# A little longer than the provider's 500ms, so a caller pausing to think is
+# not treated as finished. Costs that much again before the model replies.
+DEFAULT_REALTIME_VAD_SILENCE_MS = 600
+
 
 class ExternalPBXFieldMapping(BaseModel):
     """Map one gathered-context value to a provider-native field."""
@@ -44,6 +53,43 @@ class AmbientNoiseConfigurationDefaults(BaseModel):
 
     enabled: bool = False
     volume: float = 0.3
+
+
+class RealtimeAudioInputDefaults(BaseModel):
+    """How a speech-to-speech session should listen to the caller.
+
+    Only read by realtime (speech-to-speech) providers. Cascade pipelines run
+    their own Silero VAD and are tuned through ``turn_start_strategy`` and the
+    ``*_stop_secs`` fields instead.
+
+    ``noise_reduction`` defaults to ``auto``, which picks ``near_field`` for a
+    telephony leg and ``far_field`` for a browser one -- a phone is held at the
+    mouth, a laptop sits across a desk. Set it explicitly where the caller's
+    equipment is known, and ``off`` to send the audio through untouched.
+
+    ``turn_detection`` stays on energy-based ``server_vad`` by default because
+    its reply timing is predictable. ``semantic_vad`` asks the model whether the
+    caller sounds finished, which handles a noisy line better at the cost of a
+    more variable pause before the agent speaks.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    noise_reduction: Literal["auto", "near_field", "far_field", "off"] = "auto"
+    turn_detection: Literal["server_vad", "semantic_vad", "off"] = "server_vad"
+    #: ``server_vad`` only. How loud, relative to the line, counts as speech.
+    threshold: float = Field(default=DEFAULT_REALTIME_VAD_THRESHOLD, ge=0.0, le=1.0)
+    #: ``server_vad`` only. Audio kept from before speech was detected, so the
+    #: first syllable is not clipped off the transcript.
+    prefix_padding_ms: int = Field(
+        default=DEFAULT_REALTIME_VAD_PREFIX_PADDING_MS, ge=0, le=5000
+    )
+    #: ``server_vad`` only. Silence before the caller counts as finished.
+    silence_duration_ms: int = Field(
+        default=DEFAULT_REALTIME_VAD_SILENCE_MS, ge=100, le=5000
+    )
+    #: ``semantic_vad`` only. How readily the model takes its turn.
+    eagerness: Literal["low", "medium", "high", "auto"] = "medium"
 
 
 class LangGraphEligibilityEvidence(BaseModel):
@@ -140,6 +186,9 @@ class WorkflowConfigurationDefaults(BaseModel):
 
     ambient_noise_configuration: AmbientNoiseConfigurationDefaults = Field(
         default_factory=AmbientNoiseConfigurationDefaults
+    )
+    realtime_audio_input: RealtimeAudioInputDefaults = Field(
+        default_factory=RealtimeAudioInputDefaults
     )
     max_call_duration: int = Field(
         default=DEFAULT_MAX_CALL_DURATION_SECONDS,

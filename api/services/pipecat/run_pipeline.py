@@ -788,7 +788,7 @@ async def _run_pipeline_impl(
 
     # Create services based on user configuration
     if is_realtime:
-        llm = create_realtime_llm_service(user_config, audio_config)
+        llm = create_realtime_llm_service(user_config, audio_config, run_configs)
         stt = None
         tts = None
         # Realtime services don't implement run_inference, so create a
