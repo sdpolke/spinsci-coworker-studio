@@ -858,13 +858,43 @@ class PipecatEngine:
     def _loop_escape_edge(self, node: Node):
         """The way out of a node that is being re-entered.
 
-        Prefers an edge that leaves the cycle, which in practice is a handoff
-        or an ending: those are the transitions that cannot lead back. Falls
-        back to any edge to a node not yet visited this call, and gives up
-        rather than guessing if every edge leads somewhere already seen.
+        Taken from the workflow when it says so. A transition marked
+        ``is_loop_escape`` is the author's answer to "the call has gone round
+        here too many times, now what", and it is used as given.
+
+        Nothing else can answer that question properly. Every ending asserts
+        something to the caller -- the appointment is booked, a colleague will
+        ring, they rang off themselves -- and which of those is true is exactly
+        what the engine has lost track of by the time it gets here. Picking by
+        graph shape picks by declaration order: on a real workflow that ended
+        three steps with "no problem, ring back any time" after the *engine*
+        gave up, and chose, for a booking step, the edge asserting a confirmed
+        appointment. Going forward instead is no better -- the next step along
+        from "offer" is "book", and booking a slot the caller never chose is
+        worse than any wording.
+
+        So when the workflow is silent, the old shape-based guess is kept
+        rather than changed, because an unbounded loop is worse than a clumsy
+        exit and existing workflows should not shift under us. It warns, once
+        per node, naming what to mark.
         """
         if node.is_end or not node.out_edges:
             return None
+
+        declared = [e for e in node.out_edges if getattr(e, "is_loop_escape", False)]
+        if declared:
+            if len(declared) > 1:
+                logger.warning(
+                    f"Node {node.name} marks {len(declared)} loop escapes; "
+                    f"using {declared[0].get_function_name()}"
+                )
+            return declared[0]
+
+        logger.warning(
+            f"Node {node.name} is being re-entered and marks no loop escape, so "
+            "one is being guessed from the graph. Mark the honest transition "
+            "with is_loop_escape to decide this deliberately."
+        )
         visits = self._gathered_context.get("visit_counts", {})
 
         terminal = [

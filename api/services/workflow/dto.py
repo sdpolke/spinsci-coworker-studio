@@ -1021,6 +1021,18 @@ class EdgeDataDTO(BaseModel):
     transition_speech: Optional[str] = None
     transition_speech_type: Optional[str] = None  # 'text' or 'audio'
     transition_speech_recording_id: Optional[str] = None
+    #: Take this transition when the engine has to break a loop.
+    #:
+    #: A node on a cycle can be re-entered until the engine stops it, and then
+    #: something has to be chosen. The engine cannot choose well: every ending
+    #: asserts something -- booked, transferred, the caller rang off -- and
+    #: which of those is true is exactly what it has lost track of. Inferring
+    #: it from graph shape picks whichever edge happens to be declared first.
+    #:
+    #: Whoever drew the workflow does know. Mark the transition that is honest
+    #: when the call has gone round too many times: normally the one that hands
+    #: the caller to a person. At most one per node.
+    is_loop_escape: bool = False
 
 
 class RFEdgeDTO(BaseModel):
