@@ -4,8 +4,6 @@ Welcome to SpinSci AI! ❤️ Thank you for your interest in contributing to the
 
 SpinSci AI is a comprehensive voice agent platform that helps developers build, test, and deploy conversational AI systems with minimal setup. This guide will help you understand the project structure, set up your development environment, and start contributing effectively.
 
-👉 Join our community → [SpinSci Community Slack](https://join.slack.com/t/SpinSci-community/shared_invite/zt-3zjb5vwvl-j7hRz3_F1SOn5cH~jm5f5g)
-
 ## 🏗️ Project Overview
 
 ### What is SpinSci AI?
@@ -40,7 +38,7 @@ Please refer to our [Development Setup documentation](https://docs.SpinSci.com/c
 **Before You Start**
 
 - Check existing [GitHub Issues](../../issues) for similar work
-- Join our [Slack community](https://join.slack.com/t/SpinSci-community/shared_invite/zt-3zjb5vwvl-j7hRz3_F1SOn5cH~jm5f5g) to discuss your plans
+- Open a [GitHub issue](../../issues) to discuss your plans
 - Look for issues tagged `good first issue` for beginner-friendly tasks
 
 **During Development**
@@ -89,13 +87,13 @@ Link the existing or newly created issue in the bug-fix pull request. Use a [Git
 
 ## 💬 Community & Support
 
-Our Slack community is the heart of SpinSci AI development:
+GitHub is where SpinSci AI development happens:
 
 - **Get Help**: Setup assistance and debugging support
 - **Collaborate**: Discuss features and architectural decisions
 - **Connect**: Meet other contributors and maintainers
 - **Stay Updated**: Learn about contribution opportunities and releases
 
-👉 **Join us**: [SpinSci Community Slack](https://join.slack.com/t/SpinSci-community/shared_invite/zt-3zjb5vwvl-j7hRz3_F1SOn5cH~jm5f5g)
+👉 **Start here**: [GitHub Issues](../../issues) and [Discussions](../../discussions)
 
 Thank you for helping us keep voice AI open and accessible! 🎉

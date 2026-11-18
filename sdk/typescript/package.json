@@ -3,7 +3,7 @@
   "version": "0.1.8",
   "description": "Typed builder for SpinSci voice-AI workflows",
   "license": "BSD-2-Clause",
-  "author": "Zansat Technologies Private Limited",
+  "author": "SpinSci",
   "homepage": "https://spinsci.com",
   "repository": {
     "type": "git",

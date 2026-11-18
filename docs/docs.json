@@ -40,7 +40,7 @@
           {
             "group": "Core Concepts",
             "pages": [
-              "core-concepts/how-dograh-works",
+              "core-concepts/how-spinsci-works",
               "core-concepts/workflows-and-agents",
               "core-concepts/calls-and-runs",
               "core-concepts/context-and-variables",

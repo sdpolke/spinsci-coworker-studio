@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "BSD-2-Clause" }
 authors = [
-    { name = "Zansat Technologies Private Limited", email = "contact@spinsci.com" },
+    { name = "SpinSci", email = "contact@spinsci.com" },
 ]
 keywords = ["spinsci", "voice-ai", "workflow", "sdk", "llm", "agent"]
 classifiers = [
