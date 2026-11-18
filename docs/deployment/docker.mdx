@@ -27,16 +27,6 @@ Start a new session, then ask it to *"set up SpinSci"* (or run `/SpinSci-setup` 
 
 ## Option 1: Local Docker Deployment
 
-Watch the video tutorial below for a step-by-step walkthrough of setting up SpinSci AI locally with Docker.
-
-<iframe
-  className="w-full aspect-video rounded-xl"
-  src="https://www.tella.tv/video/SpinSci-local-setup-with-docker-5wsf/embed?b=1&title=1&a=1&loop=0&t=0&muted=0&wt=1"
-  title="SpinSci Local Setup with Docker"
-  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-  allowFullScreen
-></iframe>
-
 For local development and testing, you can run SpinSci AI directly on your machine using Docker with a small startup script.
 
 ### Quick Start
@@ -109,16 +99,6 @@ To verify that media is actually traversing TURN (and not silently falling back 
 </Note>
 
 ## Option 2: Remote Server Deployment
-
-Watch the video tutorial below for a step-by-step walkthrough of deploying SpinSci AI to a remote server.
-
-<iframe
-  className="w-full aspect-video rounded-xl"
-  src="https://www.tella.tv/video/deploying-dogra-to-a-remote-server-80ai/embed?b=1&title=1&a=1&loop=0&t=0&muted=0&wt=1"
-  title="Deploying SpinSci to a Remote Server"
-  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-  allowFullScreen
-></iframe>
 
 Deploy SpinSci AI on a remote server to make it accessible from anywhere. If your server has a **public IP**, setup obtains a free, trusted HTTPS certificate automatically via [sslip.io](https://sslip.io) and Let's Encrypt — no domain name or DNS configuration required, and no browser warning. On a private/reserved IP it falls back to a self-signed certificate. **We need to serve the application over HTTPS, since modern browsers only allow microphone permissions for websites being served over HTTPS**.
 
